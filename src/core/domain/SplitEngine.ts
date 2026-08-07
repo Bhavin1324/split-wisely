@@ -8,11 +8,13 @@ export class SplitEngine {
   /** Equal split with remainder distribution to first N participants */
   static equalSplit(totalAmount: number, userIds: string[]): SplitParticipant[] {
     if (!userIds.length) return [];
-    const baseShare = Math.floor(totalAmount / userIds.length);
+    const baseShare = Math.trunc(totalAmount / userIds.length);
     const remainder = totalAmount % userIds.length;
+    const sign = Math.sign(remainder);
+    const absRemainder = Math.abs(remainder);
     return userIds.map((userId, index) => ({
       userId,
-      amountOwed: baseShare + (index < remainder ? 1 : 0),
+      amountOwed: baseShare + (index < absRemainder ? sign : 0),
     }));
   }
 
@@ -28,7 +30,8 @@ export class SplitEngine {
   /** Percentage split with rounding reconciliation on largest share */
   static percentageSplit(totalAmount: number, percentages: { userId: string; percentage: number }[]): SplitParticipant[] {
     const sumPercentages = percentages.reduce((acc, curr) => acc + curr.percentage, 0);
-    if (Math.abs(sumPercentages - 100) > 0.01) {
+    // Safe tolerance checking to account for floating-point 99.99 sum (0.010000000000005)
+    if (Math.abs(sumPercentages - 100) > 0.011) {
       throw new Error(`Percentages sum (${sumPercentages}) must equal 100`);
     }
     let calculatedSum = 0;
@@ -39,11 +42,15 @@ export class SplitEngine {
     });
     const diff = totalAmount - calculatedSum;
     if (diff !== 0 && splits.length > 0) {
-      let maxIdx = 0;
-      for (let i = 1; i < splits.length; i++) {
-        if (splits[i].percentage > splits[maxIdx].percentage) maxIdx = i;
+      const sorted = [...splits].sort((a, b) => b.percentage - a.percentage);
+      let i = 0;
+      const sign = Math.sign(diff);
+      let absDiff = Math.abs(diff);
+      while (absDiff > 0) {
+        sorted[i % sorted.length].amountOwed += sign;
+        absDiff -= 1;
+        i++;
       }
-      splits[maxIdx].amountOwed += diff;
     }
     return splits.map((s) => ({ userId: s.userId, amountOwed: s.amountOwed }));
   }
@@ -131,7 +138,14 @@ export class SplitEngine {
     let diff = totalAmount - finalCalculatedSum;
     if (diff !== 0 && finalSplits.length > 0) {
       const sortedFinalSplits = [...finalSplits].sort((a, b) => b.userSub - a.userSub);
-      sortedFinalSplits[0].amountOwed += diff;
+      let i = 0;
+      const sign = Math.sign(diff);
+      let absDiff = Math.abs(diff);
+      while (absDiff > 0) {
+        sortedFinalSplits[i % sortedFinalSplits.length].amountOwed += sign;
+        absDiff -= 1;
+        i++;
+      }
     }
 
     return finalSplits.map(s => ({ userId: s.userId, amountOwed: s.amountOwed }));

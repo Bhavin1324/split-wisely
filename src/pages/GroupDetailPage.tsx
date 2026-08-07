@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Avatar, Segmented, Empty, Tag, Button, Card } from 'antd';
+import { Avatar, Segmented, Empty, Tag, Button, Card, Dropdown, Modal, message } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   ArrowRight,
   Receipt,
@@ -8,9 +9,12 @@ import {
   Plus,
   CheckCircle2,
   DollarSign,
+  UserPlus,
+  Settings,
+  LogOut,
+  Trash2
 } from 'lucide-react';
 import {
-  MOCK_GROUPS,
   MOCK_EXPENSES,
   MOCK_SETTLEMENTS,
   MOCK_GROUP_MEMBERS,
@@ -18,36 +22,68 @@ import {
   getProfileById,
 } from '../lib/mockData';
 import { formatCents, getBalanceColorClass } from '../utils/currency';
+import { getCategoryIcon } from '../utils/icons';
 import { formatDate } from '../utils/date';
 import { DebtSimplifier } from '../core/domain/DebtSimplifier';
 import { AddExpenseModal } from '../components/AddExpenseModal';
+import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
+import { AddFriendModal } from '../components/AddFriendModal';
+import { SettleUpModal } from '../components/SettleUpModal';
+import { leaveGroup, deleteGroup } from '../hooks/supabase/useMutations';
+import { useAppData, DEMO_MODE } from '../context/AppDataContext';
+import { useAuth } from '../context/AuthContext';
+import { useGroupMembers } from '../hooks/supabase/useGroupsData';
+import { useExpenses } from '../hooks/supabase/useExpensesData';
+import { useSettlements } from '../hooks/supabase/useSettlementsData';
+import type { Profile, Expense } from '../types';
 
 export function GroupDetailPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [expenseToEdit, setExpenseToEdit] = useState<Expense | undefined>(undefined);
+  const [settleUpTarget, setSettleUpTarget] = useState<string | null>(null);
+
+  const { user } = useAuth();
+  const { currentUser, groups, refetchGroups } = useAppData();
+  const userId = currentUser?.id ?? user?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
+
+  const { data: liveMembers } = useGroupMembers(groupId);
+  const { data: liveExpenses } = useExpenses(groupId);
+  const { data: liveSettlements } = useSettlements(groupId);
 
   const group = useMemo(() => {
-    return MOCK_GROUPS.find((g) => g.id === groupId);
-  }, [groupId]);
+    return groups.find((g) => g.id === groupId);
+  }, [groups, groupId]);
 
   const groupMembers = useMemo(() => {
-    if (!groupId) return [];
-    return MOCK_GROUP_MEMBERS.filter((gm) => gm.group_id === groupId);
-  }, [groupId]);
+    if (DEMO_MODE) {
+      if (!groupId) return [];
+      return MOCK_GROUP_MEMBERS.filter((gm) => gm.group_id === groupId);
+    }
+    return liveMembers || [];
+  }, [groupId, liveMembers]);
 
   const groupExpenses = useMemo(() => {
-    if (!groupId) return [];
-    return MOCK_EXPENSES.filter((e) => e.group_id === groupId).sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-  }, [groupId]);
+    if (DEMO_MODE) {
+      if (!groupId) return [];
+      return MOCK_EXPENSES.filter((e) => e.group_id === groupId).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    }
+    return liveExpenses || [];
+  }, [groupId, liveExpenses]);
 
   const groupSettlements = useMemo(() => {
-    if (!groupId) return [];
-    return MOCK_SETTLEMENTS.filter((s) => s.group_id === groupId);
-  }, [groupId]);
+    if (DEMO_MODE) {
+      if (!groupId) return [];
+      return MOCK_SETTLEMENTS.filter((s) => s.group_id === groupId);
+    }
+    return liveSettlements || [];
+  }, [groupId, liveSettlements]);
 
   // Compute simplified debts for this group
   const simplifiedDebts = useMemo(() => {
@@ -71,14 +107,111 @@ export function GroupDetailPage() {
   }, [groupId, groupExpenses, groupSettlements, groupMembers]);
 
   // Compute user's net balance in this group
-  const userNetBalance = useMemo(() => {
+  const { userNetBalance, userOwes, userIsOwed } = useMemo(() => {
     let balance = 0;
+    let owes = 0;
+    let isOwed = 0;
     simplifiedDebts.forEach((debt) => {
-      if (debt.from === MOCK_CURRENT_USER.id) balance -= debt.amount;
-      if (debt.to === MOCK_CURRENT_USER.id) balance += debt.amount;
+      if (debt.from === userId) {
+        balance -= debt.amount;
+        owes += debt.amount;
+      }
+      if (debt.to === userId) {
+        balance += debt.amount;
+        isOwed += debt.amount;
+      }
     });
-    return balance;
-  }, [simplifiedDebts]);
+    return { userNetBalance: balance, userOwes: owes, userIsOwed: isOwed };
+  }, [simplifiedDebts, userId]);
+
+  const getProfile = (id: string) => {
+    if (DEMO_MODE) return getProfileById(id) as Profile | undefined;
+    const member = liveMembers?.find(m => m.user_id === id);
+    return member?.profile as Profile | undefined;
+  };
+
+  const handleLeaveGroup = () => {
+    if (userNetBalance !== 0 || simplifiedDebts.length > 0) {
+      Modal.confirm({
+        title: 'Unsettled Debts',
+        content: 'You cannot leave this group because you have unsettled debts. Please settle up first.',
+        okButtonProps: { danger: true, disabled: true },
+        cancelText: 'Cancel'
+      });
+      return;
+    }
+    Modal.confirm({
+      title: 'Leave Group',
+      content: 'Are you sure you want to leave this group?',
+      okText: 'Leave',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await leaveGroup(groupId!, userId);
+          message.success('Left group successfully');
+          refetchGroups();
+          navigate('/dashboard');
+        } catch (error: any) {
+          message.error(error.message || 'Failed to leave group');
+        }
+      }
+    });
+  };
+
+  const handleDeleteGroup = () => {
+    if (simplifiedDebts.length > 0) {
+      Modal.confirm({
+        title: 'Warning: Unsettled Debts!',
+        content: 'This group has unsettled expenses. Are you absolutely sure you want to delete it? This action cannot be undone.',
+        okText: 'Delete Anyway',
+        okButtonProps: { danger: true },
+        cancelText: 'Cancel',
+        onOk: async () => {
+          try {
+            await deleteGroup(groupId!);
+            message.success('Group deleted');
+            refetchGroups();
+            navigate('/dashboard');
+          } catch (error: any) {
+            message.error(error.message || 'Failed to delete group');
+          }
+        }
+      });
+      return;
+    }
+    Modal.confirm({
+      title: 'Delete Group',
+      content: 'Are you sure you want to delete this group?',
+      okText: 'Delete',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteGroup(groupId!);
+          message.success('Group deleted');
+          refetchGroups();
+          navigate('/dashboard');
+        } catch (error: any) {
+          message.error(error.message || 'Failed to delete group');
+        }
+      }
+    });
+  };
+
+  const settingsMenu: MenuProps['items'] = [
+    {
+      key: 'leave',
+      icon: <LogOut className="h-4 w-4" />,
+      label: 'Leave Group',
+      onClick: handleLeaveGroup,
+    },
+    {
+      key: 'delete',
+      danger: true,
+      icon: <Trash2 className="h-4 w-4" />,
+      label: 'Delete Group',
+      onClick: handleDeleteGroup,
+    },
+  ];
 
   if (!group) {
     return (
@@ -97,7 +230,7 @@ export function GroupDetailPage() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-surface-900 to-surface-800 p-6 text-white shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500/20 text-brand-400 text-2xl font-bold border border-brand-500/30">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-500/20 text-primary-400 text-2xl font-bold border border-primary-500/30">
               {group.name.charAt(0)}
             </div>
             <div>
@@ -105,7 +238,7 @@ export function GroupDetailPage() {
                 <h1 className="text-2xl font-bold tracking-tight text-white mb-0">
                   {group.name}
                 </h1>
-                <Tag color="green" className="rounded-full px-3">
+                <Tag className="bg-primary-500/10 text-primary-400 border border-primary-500/20 rounded-full px-3">
                   Active Group
                 </Tag>
               </div>
@@ -116,7 +249,7 @@ export function GroupDetailPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto mt-4 md:mt-0">
             <div className="text-right mr-2 hidden sm:block">
               <div className="text-xs text-gray-400">Your Group Balance</div>
               <div
@@ -126,16 +259,35 @@ export function GroupDetailPage() {
                   ? 'Settled up'
                   : formatCents(userNetBalance)}
               </div>
+              <div className="flex items-center justify-end gap-2 mt-0.5">
+                {userOwes > 0 && <span className="text-[10px] text-rose-300">You Owe {formatCents(userOwes)}</span>}
+                {userIsOwed > 0 && <span className="text-[10px] text-emerald-300">Owed {formatCents(userIsOwed)}</span>}
+              </div>
             </div>
+            <Button
+              icon={<UserPlus className="h-4 w-4" />}
+              size="large"
+              onClick={() => setIsAddMemberOpen(true)}
+              className="rounded-xl bg-primary-500/20 hover:bg-primary-500/30 text-primary-50 border border-primary-500/30 font-semibold"
+            >
+              <span className='hidden md:inline'>Invite Member</span>
+            </Button>
             <Button
               type="primary"
               icon={<Plus className="h-4 w-4" />}
               size="large"
               onClick={() => setIsAddExpenseOpen(true)}
-              className="rounded-xl bg-brand-500 hover:bg-brand-600 font-semibold"
+              className="rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none"
             >
-              Add Expense
+              <span className='hidden md:inline'>Add Expense</span>
             </Button>
+            <Dropdown menu={{ items: settingsMenu }} trigger={['click']} placement="bottomRight">
+              <Button
+                size="large"
+                icon={<Settings className="h-5 w-5" />}
+                className="rounded-xl bg-white/10 hover:bg-white/20 text-white border-white/20 ml-2"
+              />
+            </Dropdown>
           </div>
         </div>
 
@@ -145,12 +297,13 @@ export function GroupDetailPage() {
             <span className="text-xs text-gray-400 mr-2">Members:</span>
             <Avatar.Group maxCount={6} size="small">
               {groupMembers.map((m) => {
-                const profile = getProfileById(m.user_id);
+                const profile = getProfile(m.user_id);
+                console.log(profile)
                 const name = profile?.full_name ?? m.user_id;
                 return (
                   <Avatar
                     key={m.user_id}
-                    style={{ backgroundColor: '#16a34a' }}
+                    style={{ backgroundColor: 'var(--color-primary-500)' }}
                   >
                     {name.split(' ').map((n) => n[0]).join('')}
                   </Avatar>
@@ -162,18 +315,20 @@ export function GroupDetailPage() {
       </div>
 
       {/* ── Tab Selector ── */}
-      <div className="flex justify-between items-center border-b border-gray-200 pb-3">
-        <Segmented
-          options={[
-            { label: 'Expenses Feed', value: 'expenses', icon: <Receipt className="h-4 w-4 inline mr-1" /> },
-            { label: 'Balances & Settlements', value: 'balances', icon: <DollarSign className="h-4 w-4 inline mr-1" /> },
-          ]}
-          value={activeTab}
-          onChange={(val) => setActiveTab(val as 'expenses' | 'balances')}
-          className="bg-gray-100 p-1"
-        />
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-gray-200 pb-3">
+        <div className="overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+          <Segmented
+            options={[
+              { label: 'Expenses', value: 'expenses', icon: <Receipt className="h-4 w-4 inline mr-1" /> },
+              { label: 'Settlements', value: 'balances', icon: <DollarSign className="h-4 w-4 inline mr-1" /> },
+            ]}
+            value={activeTab}
+            onChange={(val) => setActiveTab(val as 'expenses' | 'balances')}
+            className="bg-gray-100 p-1"
+          />
+        </div>
 
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 font-medium">
           {activeTab === 'expenses' ? `${groupExpenses.length} expenses` : `${simplifiedDebts.length} pending debts`}
         </div>
       </div>
@@ -195,19 +350,23 @@ export function GroupDetailPage() {
             </Card>
           ) : (
             groupExpenses.map((expense) => {
-              const payer = getProfileById(expense.payer_id);
-              const isUserPayer = expense.payer_id === MOCK_CURRENT_USER.id;
-              const userSplit = expense.splits?.find((s) => s.user_id === MOCK_CURRENT_USER.id);
+              const payer = getProfile(expense.payer_id);
+              const isUserPayer = expense.payer_id === userId;
+              const userSplit = expense.splits?.find((s) => s.user_id === userId);
               const userOwesAmount = userSplit?.amount_owed ?? 0;
 
               return (
                 <div
                   key={expense.id}
-                  className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                  onClick={() => setSelectedExpense(expense)}
+                  className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                      <Receipt className="h-5 w-5" />
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
+                      {(() => {
+                        const CatIcon = getCategoryIcon(expense.category);
+                        return <CatIcon className="h-5 w-5" />;
+                      })()}
                     </div>
                     <div>
                       <div className="font-semibold text-gray-900">{expense.description}</div>
@@ -229,7 +388,7 @@ export function GroupDetailPage() {
                           You lent {formatCents(expense.total_amount - userOwesAmount)}
                         </span>
                       ) : (
-                        <span className="text-orange-500 font-medium">
+                        <span className="text-rose-500 font-medium">
                           You owe {formatCents(userOwesAmount)}
                         </span>
                       )}
@@ -247,29 +406,29 @@ export function GroupDetailPage() {
         <div className="space-y-4">
           <Card className="rounded-2xl border-gray-100 shadow-sm">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-brand-500" />
+              <CheckCircle2 className="h-5 w-5 text-primary-500" />
               Simplified Repayment Instructions
             </h3>
 
             {simplifiedDebts.length === 0 ? (
               <div className="py-8 text-center text-gray-500">
-                <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-2 opacity-80" />
+                <CheckCircle2 className="h-12 w-12 text-primary-500 mx-auto mb-2 opacity-80" />
                 <p className="font-medium text-gray-700">Everyone in this group is settled up!</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {simplifiedDebts.map((debt, index) => {
-                  const fromProfile = getProfileById(debt.from);
-                  const toProfile = getProfileById(debt.to);
-                  const isUserDebtor = debt.from === MOCK_CURRENT_USER.id;
-                  const isUserCreditor = debt.to === MOCK_CURRENT_USER.id;
+                  const fromProfile = getProfile(debt.from);
+                  const toProfile = getProfile(debt.to);
+                  const isUserDebtor = debt.from === userId;
+                  const isUserCreditor = debt.to === userId;
 
                   return (
                     <div
                       key={index}
                       className={`flex items-center justify-between p-4 rounded-xl border ${
                         isUserDebtor
-                          ? 'bg-orange-50/50 border-orange-100'
+                          ? 'bg-rose-50/50 border-rose-100'
                           : isUserCreditor
                           ? 'bg-emerald-50/50 border-emerald-100'
                           : 'bg-gray-50 border-gray-100'
@@ -285,7 +444,7 @@ export function GroupDetailPage() {
 
                         <ArrowRight className="h-4 w-4 text-gray-400" />
 
-                        <Avatar style={{ backgroundColor: '#16a34a' }}>
+                        <Avatar style={{ backgroundColor: 'var(--color-primary-500)' }}>
                           {toProfile?.full_name.charAt(0) ?? debt.to.charAt(0)}
                         </Avatar>
                         <span className="font-medium text-gray-900">
@@ -298,7 +457,7 @@ export function GroupDetailPage() {
                           {formatCents(debt.amount)}
                         </span>
                         {isUserDebtor && (
-                          <Button type="primary" size="small" className="rounded-lg bg-emerald-600">
+                          <Button type="primary" size="small" onClick={() => setSettleUpTarget(debt.to)} className="rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none text-white shadow-sm">
                             Settle Up
                           </Button>
                         )}
@@ -312,11 +471,37 @@ export function GroupDetailPage() {
         </div>
       )}
 
-      {/* Add Expense Modal */}
+      {/* Modals */}
       <AddExpenseModal
         open={isAddExpenseOpen}
-        onClose={() => setIsAddExpenseOpen(false)}
+        onClose={() => {
+          setIsAddExpenseOpen(false);
+          setExpenseToEdit(undefined);
+        }}
         groupId={groupId}
+        existingExpense={expenseToEdit}
+      />
+
+      <ExpenseStatementModal
+        open={!!selectedExpense}
+        expense={selectedExpense}
+        onClose={() => setSelectedExpense(null)}
+        onEdit={(expense) => {
+          setExpenseToEdit(expense);
+          setIsAddExpenseOpen(true);
+        }}
+      />
+
+      <AddFriendModal
+        open={isAddMemberOpen}
+        onClose={() => setIsAddMemberOpen(false)}
+        defaultGroupId={groupId}
+      />
+
+      <SettleUpModal
+        open={!!settleUpTarget}
+        onClose={() => setSettleUpTarget(null)}
+        defaultPayeeId={settleUpTarget ?? undefined}
       />
     </div>
   );

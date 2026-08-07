@@ -8,6 +8,7 @@ import { SpendingPage } from './pages/SpendingPage';
 import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
+import { JoinGroupPage } from './pages/JoinGroupPage';
 
 /**
  * Data-based router definition using createBrowserRouter (React Router v7).
@@ -16,6 +17,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/join',
+    element: <JoinGroupPage />,
   },
   {
     path: '/',
@@ -36,3 +41,4 @@ export const router = createBrowserRouter([
     element: <Navigate to="/dashboard" replace />,
   },
 ]);
+

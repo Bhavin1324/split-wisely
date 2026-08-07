@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { Card, Button, Select, Avatar, Divider, message } from 'antd';
-import { Download, User, Globe } from 'lucide-react';
+import { Download, User, Globe, Palette } from 'lucide-react';
 import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS } from '../lib/mockData';
 import { CurrencyAdapter } from '../adapters/CurrencyAdapter';
 import { ExportAdapter } from '../adapters/ExportAdapter';
 import { getStoredCurrency, setStoredCurrency } from '../utils/currency';
+import { useAppData, DEMO_MODE } from '../context/AppDataContext';
+import { useAuth } from '../context/AuthContext';
+import { useAllExpenses } from '../hooks/supabase/useExpensesData';
+import { updateProfile } from '../hooks/supabase/useMutations';
+import { useTheme } from '../context/ThemeContext';
+import type { ThemeType } from '../context/ThemeContext';
 
 function getInitials(name: string): string {
   return name
@@ -20,17 +26,36 @@ export function SettingsPage() {
   const [currency, setCurrency] = useState(getStoredCurrency());
   const [messageApi, contextHolder] = message.useMessage();
 
+  const { theme, setTheme } = useTheme();
+
+  const { user } = useAuth();
+  const { currentUser: contextUser } = useAppData();
+  const { data: liveExpenses } = useAllExpenses(user?.id);
+
+  const currentUser = contextUser ?? MOCK_CURRENT_USER;
+  const expenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses ?? []);
+
   const supportedCurrencies = CurrencyAdapter.getSupportedCurrencies();
 
-  const handleCurrencyChange = (value: string) => {
+  const handleCurrencyChange = async (value: string) => {
     setCurrency(value);
     setStoredCurrency(value);
-    MOCK_CURRENT_USER.default_currency = value;
-    messageApi.success(`Default currency updated to ${value}. All balances will now format in ${value}!`);
+    
+    if (DEMO_MODE) {
+      MOCK_CURRENT_USER.default_currency = value;
+      messageApi.success(`Default currency updated to ${value}. All balances will now format in ${value}!`);
+    } else if (user?.id) {
+      try {
+        await updateProfile(user.id, { default_currency: value });
+        messageApi.success(`Default currency updated to ${value}. All balances will now format in ${value}!`);
+      } catch (e) {
+        messageApi.error(`Failed to update default currency`);
+      }
+    }
   };
 
   const handleExportCSV = () => {
-    const csvData = MOCK_EXPENSES.map((exp) => ({
+    const csvData = expenses.map((exp) => ({
       id: exp.id,
       description: exp.description,
       amount_cents: exp.total_amount,
@@ -46,19 +71,19 @@ export function SettingsPage() {
   const handleExportJSON = () => {
     const backupData = {
       exportedAt: new Date().toISOString(),
-      user: MOCK_CURRENT_USER,
-      expenses: MOCK_EXPENSES,
-      settlements: MOCK_SETTLEMENTS,
+      user: currentUser,
+      expenses: expenses,
+      settlements: DEMO_MODE ? MOCK_SETTLEMENTS : [], // we skip settlements here since we just need expenses and simple data
     };
     ExportAdapter.exportToJSON(backupData, 'splitwisely-backup.json');
     messageApi.success('Full backup exported as JSON');
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <>
       {contextHolder}
-
-      <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+      <div className="flex flex-col gap-4 max-w-2xl">
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
 
       {/* Profile Section */}
       <Card className="rounded-2xl border-gray-100 shadow-sm">
@@ -70,16 +95,16 @@ export function SettingsPage() {
         <div className="flex items-center gap-4">
           <Avatar
             size={64}
-            style={{ backgroundColor: '#10b981', fontSize: '1.5rem' }}
+            style={{ backgroundColor: 'var(--color-primary-500)', fontSize: '1.5rem' }}
           >
-            {getInitials(MOCK_CURRENT_USER.full_name)}
+            {getInitials(currentUser.full_name)}
           </Avatar>
           <div>
             <p className="text-lg font-medium text-gray-900">
-              {MOCK_CURRENT_USER.full_name}
+              {currentUser.full_name}
             </p>
             <p className="text-sm text-gray-500">
-              Member since {new Date(MOCK_CURRENT_USER.created_at).toLocaleDateString('en-US', {
+              Member since {new Date(currentUser.created_at).toLocaleDateString('en-US', {
                 month: 'long',
                 year: 'numeric',
               })}
@@ -111,6 +136,33 @@ export function SettingsPage() {
         </div>
       </Card>
 
+      {/* Theme Section */}
+      <Card className="rounded-2xl border-gray-100 shadow-sm">
+        <div className="flex items-center gap-4">
+          <Palette className="w-5 h-5 text-gray-400 flex-shrink-0" />
+          <h2 className="text-base font-semibold text-gray-900">Application Theme</h2>
+        </div>
+        <Divider className="my-4" />
+        <div className="flex items-center gap-4">
+          <Select
+            value={theme}
+            onChange={(value) => setTheme(value as ThemeType)}
+            className="w-48"
+            options={[
+              { value: 'green', label: 'Emerald Green (Default)' },
+              { value: 'blue', label: 'Ocean Blue' },
+              { value: 'purple', label: 'Amethyst Purple' },
+              { value: 'rose', label: 'Ruby Rose' },
+              { value: 'orange', label: 'Sunset Orange' },
+              { value: 'teal', label: 'Modern Teal' },
+            ]}
+          />
+          <span className="text-sm text-gray-500">
+            Customize the look and feel of your app
+          </span>
+        </div>
+      </Card>
+
       {/* Export Section */}
       <Card className="rounded-2xl border-gray-100 shadow-sm">
         <div className="flex items-center gap-4">
@@ -130,6 +182,7 @@ export function SettingsPage() {
           </Button>
         </div>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }

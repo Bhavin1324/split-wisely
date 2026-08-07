@@ -14,6 +14,19 @@ const MOCK_RATES: Record<string, number> = {
  */
 export class CurrencyAdapter {
   static async getExchangeRate(fromCurrency: string, toCurrency: string): Promise<number> {
+    try {
+      const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+      if (response.ok) {
+        const data = await response.json();
+        const rates = data.rates;
+        const fromRate = rates[fromCurrency] ?? MOCK_RATES[fromCurrency] ?? 1.0;
+        const toRate = rates[toCurrency] ?? MOCK_RATES[toCurrency] ?? 1.0;
+        return (1 / fromRate) * toRate;
+      }
+    } catch (error) {
+      console.warn('Failed to fetch real exchange rates, falling back to mock rates.', error);
+    }
+
     const fromRate = MOCK_RATES[fromCurrency] ?? 1.0;
     const toRate = MOCK_RATES[toCurrency] ?? 1.0;
     return (1 / fromRate) * toRate;

@@ -18,6 +18,19 @@ export function setStoredCurrency(currencyCode: string): void {
 }
 
 /**
+ * Returns the currency symbol for a given or active currency code.
+ * e.g., USD -> $, INR -> ₹
+ */
+export function getCurrencySymbol(currencyCode?: string): string {
+  const activeCurrency = currencyCode || getStoredCurrency();
+  const parts = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: activeCurrency,
+  }).formatToParts(0);
+  return parts.find((p) => p.type === 'currency')?.value || '$';
+}
+
+/**
  * Formats an integer cents value to a localized currency display string.
  * Uses the active stored currency unless an explicit currencyCode is provided.
  * e.g., 1050 -> "$10.50" (USD) or "₹10.50" (INR)
@@ -62,6 +75,6 @@ export function centsToDecimal(cents: number): number {
  */
 export function getBalanceColorClass(cents: number): string {
   if (cents > 0) return 'text-emerald-500';
-  if (cents < 0) return 'text-orange-500';
+  if (cents < 0) return 'text-rose-500';
   return 'text-gray-400';
 }

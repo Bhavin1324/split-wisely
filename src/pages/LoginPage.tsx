@@ -69,7 +69,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-500 via-primary-600 to-teal-700 p-4">
       {contextHolder}
 
       {/* Decorative background elements */}
@@ -88,7 +88,7 @@ export function LoginPage() {
           <h1 className="text-3xl font-bold text-white tracking-tight">
             SplitWisely
           </h1>
-          <p className="text-emerald-100 mt-2 text-sm">
+          <p className="text-primary-100 mt-2 text-sm">
             Split expenses with friends, effortlessly.
           </p>
         </div>
@@ -136,7 +136,7 @@ export function LoginPage() {
               block
               loading={loading}
               onClick={handleSignIn}
-              className="!bg-emerald-600 !border-emerald-600 hover:!bg-emerald-700 !h-11 !font-semibold"
+              className="!bg-primary-600 !border-primary-600 hover:!bg-primary-700 !h-11 !font-semibold"
               icon={<ArrowRight className="w-4 h-4" />}
               iconPosition="end"
             >

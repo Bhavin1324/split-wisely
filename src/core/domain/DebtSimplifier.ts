@@ -45,8 +45,8 @@ export class DebtSimplifier {
     const creditors: { userId: string; amount: number }[] = [];
 
     Object.entries(balances).forEach(([userId, amount]) => {
-      if (amount < -1) debtors.push({ userId, amount: -amount });
-      else if (amount > 1) creditors.push({ userId, amount });
+      if (amount < 0) debtors.push({ userId, amount: -amount });
+      else if (amount > 0) creditors.push({ userId, amount });
     });
 
     debtors.sort((a, b) => b.amount - a.amount);

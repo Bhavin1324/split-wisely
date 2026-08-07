@@ -45,6 +45,7 @@ export interface Expense {
   payer_id: string;
   receipt_image_url: string | null;
   created_by: string;
+  expense_date: string;
   created_at: string;
   updated_at: string;
   // Joined relations

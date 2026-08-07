@@ -1,28 +1,41 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Card } from 'antd';
+import { Avatar, Card, Button } from 'antd';
+import { UserPlus } from 'lucide-react';
 import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUP_MEMBERS, getFriendsForUser } from '../lib/mockData';
 import { formatCents, getBalanceColorClass } from '../utils/currency';
-import type { Profile } from '../types';
+import type { Profile, Expense, Settlement, GroupMember } from '../types';
+import { useAppData, DEMO_MODE } from '../context/AppDataContext';
+import { useAuth } from '../context/AuthContext';
+import { useFriends } from '../hooks/supabase/useProfileData';
+import { useAllExpenses } from '../hooks/supabase/useExpensesData';
+import { AddFriendModal } from '../components/AddFriendModal';
 
 /**
  * Computes the net balance between the current user and a friend.
  * Positive = friend owes current user, negative = current user owes friend.
  */
-function computeFriendBalance(currentUserId: string, friendId: string): number {
+function computeFriendBalance(
+  currentUserId: string,
+  friendId: string,
+  expenses: Expense[],
+  settlements: Settlement[],
+  groupMembers: GroupMember[]
+): number {
   let balance = 0;
 
   const currentUserGroups = new Set(
-    MOCK_GROUP_MEMBERS
+    groupMembers
       .filter((gm) => gm.user_id === currentUserId)
       .map((gm) => gm.group_id),
   );
   const sharedGroupIds = new Set(
-    MOCK_GROUP_MEMBERS
+    groupMembers
       .filter((gm) => gm.user_id === friendId && currentUserGroups.has(gm.group_id))
       .map((gm) => gm.group_id),
   );
 
-  for (const expense of MOCK_EXPENSES) {
+  for (const expense of expenses) {
     if (!expense.group_id || !sharedGroupIds.has(expense.group_id)) continue;
     if (!expense.splits) continue;
 
@@ -36,7 +49,7 @@ function computeFriendBalance(currentUserId: string, friendId: string): number {
     }
   }
 
-  for (const settlement of MOCK_SETTLEMENTS) {
+  for (const settlement of settlements) {
     if (settlement.payer_id === friendId && settlement.payee_id === currentUserId) {
       balance -= settlement.amount;
     } else if (settlement.payer_id === currentUserId && settlement.payee_id === friendId) {
@@ -76,13 +89,43 @@ function getBalanceLabel(balance: number, friendName: string): string {
 }
 
 export function FriendsPage() {
+  const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const navigate = useNavigate();
-  const friends = getFriendsForUser(MOCK_CURRENT_USER.id);
+  const { user } = useAuth();
+  const { currentUser } = useAppData();
+  
+  const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
-  const friendsWithBalances: { profile: Profile; balance: number }[] = friends.map((friend) => ({
-    profile: friend,
-    balance: computeFriendBalance(MOCK_CURRENT_USER.id, friend.id),
-  }));
+  const { data: liveFriends } = useFriends(user?.id);
+  const { data: liveExpenses } = useAllExpenses(user?.id);
+
+  const friends = DEMO_MODE ? getFriendsForUser(MOCK_CURRENT_USER.id) : (liveFriends || []);
+
+  const friendsWithBalances: { profile: Profile; balance: number }[] = friends.map((friend) => {
+    let balance = 0;
+    if (DEMO_MODE) {
+      balance = computeFriendBalance(
+        userId, 
+        friend.id, 
+        MOCK_EXPENSES as any, 
+        MOCK_SETTLEMENTS as any, 
+        MOCK_GROUP_MEMBERS as any
+      );
+    } else {
+      // In live mode, compute from live expenses
+      balance = computeFriendBalance(
+        userId,
+        friend.id,
+        (liveExpenses || []) as any,
+        [] as any,
+        [] as any
+      );
+    }
+    return {
+      profile: friend,
+      balance,
+    };
+  });
 
   friendsWithBalances.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
   const totalBalance = friendsWithBalances.reduce((sum, f) => sum + f.balance, 0);
@@ -103,6 +146,18 @@ export function FriendsPage() {
             {totalBalance > 0 ? '+' : ''}{formatCents(totalBalance)}
           </p>
         </div>
+      </div>
+
+      <div className="flex justify-between items-center bg-primary-50 p-4 rounded-xl border border-primary-100">
+        <p className="text-sm text-primary-700 font-medium">Add friends to split bills more easily.</p>
+        <Button
+          type="primary"
+          icon={<UserPlus className="w-4 h-4" />}
+          onClick={() => setIsAddFriendOpen(true)}
+          className="bg-primary-500 hover:bg-primary-600 rounded-xl font-semibold border-none text-white shadow-sm"
+        >
+          Add Friend
+        </Button>
       </div>
 
       {/* Friends list */}
@@ -143,16 +198,32 @@ export function FriendsPage() {
         ))}
 
         {friends.length === 0 && (
-          <Card className="rounded-2xl">
-            <div className="text-center py-8 text-gray-400">
-              <p className="text-lg">No friends yet</p>
-              <p className="text-sm mt-1">
-                Add friends by creating a group together
+          <Card className="rounded-2xl border-dashed border-2 border-gray-200">
+            <div className="text-center py-12 text-gray-400">
+              <div className="mx-auto w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                <UserPlus className="w-6 h-6 text-gray-300" />
+              </div>
+              <p className="text-lg font-medium text-gray-900">No friends yet</p>
+              <p className="text-sm mt-1 mb-6">
+                Add friends by creating a group together or inviting them directly
               </p>
+              <Button
+                type="primary"
+                icon={<UserPlus className="w-4 h-4" />}
+                onClick={() => setIsAddFriendOpen(true)}
+                className="bg-primary-500 hover:bg-primary-600 rounded-xl font-semibold border-none text-white shadow-sm"
+              >
+                Add Friend
+              </Button>
             </div>
           </Card>
         )}
       </div>
+
+      <AddFriendModal
+        open={isAddFriendOpen}
+        onClose={() => setIsAddFriendOpen(false)}
+      />
     </div>
   );
 }

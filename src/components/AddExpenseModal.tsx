@@ -6,23 +6,31 @@ import {
   InputNumber,
   Select,
   Segmented,
-  Checkbox,
   Button,
   message,
   Alert,
   Divider,
   Space,
   Typography,
+  DatePicker,
 } from 'antd';
+import dayjs, { Dayjs } from 'dayjs';
 import {
   MOCK_CURRENT_USER,
-  MOCK_GROUPS,
   MOCK_GROUP_MEMBERS,
-  MOCK_CATEGORIES,
 } from '../lib/mockData';
 import { SplitEngine } from '../core/domain/SplitEngine';
-import type { SplitMode, SplitParticipant, GroupMember } from '../types';
-import { formatCents } from '../utils/currency';
+import type { SplitMode, SplitParticipant } from '../types';
+import { formatCents, getStoredCurrency, getCurrencySymbol } from '../utils/currency';
+import { useAppData, DEMO_MODE } from '../context/AppDataContext';
+import { useGroupMembers } from '../hooks/supabase/useGroupsData';
+import { createExpenseWithSplits, updateExpenseWithSplits } from '../hooks/supabase/useMutations';
+import type { Expense } from '../types';
+
+import { EqualSplitTab } from './expenses/EqualSplitTab';
+import { ExactSplitTab } from './expenses/ExactSplitTab';
+import { PercentageSplitTab } from './expenses/PercentageSplitTab';
+import { SharesSplitTab } from './expenses/SharesSplitTab';
 
 const { Text } = Typography;
 
@@ -30,6 +38,7 @@ interface AddExpenseModalProps {
   open: boolean;
   onClose: () => void;
   groupId?: string;
+  existingExpense?: Expense;
 }
 
 /** Split mode options for the Segmented control */
@@ -40,15 +49,18 @@ const SPLIT_MODE_OPTIONS = [
   { label: 'Shares', value: 'shares' },
 ] as const;
 
-/**
- * Returns group members for a given group ID.
- * Falls back to an empty array for unknown groups.
- */
-function getMembersForGroup(groupId: string): GroupMember[] {
-  return MOCK_GROUP_MEMBERS.filter((gm) => gm.group_id === groupId);
-}
+/** Keywords for auto-categorization based on description */
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  'Food & Drink': ['dinner', 'lunch', 'breakfast', 'food', 'restaurant', 'pizza', 'burger', 'coffee', 'cafe', 'drink', 'bar', 'beer', 'grocery'],
+  'Transportation': ['uber', 'lyft', 'taxi', 'cab', 'bus', 'train', 'subway', 'flight', 'gas', 'parking', 'toll'],
+  'Entertainment': ['movie', 'cinema', 'concert', 'ticket', 'game', 'club', 'party', 'rental', 'museum', 'bowling', 'netflix', 'hulu', 'disney', 'spotify', 'theater', 'theatre', 'show', 'amusement', 'park', 'zoo', 'aquarium', 'arcade', 'festival'],
+  'Utilities & Rent': ['rent', 'water', 'electricity', 'internet', 'wifi', 'power', 'utility', 'trash', 'bill'],
+  'Shopping': ['groceries', 'supermarket', 'mall', 'clothes', 'shoes', 'amazon', 'walmart', 'target', 'store'],
+};
 
-export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps) {
+export function AddExpenseModal({ open, onClose, groupId, existingExpense }: AddExpenseModalProps) {
+  const { currentUser, groups, categories } = useAppData();
+
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -57,7 +69,10 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
   const [amountValue, setAmountValue] = useState<number | null>(null);
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [selectedGroupId, setSelectedGroupId] = useState<string | undefined>(groupId);
-  const [payerId, setPayerId] = useState(MOCK_CURRENT_USER.id);
+  const [expenseDate, setExpenseDate] = useState<Dayjs>(dayjs());
+  
+  const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
+  const [payerId, setPayerId] = useState(userId);
   const [splitMode, setSplitMode] = useState<SplitMode>('equal');
 
   // ── Split-specific state ────────────────────────────────────
@@ -68,29 +83,73 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
 
   // ── Validation ──────────────────────────────────────────────
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // ── Data fetching ───────────────────────────────────────────
+  const { data: liveMembers } = useGroupMembers(selectedGroupId || '');
 
   // ── Derived: members of the selected group ──────────────────
   const members = useMemo(() => {
     if (!selectedGroupId) return [];
-    return getMembersForGroup(selectedGroupId);
-  }, [selectedGroupId]);
+    return DEMO_MODE 
+      ? MOCK_GROUP_MEMBERS.filter((gm) => gm.group_id === selectedGroupId)
+      : (liveMembers || []);
+  }, [selectedGroupId, liveMembers]);
 
   // Reset split state whenever group or split mode changes
   useEffect(() => {
-    const allIds = members.map((m) => m.user_id);
-    setSelectedUserIds(allIds);
-    setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
-    setPercentages(Object.fromEntries(allIds.map((id) => [id, null])));
-    setShares(Object.fromEntries(allIds.map((id) => [id, 1])));
-    setValidationError(null);
-  }, [members, splitMode]);
-
-  // Sync groupId prop when modal opens
-  useEffect(() => {
-    if (open && groupId) {
-      setSelectedGroupId(groupId);
+    // If we're populating an exact split from existingExpense, we might want to bypass reset if they just opened the modal.
+    // However, if the user changes the group or split mode manually, we reset.
+    // To handle initial load of existingExpense without resetting, we do it in a separate effect that depends on `open`.
+    if (!existingExpense) {
+      const allIds = members.map((m) => m.user_id);
+      setSelectedUserIds(allIds);
+      setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
+      setPercentages(Object.fromEntries(allIds.map((id) => [id, null])));
+      setShares(Object.fromEntries(allIds.map((id) => [id, 1])));
+      setValidationError(null);
     }
-  }, [open, groupId]);
+  }, [members, splitMode]); // Note: removed existingExpense from dep array deliberately to prevent reset loops
+
+  // Initialize from existingExpense or defaults when modal opens
+  useEffect(() => {
+    if (open) {
+      if (existingExpense) {
+        setDescription(existingExpense.description);
+        setAmountValue(existingExpense.total_amount / 100);
+        setCategoryId(existingExpense.category_id || undefined);
+        setSelectedGroupId(existingExpense.group_id || undefined);
+        setPayerId(existingExpense.payer_id);
+        setExpenseDate(existingExpense.expense_date ? dayjs(existingExpense.expense_date) : dayjs());
+        setSplitMode('exact');
+
+        const allIds = members.map((m) => m.user_id);
+        setSelectedUserIds(allIds);
+        
+        if (existingExpense.splits && existingExpense.splits.length > 0) {
+          const exacts: Record<string, number | null> = {};
+          allIds.forEach(id => {
+            const split = existingExpense.splits?.find(s => s.user_id === id);
+            exacts[id] = split ? split.amount_owed / 100 : null;
+          });
+          setExactAmounts(exacts);
+        } else {
+          setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
+        }
+      } else {
+        // New Expense mode
+        if (groupId) setSelectedGroupId(groupId);
+        if (userId) setPayerId(userId);
+        
+        // Ensure split states are reset
+        const allIds = members.map((m) => m.user_id);
+        setSelectedUserIds(allIds);
+        setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
+        setPercentages(Object.fromEntries(allIds.map((id) => [id, null])));
+        setShares(Object.fromEntries(allIds.map((id) => [id, 1])));
+      }
+    }
+  }, [open, existingExpense, groupId, userId, members]);
 
   // ── Total in cents ──────────────────────────────────────────
   const totalCents = useMemo(() => {
@@ -129,14 +188,14 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
    * Falls back to the raw ID if profile is missing.
    */
   const memberName = useCallback(
-    (userId: string): string => {
-      const member = members.find((m) => m.user_id === userId);
-      if (!member?.profile) return userId;
-      return userId === MOCK_CURRENT_USER.id
+    (uid: string): string => {
+      const member = members.find((m) => m.user_id === uid);
+      if (!member?.profile) return uid;
+      return uid === userId
         ? `${member.profile.full_name} (you)`
         : member.profile.full_name;
     },
-    [members],
+    [members, userId],
   );
 
   // ── Reset all form state ────────────────────────────────────
@@ -145,11 +204,39 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
     setAmountValue(null);
     setCategoryId(undefined);
     setSelectedGroupId(groupId);
-    setPayerId(MOCK_CURRENT_USER.id);
+    setExpenseDate(dayjs());
+    setPayerId(userId);
     setSplitMode('equal');
     setValidationError(null);
+    setFieldErrors({});
     form.resetFields();
-  }, [form, groupId]);
+  }, [form, groupId, userId]);
+
+  // ── Auto-categorization handler ─────────────────────────────
+  const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setDescription(val);
+
+    // Only auto-categorize if no category is currently selected
+    if (!categoryId) {
+      const lowerDesc = val.toLowerCase();
+      let matchedCategoryName: string | null = null;
+
+      for (const [catName, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+        if (keywords.some(kw => lowerDesc.includes(kw))) {
+          matchedCategoryName = catName;
+          break;
+        }
+      }
+
+      if (matchedCategoryName) {
+        const match = categories.find(c => c.name === matchedCategoryName);
+        if (match) {
+          setCategoryId(match.id);
+        }
+      }
+    }
+  }, [categoryId, categories]);
 
   // ── Handle cancel / close ───────────────────────────────────
   const handleCancel = useCallback(() => {
@@ -158,20 +245,23 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
   }, [resetForm, onClose]);
 
   // ── Compute splits & submit ─────────────────────────────────
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     // Basic validation
-    if (!description.trim()) {
-      setValidationError('Please enter a description.');
+    const errors: Record<string, string> = {};
+    if (!description.trim()) errors.description = 'Please enter a description.';
+    if (totalCents <= 0) errors.amount = 'Please enter a valid amount.';
+    if (!selectedGroupId) errors.groupId = 'Please select a group.';
+    if (!categoryId) errors.categoryId = 'Please select a category.';
+    if (!expenseDate) errors.expenseDate = 'Please select a date.';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setValidationError('Please fix the highlighted fields above.');
       return;
     }
-    if (totalCents <= 0) {
-      setValidationError('Please enter a valid amount greater than zero.');
-      return;
-    }
-    if (!selectedGroupId) {
-      setValidationError('Please select a group.');
-      return;
-    }
+
+    setFieldErrors({});
+    setValidationError(null);
 
     let splits: SplitParticipant[];
 
@@ -220,11 +310,10 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
 
     setValidationError(null);
 
-    // Log result (no real backend yet)
     const expensePayload = {
       description,
       totalCents,
-      currencyCode: 'USD',
+      currencyCode: getStoredCurrency(),
       categoryId,
       groupId: selectedGroupId,
       payerId,
@@ -232,17 +321,64 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
       splits,
     };
 
-    console.log('[AddExpenseModal] Expense saved:', expensePayload);
-    console.table(
-      splits.map((s) => ({
-        user: memberName(s.userId),
-        amountOwed: formatCents(s.amountOwed),
-      })),
-    );
-
-    messageApi.success('Expense added successfully!');
-    resetForm();
-    onClose();
+    if (DEMO_MODE) {
+      console.log('[AddExpenseModal] Demo Mode Expense saved:', expensePayload);
+      console.table(
+        splits.map((s) => ({
+          user: memberName(s.userId),
+          amountOwed: formatCents(s.amountOwed),
+        })),
+      );
+      messageApi.success(existingExpense ? 'Expense updated (Demo Mode)!' : 'Expense added successfully (Demo Mode)!');
+      window.dispatchEvent(new Event('expenseAdded'));
+      resetForm();
+      onClose();
+    } else {
+      try {
+        if (existingExpense) {
+          await updateExpenseWithSplits({
+            expense_id: existingExpense.id,
+            description,
+            total_amount: totalCents,
+            currency_code: 'USD',
+            exchange_rate: 1.0,
+            group_id: selectedGroupId ?? null,
+            payer_id: payerId,
+            category_id: categoryId ?? null,
+            receipt_image_url: existingExpense.receipt_image_url,
+            expense_date: expenseDate.toISOString(),
+            splits: splits.map(s => ({
+              user_id: s.userId,
+              amount_owed: s.amountOwed,
+            }))
+          });
+          messageApi.success('Expense updated successfully!');
+        } else {
+          await createExpenseWithSplits({
+            description,
+            total_amount: totalCents,
+            currency_code: 'USD',
+            exchange_rate: 1.0,
+            group_id: selectedGroupId ?? null,
+            payer_id: payerId,
+            created_by: currentUser?.id ?? payerId,
+            category_id: categoryId ?? null,
+            receipt_image_url: null,
+            expense_date: expenseDate.toISOString(),
+            splits: splits.map(s => ({
+              user_id: s.userId,
+              amount_owed: s.amountOwed,
+            }))
+          });
+          messageApi.success('Expense added successfully!');
+        }
+        window.dispatchEvent(new Event('expenseAdded'));
+        resetForm();
+        onClose();
+      } catch (error: any) {
+        setValidationError(error.message || 'Failed to save expense');
+      }
+    }
   }, [
     description,
     totalCents,
@@ -259,6 +395,9 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
     messageApi,
     resetForm,
     onClose,
+    expenseDate,
+    existingExpense,
+    currentUser,
   ]);
 
   // ══════════════════════════════════════════════════════════════
@@ -267,177 +406,12 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
 
   /** Toggle a single participant in/out of equal split */
   const toggleParticipant = useCallback(
-    (userId: string, checked: boolean) => {
+    (uid: string, checked: boolean) => {
       setSelectedUserIds((prev) =>
-        checked ? [...prev, userId] : prev.filter((id) => id !== userId),
+        checked ? [...prev, uid] : prev.filter((id) => id !== uid),
       );
     },
     [],
-  );
-
-  // ── Equal split panel ───────────────────────────────────────
-  const renderEqualSplit = () => (
-    <div className="space-y-2">
-      {members.map((m) => (
-        <div
-          key={m.user_id}
-          className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
-        >
-          <Checkbox
-            checked={selectedUserIds.includes(m.user_id)}
-            onChange={(e) => toggleParticipant(m.user_id, e.target.checked)}
-          >
-            <span className="text-sm font-medium">{memberName(m.user_id)}</span>
-          </Checkbox>
-          {selectedUserIds.includes(m.user_id) && totalCents > 0 && (
-            <Text type="secondary" className="text-sm">
-              {formatCents(equalPerPerson)}
-            </Text>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-
-  // ── Exact split panel ───────────────────────────────────────
-  const renderExactSplit = () => (
-    <div className="space-y-3">
-      {members.map((m) => (
-        <div key={m.user_id} className="flex items-center gap-3">
-          <span className="min-w-[120px] text-sm font-medium">{memberName(m.user_id)}</span>
-          <InputNumber
-            prefix="$"
-            min={0}
-            step={0.01}
-            precision={2}
-            className="flex-1"
-            placeholder="0.00"
-            value={exactAmounts[m.user_id]}
-            onChange={(val) =>
-              setExactAmounts((prev) => ({ ...prev, [m.user_id]: val }))
-            }
-          />
-        </div>
-      ))}
-
-      <div
-        className={`mt-2 rounded-md px-3 py-2 text-sm font-medium ${
-          exactRemaining === 0
-            ? 'bg-emerald-50 text-emerald-700'
-            : 'bg-orange-50 text-orange-700'
-        }`}
-      >
-        {exactRemaining === 0
-          ? '✓ Amounts add up perfectly'
-          : exactRemaining > 0
-            ? `${formatCents(exactRemaining)} remaining to assign`
-            : `${formatCents(Math.abs(exactRemaining))} over the total`}
-      </div>
-    </div>
-  );
-
-  // ── Percentage split panel ──────────────────────────────────
-  const renderPercentageSplit = () => (
-    <div className="space-y-3">
-      {members.map((m) => (
-        <div key={m.user_id} className="flex items-center gap-3">
-          <span className="min-w-[120px] text-sm font-medium">{memberName(m.user_id)}</span>
-          <InputNumber
-            suffix="%"
-            min={0}
-            max={100}
-            step={1}
-            precision={2}
-            className="flex-1"
-            placeholder="0"
-            value={percentages[m.user_id]}
-            onChange={(val) =>
-              setPercentages((prev) => ({ ...prev, [m.user_id]: val }))
-            }
-          />
-          {totalCents > 0 && percentages[m.user_id] != null && (
-            <Text type="secondary" className="min-w-[70px] text-right text-xs">
-              {formatCents(Math.round(((percentages[m.user_id] ?? 0) / 100) * totalCents))}
-            </Text>
-          )}
-        </div>
-      ))}
-
-      <div
-        className={`mt-2 rounded-md px-3 py-2 text-sm font-medium ${
-          Math.abs(percentageSum - 100) < 0.01
-            ? 'bg-emerald-50 text-emerald-700'
-            : 'bg-orange-50 text-orange-700'
-        }`}
-      >
-        {Math.abs(percentageSum - 100) < 0.01
-          ? '✓ Percentages add up to 100%'
-          : `Total: ${percentageSum.toFixed(2)}% — must equal 100%`}
-      </div>
-    </div>
-  );
-
-  // ── Shares split panel ──────────────────────────────────────
-  const renderSharesSplit = () => (
-    <div className="space-y-3">
-      {members.map((m) => {
-        const userShare = shares[m.user_id] ?? 0;
-        const shareAmount =
-          totalShares > 0 && totalCents > 0
-            ? Math.floor((userShare / totalShares) * totalCents)
-            : 0;
-
-        return (
-          <div key={m.user_id} className="flex items-center gap-3">
-            <span className="min-w-[120px] text-sm font-medium">{memberName(m.user_id)}</span>
-            <div className="flex items-center gap-1">
-              <Button
-                size="small"
-                disabled={userShare <= 0}
-                onClick={() =>
-                  setShares((prev) => ({
-                    ...prev,
-                    [m.user_id]: Math.max(0, (prev[m.user_id] ?? 0) - 1),
-                  }))
-                }
-              >
-                −
-              </Button>
-              <InputNumber
-                min={0}
-                step={1}
-                precision={0}
-                className="w-16 text-center"
-                value={userShare}
-                onChange={(val) =>
-                  setShares((prev) => ({ ...prev, [m.user_id]: val ?? 0 }))
-                }
-              />
-              <Button
-                size="small"
-                onClick={() =>
-                  setShares((prev) => ({
-                    ...prev,
-                    [m.user_id]: (prev[m.user_id] ?? 0) + 1,
-                  }))
-                }
-              >
-                +
-              </Button>
-            </div>
-            {totalCents > 0 && (
-              <Text type="secondary" className="min-w-[70px] text-right text-xs">
-                {formatCents(shareAmount)}
-              </Text>
-            )}
-          </div>
-        );
-      })}
-
-      <Text type="secondary" className="mt-1 block text-xs">
-        Total shares: {totalShares}
-      </Text>
-    </div>
   );
 
   /** Render the active split details panel */
@@ -452,13 +426,13 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
 
     switch (splitMode) {
       case 'equal':
-        return renderEqualSplit();
+        return <EqualSplitTab members={members} selectedUserIds={selectedUserIds} totalCents={totalCents} equalPerPerson={equalPerPerson} memberName={memberName} toggleParticipant={toggleParticipant} />;
       case 'exact':
-        return renderExactSplit();
+        return <ExactSplitTab members={members} exactAmounts={exactAmounts} exactRemaining={exactRemaining} memberName={memberName} setExactAmounts={setExactAmounts} />;
       case 'percentage':
-        return renderPercentageSplit();
+        return <PercentageSplitTab members={members} percentages={percentages} percentageSum={percentageSum} totalCents={totalCents} memberName={memberName} setPercentages={setPercentages} />;
       case 'shares':
-        return renderSharesSplit();
+        return <SharesSplitTab members={members} shares={shares} totalShares={totalShares} totalCents={totalCents} memberName={memberName} setShares={setShares} />;
       default:
         return null;
     }
@@ -471,7 +445,7 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
     <>
       {contextHolder}
       <Modal
-        title="Add Expense"
+        title={existingExpense ? "Edit Expense" : "Add Expense"}
         open={open}
         onCancel={handleCancel}
         width={560}
@@ -479,11 +453,6 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
         footer={
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              {validationError && (
-                <Text type="danger" className="text-sm">
-                  {validationError}
-                </Text>
-              )}
             </div>
             <Space>
               <Button onClick={handleCancel}>Cancel</Button>
@@ -496,19 +465,31 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
       >
         <Form form={form} layout="vertical" className="space-y-4">
           {/* ── Header Section ─────────────────────────────────── */}
-          <Form.Item label="Description" className="mb-3">
+          <Form.Item 
+            label="Description" 
+            className="mb-3"
+            validateStatus={fieldErrors.description ? 'error' : ''}
+            help={fieldErrors.description}
+          >
             <Input
+              size="large"
               placeholder="e.g. Dinner at Ocean Drive"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={handleDescriptionChange}
               maxLength={120}
             />
           </Form.Item>
 
-          <div className="flex gap-3">
-            <Form.Item label="Amount" className="mb-3 flex-1">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Form.Item 
+              label="Amount" 
+              className="mb-3 flex-1"
+              validateStatus={fieldErrors.amount ? 'error' : ''}
+              help={fieldErrors.amount}
+            >
               <InputNumber
-                prefix="$"
+                size="large"
+                prefix={getCurrencySymbol()}
                 placeholder="0.00"
                 min={0}
                 step={0.01}
@@ -519,26 +500,53 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
               />
             </Form.Item>
 
-            <Form.Item label="Category" className="mb-3 flex-1">
+            <Form.Item 
+              label="Category" 
+              className="mb-3 flex-1"
+              validateStatus={fieldErrors.categoryId ? 'error' : ''}
+              help={fieldErrors.categoryId}
+            >
               <Select
+                size="large"
                 placeholder="Select category"
                 allowClear
                 value={categoryId}
                 onChange={(val) => setCategoryId(val)}
-                options={MOCK_CATEGORIES.map((c) => ({
+                options={categories.map((c) => ({
                   label: c.name,
                   value: c.id,
                 }))}
               />
             </Form.Item>
+            
+            <Form.Item 
+              label="Date" 
+              className="mb-3 flex-1"
+              validateStatus={fieldErrors.expenseDate ? 'error' : ''}
+              help={fieldErrors.expenseDate}
+            >
+              <DatePicker 
+                size="large"
+                className="w-full"
+                value={expenseDate}
+                onChange={(val) => setExpenseDate(val || dayjs())}
+                allowClear={false}
+              />
+            </Form.Item>
           </div>
 
-          <Form.Item label="Group" className="mb-3">
+          <Form.Item 
+            label="Group" 
+            className="mb-3"
+            validateStatus={fieldErrors.groupId ? 'error' : ''}
+            help={fieldErrors.groupId}
+          >
             <Select
+              size="large"
               placeholder="Select group"
               value={selectedGroupId}
               onChange={(val) => setSelectedGroupId(val)}
-              options={MOCK_GROUPS.map((g) => ({
+              options={groups.map((g) => ({
                 label: g.name,
                 value: g.id,
               }))}
@@ -550,6 +558,7 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
           {/* ── Payer Section ──────────────────────────────────── */}
           <Form.Item label="Paid by" className="mb-3">
             <Select
+              size="large"
               value={payerId}
               onChange={(val) => setPayerId(val)}
               options={
@@ -558,7 +567,7 @@ export function AddExpenseModal({ open, onClose, groupId }: AddExpenseModalProps
                       label: memberName(m.user_id),
                       value: m.user_id,
                     }))
-                  : [{ label: MOCK_CURRENT_USER.full_name + ' (you)', value: MOCK_CURRENT_USER.id }]
+                  : [{ label: (currentUser?.full_name ?? MOCK_CURRENT_USER.full_name) + ' (you)', value: userId }]
               }
             />
           </Form.Item>

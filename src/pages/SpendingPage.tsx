@@ -14,9 +14,12 @@ import {
 } from 'recharts';
 import { MOCK_EXPENSES, MOCK_CATEGORIES } from '../lib/mockData';
 import { formatCents } from '../utils/currency';
+import { useAppData, DEMO_MODE } from '../context/AppDataContext';
+import { useAuth } from '../context/AuthContext';
+import { useAllExpenses } from '../hooks/supabase/useExpensesData';
 
 const CHART_COLORS = [
-  '#16a34a', // emerald
+  'var(--color-primary-500)', // emerald
   '#2563eb', // blue
   '#d97706', // amber
   '#9333ea', // purple
@@ -25,10 +28,17 @@ const CHART_COLORS = [
 ];
 
 export function SpendingPage() {
+  const { categories: contextCategories } = useAppData();
+  const { user } = useAuth();
+  const { data: liveExpenses } = useAllExpenses(user?.id);
+
+  const expenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses ?? []);
+  const categories = contextCategories?.length ? contextCategories : MOCK_CATEGORIES;
+
   const categoryData = useMemo(() => {
     const totals: Record<string, number> = {};
-    MOCK_EXPENSES.forEach((e) => {
-      const cat = MOCK_CATEGORIES.find((c) => c.id === e.category_id);
+    expenses.forEach((e) => {
+      const cat = categories.find((c) => c.id === e.category_id);
       const name = cat?.name ?? 'General';
       totals[name] = (totals[name] ?? 0) + e.total_amount;
     });
@@ -38,11 +48,11 @@ export function SpendingPage() {
       value: amountCents / 100,
       amountCents,
     }));
-  }, []);
+  }, [expenses, categories]);
 
   const totalSpentCents = useMemo(() => {
-    return MOCK_EXPENSES.reduce((sum, e) => sum + e.total_amount, 0);
-  }, []);
+    return expenses.reduce((sum, e) => sum + e.total_amount, 0);
+  }, [expenses]);
 
   const topCategory = useMemo(() => {
     if (categoryData.length === 0) return { name: 'None', amountCents: 0 };
@@ -51,7 +61,7 @@ export function SpendingPage() {
 
   const monthlyData = useMemo(() => {
     const monthly: Record<string, number> = {};
-    MOCK_EXPENSES.forEach((e) => {
+    expenses.forEach((e) => {
       const date = new Date(e.created_at);
       const monthYear = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(date);
       monthly[monthYear] = (monthly[monthYear] ?? 0) + e.total_amount / 100;
@@ -61,14 +71,14 @@ export function SpendingPage() {
       month,
       total,
     }));
-  }, []);
+  }, [expenses]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1 flex items-center gap-2">
-          <PieIcon className="h-6 w-6 text-brand-500" />
+          <PieIcon className="h-6 w-6 text-primary-500" />
           Pro Spending Analytics
         </h1>
         <p className="text-sm text-gray-500">
@@ -90,7 +100,7 @@ export function SpendingPage() {
 
         <Card className="rounded-2xl border-gray-100 shadow-sm">
           <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Top Spending Category</div>
-          <div className="text-2xl font-bold font-financial text-emerald-600 mt-2">
+          <div className="text-2xl font-bold font-financial text-primary-600 mt-2">
             {topCategory.name}
           </div>
           <div className="text-xs text-gray-500 mt-1">
@@ -101,12 +111,12 @@ export function SpendingPage() {
         <Card className="rounded-2xl border-gray-100 shadow-sm">
           <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Average Expense</div>
           <div className="text-2xl font-bold font-financial text-blue-600 mt-2">
-            {MOCK_EXPENSES.length > 0
-              ? formatCents(Math.round(totalSpentCents / MOCK_EXPENSES.length))
+            {expenses.length > 0
+              ? formatCents(Math.round(totalSpentCents / expenses.length))
               : '$0.00'}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            Across {MOCK_EXPENSES.length} recorded items
+            Across {expenses.length} recorded items
           </div>
         </Card>
       </div>
@@ -139,14 +149,14 @@ export function SpendingPage() {
 
           <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-3">
             {categoryData.map((cat, i) => (
-              <div key={cat.name} className="flex items-center gap-2 text-xs">
-                <span
-                  className="w-3 h-3 rounded-full shrink-0"
-                  style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
-                />
-                <span className="truncate text-gray-600">{cat.name}</span>
-                <span className="ml-auto font-semibold font-financial">{formatCents(cat.amountCents)}</span>
-              </div>
+               <div key={cat.name} className="flex items-center gap-2 text-xs">
+                 <span
+                   className="w-3 h-3 rounded-full shrink-0"
+                   style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+                 />
+                 <span className="truncate text-gray-600">{cat.name}</span>
+                 <span className="ml-auto font-semibold font-financial">{formatCents(cat.amountCents)}</span>
+               </div>
             ))}
           </div>
         </Card>
@@ -160,7 +170,7 @@ export function SpendingPage() {
                 <RechartsTooltip
                   formatter={(val: unknown) => `$${Number(val ?? 0).toFixed(2)}`}
                 />
-                <Bar dataKey="total" fill="#16a34a" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="total" fill="var(--color-primary-500)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
