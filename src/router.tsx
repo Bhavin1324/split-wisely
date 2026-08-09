@@ -9,6 +9,7 @@ import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { JoinGroupPage } from './pages/JoinGroupPage';
+import { AuthRoute } from './components/AuthRoute';
 
 /**
  * Data-based router definition using createBrowserRouter (React Router v7).
@@ -24,16 +25,22 @@ export const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <AppLayout />,
+    element: <AuthRoute />,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'groups/:groupId', element: <GroupDetailPage /> },
-      { path: 'friends', element: <FriendsPage /> },
-      { path: 'friends/:friendId', element: <FriendDetailPage /> },
-      { path: 'spending', element: <SpendingPage /> },
-      { path: 'search', element: <SearchPage /> },
-      { path: 'settings', element: <SettingsPage /> },
+      {
+        path: '/',
+        element: <AppLayout />,
+        children: [
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: 'dashboard', element: <DashboardPage /> },
+          { path: 'groups/:groupId', element: <GroupDetailPage /> },
+          { path: 'friends', element: <FriendsPage /> },
+          { path: 'friends/:friendId', element: <FriendDetailPage /> },
+          { path: 'spending', element: <SpendingPage /> },
+          { path: 'search', element: <SearchPage /> },
+          { path: 'settings', element: <SettingsPage /> },
+        ],
+      },
     ],
   },
   {
