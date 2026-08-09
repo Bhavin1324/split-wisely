@@ -19,6 +19,7 @@ interface SettleUpModalProps {
   defaultPayeeId?: string;
   defaultGroupId?: string;
   defaultAmountCents?: number;
+  maxAmountCents?: number;
 }
 
 export function SettleUpModal({
@@ -27,6 +28,7 @@ export function SettleUpModal({
   defaultPayeeId,
   defaultGroupId,
   defaultAmountCents,
+  maxAmountCents,
 }: SettleUpModalProps) {
   const { user } = useAuth();
   const { currentUser, groups } = useAppData();
@@ -41,6 +43,7 @@ export function SettleUpModal({
   const [amountValue, setAmountValue] = useState<number | null>(
     defaultAmountCents ? defaultAmountCents / 100 : null,
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (open && userId) {
@@ -60,13 +63,26 @@ export function SettleUpModal({
     return Math.round(amountValue * 100);
   }, [amountValue]);
 
-  const handleSave = async () => {
+  const selectedPayeeObj = useMemo(() => {
+    return availablePayees.find((p) => p.id === payeeId);
+  }, [availablePayees, payeeId]);
+
+  const upiIntent = useMemo(() => {
+    if (!selectedPayeeObj?.upi_id || !amountValue) return null;
+    return `upi://pay?pa=${selectedPayeeObj.upi_id}&pn=${encodeURIComponent(selectedPayeeObj.full_name)}&am=${amountValue}&cu=INR`;
+  }, [selectedPayeeObj, amountValue]);
+
+  const handleSave = async (skipClose = false) => {
     if (!payeeId) {
       messageApi.error('Please select a person to settle with.');
       return;
     }
     if (totalCents <= 0) {
       messageApi.error('Please enter a valid amount.');
+      return;
+    }
+    if (maxAmountCents !== undefined && totalCents > maxAmountCents) {
+      messageApi.error(`You cannot settle more than you owe (${formatCents(maxAmountCents)}).`);
       return;
     }
 
@@ -89,6 +105,7 @@ export function SettleUpModal({
       messageApi.success(`Recorded payment of ${formatCents(totalCents)} from ${payer} to ${payee}`);
       onClose();
     } else {
+      setIsSubmitting(true);
       try {
         await createSettlement({
           payer_id: payerId,
@@ -98,11 +115,22 @@ export function SettleUpModal({
           currency_code: getStoredCurrency(),
         });
         messageApi.success(`Recorded payment of ${formatCents(totalCents)} from ${payer} to ${payee}`);
-        onClose();
+        if (!skipClose) {
+          onClose();
+        }
       } catch (error: any) {
         messageApi.error(error.message || 'Failed to record settlement');
+      } finally {
+        setIsSubmitting(false);
       }
     }
+  };
+
+  const handleUpiClick = async () => {
+    if (!upiIntent) return;
+    await handleSave(true);
+    window.location.href = upiIntent;
+    setTimeout(() => onClose(), 1000);
   };
 
   return (
@@ -116,13 +144,18 @@ export function SettleUpModal({
         destroyOnClose
         style={{ top: 20 }}
         footer={[
-          <Button key="cancel" onClick={onClose}>
+          <Button key="cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>,
-          <Button key="save" type="primary" onClick={handleSave} className="bg-primary-500 hover:bg-primary-600 font-semibold rounded-xl text-white border-none">
+          upiIntent && (
+            <Button key="upi" type="primary" onClick={handleUpiClick} loading={isSubmitting} className="bg-[#1ea142] hover:bg-[#158032] font-semibold rounded-xl text-white border-none">
+              Pay via UPI App
+            </Button>
+          ),
+          <Button key="save" type="primary" onClick={() => handleSave()} loading={isSubmitting} className="bg-primary-500 hover:bg-primary-600 font-semibold rounded-xl text-white border-none">
             Save Payment
           </Button>,
-        ]}
+        ].filter(Boolean)}
       >
         <Form form={form} layout="vertical" className="space-y-4 pt-2">
           <Form.Item label="Payer (Who paid?)" className="mb-3">

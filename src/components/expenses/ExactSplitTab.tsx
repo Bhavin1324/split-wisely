@@ -1,6 +1,6 @@
 import React from 'react';
 import { InputNumber } from 'antd';
-import { formatCents } from '../../utils/currency';
+import { formatCents, getCurrencySymbol } from '../../utils/currency';
 
 export interface ExactSplitTabProps {
   members: { user_id: string }[];
@@ -23,7 +23,7 @@ export function ExactSplitTab({
         <div key={m.user_id} className="flex items-center gap-3">
           <span className="min-w-[120px] text-sm font-medium">{memberName(m.user_id)}</span>
           <InputNumber
-            prefix="$"
+            prefix={getCurrencySymbol()}
             min={0}
             step={0.01}
             precision={2}

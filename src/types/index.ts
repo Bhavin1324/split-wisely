@@ -4,6 +4,7 @@ export interface Profile {
   full_name: string;
   avatar_url: string | null;
   default_currency: string;
+  upi_id?: string;
   created_at: string;
 }
 

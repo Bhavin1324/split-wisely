@@ -1,11 +1,11 @@
 /**
- * Gets the active user currency code from localStorage or defaults to 'USD'.
+ * Gets the active user currency code from localStorage or defaults to 'INR'.
  */
 export function getStoredCurrency(): string {
   if (typeof window !== 'undefined' && window.localStorage) {
-    return localStorage.getItem('splitwisely_user_currency') || 'USD';
+    return localStorage.getItem('splitwisely_user_currency') || 'INR';
   }
-  return 'USD';
+  return 'INR';
 }
 
 /**

@@ -207,22 +207,22 @@ export function DashboardPage() {
           subtitle={
             balances.totalBalance >= 0
               ? 'You are in the green'
-              : 'You owe more than you are owed'
+              : 'You have to pay more than You will receive'
           }
         />
 
         <BalanceCard
-          title="You Owe"
+          title="You have to pay"
           amount={-balances.youOwe}
           icon={TrendingDown}
           colorClass="text-rose-600"
           bgGradient="bg-rose-400"
           iconBgClass="bg-rose-100"
-          subtitle="Total amount you owe others"
+          subtitle="Total amount You have to pay others"
         />
 
         <BalanceCard
-          title="You Are Owed"
+          title="You will receive"
           amount={balances.youAreOwed}
           icon={TrendingUp}
           colorClass="text-emerald-600"

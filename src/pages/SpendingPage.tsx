@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { Card, Tag } from 'antd';
-import { PieChart as PieIcon } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Card, Tag, Segmented, Avatar } from 'antd';
+import { PieChart as PieIcon, ArrowRight, ArrowLeft } from 'lucide-react';
 import {
   ResponsiveContainer,
   PieChart,
@@ -12,8 +12,8 @@ import {
   YAxis,
   Tooltip as RechartsTooltip,
 } from 'recharts';
-import { MOCK_EXPENSES, MOCK_CATEGORIES } from '../lib/mockData';
-import { formatCents } from '../utils/currency';
+import { MOCK_EXPENSES, MOCK_CATEGORIES, MOCK_PROFILES, MOCK_CURRENT_USER } from '../lib/mockData';
+import { formatCents, getCurrencySymbol } from '../utils/currency';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useAllExpenses } from '../hooks/supabase/useExpensesData';
@@ -28,6 +28,7 @@ const CHART_COLORS = [
 ];
 
 export function SpendingPage() {
+  const [timeframe, setTimeframe] = useState<'Monthly' | 'Weekly'>('Monthly');
   const { categories: contextCategories } = useAppData();
   const { user } = useAuth();
   const { data: liveExpenses } = useAllExpenses(user?.id);
@@ -60,18 +61,53 @@ export function SpendingPage() {
   }, [categoryData]);
 
   const monthlyData = useMemo(() => {
-    const monthly: Record<string, number> = {};
+    const data: Record<string, number> = {};
     expenses.forEach((e) => {
       const date = new Date(e.created_at);
-      const monthYear = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(date);
-      monthly[monthYear] = (monthly[monthYear] ?? 0) + e.total_amount / 100;
+      if (timeframe === 'Monthly') {
+        const key = new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit' }).format(date);
+        data[key] = (data[key] ?? 0) + e.total_amount / 100;
+      } else {
+        // Simple week string (e.g. "Week 32")
+        const startOfYear = new Date(date.getFullYear(), 0, 1);
+        const pastDaysOfYear = (date.getTime() - startOfYear.getTime()) / 86400000;
+        const week = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+        const key = `Wk ${week} '${date.getFullYear().toString().slice(2)}`;
+        data[key] = (data[key] ?? 0) + e.total_amount / 100;
+      }
     });
 
-    return Object.entries(monthly).map(([month, total]) => ({
-      month,
+    return Object.entries(data).map(([label, total]) => ({
+      label,
       total,
     }));
-  }, [expenses]);
+  }, [expenses, timeframe]);
+
+  const friendAnalysis = useMemo(() => {
+    const userId = user?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
+    const friendsStats: Record<string, { name: string; youPaid: number; theyPaid: number }> = {};
+    
+    expenses.forEach((e) => {
+      if (!e.splits || e.splits.length === 0) return;
+      const isUserPayer = e.payer_id === userId;
+      
+      e.splits.forEach((split) => {
+        if (split.user_id === userId && !isUserPayer) {
+          // Someone else paid for me
+          const friendId = e.payer_id;
+          if (!friendsStats[friendId]) friendsStats[friendId] = { name: DEMO_MODE ? (MOCK_PROFILES.find(p=>p.id===friendId)?.full_name || friendId) : friendId, youPaid: 0, theyPaid: 0 };
+          friendsStats[friendId].theyPaid += split.amount_owed;
+        } else if (isUserPayer && split.user_id !== userId) {
+          // I paid for someone else
+          const friendId = split.user_id;
+          if (!friendsStats[friendId]) friendsStats[friendId] = { name: DEMO_MODE ? (MOCK_PROFILES.find(p=>p.id===friendId)?.full_name || friendId) : friendId, youPaid: 0, theyPaid: 0 };
+          friendsStats[friendId].youPaid += split.amount_owed;
+        }
+      });
+    });
+
+    return Object.values(friendsStats).sort((a, b) => (b.youPaid + b.theyPaid) - (a.youPaid + a.theyPaid)).slice(0, 5); // top 5
+  }, [expenses, user]);
 
   return (
     <div className="space-y-6">
@@ -141,7 +177,7 @@ export function SpendingPage() {
                   ))}
                 </Pie>
                 <RechartsTooltip
-                  formatter={(val: unknown) => `$${Number(val ?? 0).toFixed(2)}`}
+                  formatter={(val: unknown) => `${getCurrencySymbol()}${Number(val ?? 0).toFixed(2)}`}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -161,14 +197,27 @@ export function SpendingPage() {
           </div>
         </Card>
 
-        <Card title="Monthly Spending Volume" className="rounded-2xl border-gray-100 shadow-sm">
+        <Card 
+          title={
+            <div className="flex items-center justify-between">
+              <span>Spending Volume</span>
+              <Segmented 
+                options={['Monthly', 'Weekly']} 
+                value={timeframe} 
+                onChange={(v) => setTimeframe(v as 'Monthly' | 'Weekly')} 
+                size="small"
+              />
+            </div>
+          } 
+          className="rounded-2xl border-gray-100 shadow-sm"
+        >
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
+                <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} />
                 <YAxis stroke="#94a3b8" fontSize={12} />
                 <RechartsTooltip
-                  formatter={(val: unknown) => `$${Number(val ?? 0).toFixed(2)}`}
+                  formatter={(val: unknown) => `${getCurrencySymbol()}${Number(val ?? 0).toFixed(2)}`}
                 />
                 <Bar dataKey="total" fill="var(--color-primary-500)" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -176,6 +225,34 @@ export function SpendingPage() {
           </div>
         </Card>
       </div>
+
+      {/* Friends Analysis Section */}
+      <Card title="Friends Analysis (Top Interactions)" className="rounded-2xl border-gray-100 shadow-sm">
+        <div className="space-y-4">
+          {friendAnalysis.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">No friend interactions yet.</div>
+          ) : (
+            friendAnalysis.map((friend, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="flex items-center gap-3">
+                  <Avatar style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}>
+                    {friend.name.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <span className="font-semibold text-gray-800">{friend.name}</span>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1 text-sm text-emerald-600">
+                    <ArrowRight className="h-3 w-3" /> You paid {formatCents(friend.youPaid)}
+                  </div>
+                  <div className="flex items-center gap-1 text-sm text-rose-500">
+                    <ArrowLeft className="h-3 w-3" /> They paid {formatCents(friend.theyPaid)}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

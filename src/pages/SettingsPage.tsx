@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Button, Select, Avatar, Divider, message } from 'antd';
+import { Card, Button, Select, Avatar, Divider, message, Input } from 'antd';
 import { Download, User, Globe, Palette } from 'lucide-react';
 import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS } from '../lib/mockData';
 import { CurrencyAdapter } from '../adapters/CurrencyAdapter';
@@ -23,19 +23,40 @@ function getInitials(name: string): string {
 }
 
 export function SettingsPage() {
+  const { currentUser: contextUser } = useAppData();
+  const currentUser = contextUser ?? MOCK_CURRENT_USER;
   const [currency, setCurrency] = useState(getStoredCurrency());
+  const [upiId, setUpiId] = useState(currentUser.upi_id || '');
+  const [isSavingUpi, setIsSavingUpi] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   const { theme, setTheme } = useTheme();
 
   const { user } = useAuth();
-  const { currentUser: contextUser } = useAppData();
   const { data: liveExpenses } = useAllExpenses(user?.id);
 
-  const currentUser = contextUser ?? MOCK_CURRENT_USER;
   const expenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses ?? []);
 
   const supportedCurrencies = CurrencyAdapter.getSupportedCurrencies();
+
+  const handleSaveUpi = async () => {
+    if (DEMO_MODE) {
+      currentUser.upi_id = upiId;
+      messageApi.success('UPI ID updated in Demo Mode');
+      return;
+    }
+    if (user?.id) {
+      setIsSavingUpi(true);
+      try {
+        await updateProfile(user.id, { upi_id: upiId });
+        messageApi.success('UPI ID updated successfully');
+      } catch (e) {
+        messageApi.error('Failed to update UPI ID');
+      } finally {
+        setIsSavingUpi(false);
+      }
+    }
+  };
 
   const handleCurrencyChange = async (value: string) => {
     setCurrency(value);
@@ -110,6 +131,23 @@ export function SettingsPage() {
               })}
             </p>
           </div>
+        </div>
+        
+        <Divider className="my-4" />
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-900">UPI ID for receiving payments</label>
+          <div className="flex items-center gap-3">
+            <Input 
+              value={upiId} 
+              onChange={(e) => setUpiId(e.target.value)} 
+              placeholder="e.g. username@okaxis" 
+              className="max-w-xs"
+            />
+            <Button type="primary" onClick={handleSaveUpi} loading={isSavingUpi} className="bg-primary-500 rounded-lg border-none hover:bg-primary-600">
+              Save
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500">Friends can pay you instantly via UPI apps using this ID.</p>
         </div>
       </Card>
 

@@ -3,6 +3,7 @@ import { Modal, Form, Input, Select, message, Button, Avatar } from 'antd';
 import { UserPlus, Search, CheckCircle2 } from 'lucide-react';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
+import { getStoredCurrency } from '../utils/currency';
 import { addMemberToGroup, createGroupInvitation, createAppInvitation } from '../hooks/supabase/useMutations';
 import { searchProfiles } from '../hooks/supabase/useProfileData';
 import { MOCK_PROFILES, MOCK_GROUP_MEMBERS } from '../lib/mockData';
@@ -80,7 +81,7 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
             id: `user-${Date.now()}`,
             full_name: values.emailOrName.includes('@') ? values.emailOrName.split('@')[0] : values.emailOrName,
             avatar_url: null,
-            default_currency: 'USD',
+            default_currency: getStoredCurrency(),
             created_at: new Date().toISOString(),
           };
           

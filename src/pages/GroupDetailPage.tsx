@@ -29,7 +29,7 @@ import { AddExpenseModal } from '../components/AddExpenseModal';
 import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
 import { AddFriendModal } from '../components/AddFriendModal';
 import { SettleUpModal } from '../components/SettleUpModal';
-import { leaveGroup, deleteGroup } from '../hooks/supabase/useMutations';
+import { leaveGroup, deleteGroup, deleteSettlement } from '../hooks/supabase/useMutations';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useGroupMembers } from '../hooks/supabase/useGroupsData';
@@ -46,6 +46,7 @@ export function GroupDetailPage() {
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | undefined>(undefined);
   const [settleUpTarget, setSettleUpTarget] = useState<string | null>(null);
+  const [settleUpMaxAmount, setSettleUpMaxAmount] = useState<number | undefined>(undefined);
 
   const { user } = useAuth();
   const { currentUser, groups, refetchGroups } = useAppData();
@@ -84,6 +85,15 @@ export function GroupDetailPage() {
     }
     return liveSettlements || [];
   }, [groupId, liveSettlements]);
+
+  // Combine expenses and settlements into a single activity feed
+  const feedItems = useMemo(() => {
+    const items: { type: 'expense' | 'settlement'; data: any; date: number }[] = [
+      ...groupExpenses.map((e) => ({ type: 'expense' as const, data: e, date: new Date(e.created_at).getTime() })),
+      ...groupSettlements.map((s) => ({ type: 'settlement' as const, data: s, date: new Date(s.created_at).getTime() })),
+    ];
+    return items.sort((a, b) => b.date - a.date);
+  }, [groupExpenses, groupSettlements]);
 
   // Compute simplified debts for this group
   const simplifiedDebts = useMemo(() => {
@@ -250,7 +260,7 @@ export function GroupDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto mt-4 md:mt-0">
-            <div className="text-right mr-2 hidden sm:block">
+            <div className="text-right mr-2">
               <div className="text-xs text-gray-400">Your Group Balance</div>
               <div
                 className={`text-lg font-bold font-financial ${getBalanceColorClass(userNetBalance)}`}
@@ -329,16 +339,16 @@ export function GroupDetailPage() {
         </div>
 
         <div className="text-sm text-gray-500 font-medium">
-          {activeTab === 'expenses' ? `${groupExpenses.length} expenses` : `${simplifiedDebts.length} pending debts`}
+          {activeTab === 'expenses' ? `${feedItems.length} activities` : `${simplifiedDebts.length} pending debts`}
         </div>
       </div>
 
       {/* ── TAB 1: Expenses Feed ── */}
       {activeTab === 'expenses' && (
         <div className="space-y-3">
-          {groupExpenses.length === 0 ? (
+          {feedItems.length === 0 ? (
             <Card className="rounded-2xl text-center py-12">
-              <Empty description="No expenses recorded in this group yet" />
+              <Empty description="No activities recorded in this group yet" />
               <Button
                 type="primary"
                 icon={<Plus className="h-4 w-4" />}
@@ -349,53 +359,107 @@ export function GroupDetailPage() {
               </Button>
             </Card>
           ) : (
-            groupExpenses.map((expense) => {
-              const payer = getProfile(expense.payer_id);
-              const isUserPayer = expense.payer_id === userId;
-              const userSplit = expense.splits?.find((s) => s.user_id === userId);
-              const userOwesAmount = userSplit?.amount_owed ?? 0;
+            feedItems.map((item) => {
+              if (item.type === 'expense') {
+                const expense = item.data;
+                const payer = getProfile(expense.payer_id);
+                const isUserPayer = expense.payer_id === userId;
+                const userSplit = expense.splits?.find((s: any) => s.user_id === userId);
+                const userOwesAmount = userSplit?.amount_owed ?? 0;
 
-              return (
-                <div
-                  key={expense.id}
-                  onClick={() => setSelectedExpense(expense)}
-                  className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
-                      {(() => {
-                        const CatIcon = getCategoryIcon(expense.category);
-                        return <CatIcon className="h-5 w-5" />;
-                      })()}
+                return (
+                  <div
+                    key={`expense-${expense.id}`}
+                    onClick={() => setSelectedExpense(expense)}
+                    className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
+                        {(() => {
+                          const CatIcon = getCategoryIcon(expense.category);
+                          return <CatIcon className="h-5 w-5" />;
+                        })()}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900">{expense.description}</div>
+                        <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
+                          <span>Paid by <strong className="text-gray-700">{isUserPayer ? 'You' : payer?.full_name}</strong></span>
+                          <span>•</span>
+                          <span>{formatDate(expense.created_at)}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">{expense.description}</div>
-                      <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
-                        <span>Paid by <strong className="text-gray-700">{isUserPayer ? 'You' : payer?.full_name}</strong></span>
-                        <span>•</span>
-                        <span>{formatDate(expense.created_at)}</span>
+
+                    <div className="text-right">
+                      <div className="text-base font-bold font-financial text-gray-900">
+                        {formatCents(expense.total_amount)}
+                      </div>
+                      <div className="text-xs mt-0.5">
+                        {isUserPayer ? (
+                          <span className="text-emerald-600 font-medium">
+                            You lent {formatCents(expense.total_amount - userOwesAmount)}
+                          </span>
+                        ) : (
+                          <span className="text-rose-500 font-medium">
+                            You owe {formatCents(userOwesAmount)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-
-                  <div className="text-right">
-                    <div className="text-base font-bold font-financial text-gray-900">
-                      {formatCents(expense.total_amount)}
+                );
+              } else {
+                const settlement = item.data;
+                const payer = getProfile(settlement.payer_id);
+                const payee = getProfile(settlement.payee_id);
+                const isUserPayer = settlement.payer_id === userId;
+                const isUserPayee = settlement.payee_id === userId;
+                
+                return (
+                  <div
+                    key={`settlement-${settlement.id}`}
+                    onClick={() => {
+                      if (!DEMO_MODE) {
+                        Modal.confirm({
+                          title: 'Delete Payment',
+                          content: 'Are you sure you want to delete this payment record?',
+                          okText: 'Delete',
+                          okButtonProps: { danger: true },
+                          onOk: async () => {
+                            try {
+                              await deleteSettlement(settlement.id);
+                              message.success('Payment deleted');
+                              window.dispatchEvent(new Event('expenseAdded')); // Trigger refetch
+                            } catch (error: any) {
+                              message.error(error.message || 'Failed to delete payment');
+                            }
+                          }
+                        });
+                      } else {
+                        message.info('Cannot delete settlements in Demo Mode.');
+                      }
+                    }}
+                    className="flex items-center justify-between p-3 my-1 mx-auto w-full md:w-5/6 bg-gray-50 border border-gray-200 rounded-full shadow-sm hover:border-red-300 hover:bg-red-50 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3 ml-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                        <DollarSign className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                        <strong className="text-gray-800">{isUserPayer ? 'You' : payer?.full_name}</strong>
+                        <span className="text-gray-500">paid</span>
+                        <strong className="text-gray-800">{isUserPayee ? 'You' : payee?.full_name}</strong>
+                        <strong className="text-emerald-600 ml-1 font-financial bg-emerald-100/50 px-2 py-0.5 rounded-full">{formatCents(settlement.amount)}</strong>
+                        <span className="text-xs text-gray-400 ml-2 hidden sm:inline-block">• {formatDate(settlement.created_at)}</span>
+                      </div>
                     </div>
-                    <div className="text-xs mt-0.5">
-                      {isUserPayer ? (
-                        <span className="text-emerald-600 font-medium">
-                          You lent {formatCents(expense.total_amount - userOwesAmount)}
-                        </span>
-                      ) : (
-                        <span className="text-rose-500 font-medium">
-                          You owe {formatCents(userOwesAmount)}
-                        </span>
-                      )}
+
+                    <div className="mr-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-red-500 bg-red-100 p-1.5 rounded-full">
+                      <Trash2 className="h-4 w-4" />
                     </div>
                   </div>
-                </div>
-              );
+                );
+              }
             })
           )}
         </div>
@@ -426,7 +490,7 @@ export function GroupDetailPage() {
                   return (
                     <div
                       key={index}
-                      className={`flex items-center justify-between p-4 rounded-xl border ${
+                      className={`flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 p-4 rounded-xl border ${
                         isUserDebtor
                           ? 'bg-rose-50/50 border-rose-100'
                           : isUserCreditor
@@ -457,7 +521,7 @@ export function GroupDetailPage() {
                           {formatCents(debt.amount)}
                         </span>
                         {isUserDebtor && (
-                          <Button type="primary" size="small" onClick={() => setSettleUpTarget(debt.to)} className="rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none text-white shadow-sm">
+                          <Button type="primary" size="small" onClick={() => { setSettleUpTarget(debt.to); setSettleUpMaxAmount(debt.amount); }} className="rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none text-white shadow-sm">
                             Settle Up
                           </Button>
                         )}
@@ -500,8 +564,10 @@ export function GroupDetailPage() {
 
       <SettleUpModal
         open={!!settleUpTarget}
-        onClose={() => setSettleUpTarget(null)}
+        onClose={() => { setSettleUpTarget(null); setSettleUpMaxAmount(undefined); }}
         defaultPayeeId={settleUpTarget ?? undefined}
+        maxAmountCents={settleUpMaxAmount}
+        defaultGroupId={groupId}
       />
     </div>
   );

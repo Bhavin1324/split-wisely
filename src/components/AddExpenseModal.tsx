@@ -83,6 +83,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
 
   // ── Validation ──────────────────────────────────────────────
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // ── Data fetching ───────────────────────────────────────────
@@ -334,13 +335,14 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
       resetForm();
       onClose();
     } else {
+      setIsSubmitting(true);
       try {
         if (existingExpense) {
           await updateExpenseWithSplits({
             expense_id: existingExpense.id,
             description,
             total_amount: totalCents,
-            currency_code: 'USD',
+            currency_code: getStoredCurrency(),
             exchange_rate: 1.0,
             group_id: selectedGroupId ?? null,
             payer_id: payerId,
@@ -357,7 +359,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
           await createExpenseWithSplits({
             description,
             total_amount: totalCents,
-            currency_code: 'USD',
+            currency_code: getStoredCurrency(),
             exchange_rate: 1.0,
             group_id: selectedGroupId ?? null,
             payer_id: payerId,
@@ -377,6 +379,8 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
         onClose();
       } catch (error: any) {
         setValidationError(error.message || 'Failed to save expense');
+      } finally {
+        setIsSubmitting(false);
       }
     }
   }, [
@@ -456,8 +460,8 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
             <div className="flex-1">
             </div>
             <Space>
-              <Button onClick={handleCancel}>Cancel</Button>
-              <Button type="primary" onClick={handleSave}>
+              <Button onClick={handleCancel} disabled={isSubmitting}>Cancel</Button>
+              <Button type="primary" onClick={handleSave} loading={isSubmitting}>
                 Save Expense
               </Button>
             </Space>

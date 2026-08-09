@@ -191,7 +191,7 @@ export async function createAppInvitation(params: { email: string, inviterName: 
   }
 }
 
-export async function updateProfile(userId: string, updates: { full_name?: string; default_currency?: string; avatar_url?: string }): Promise<void> {
+export async function updateProfile(userId: string, updates: { full_name?: string; default_currency?: string; avatar_url?: string; upi_id?: string }): Promise<void> {
   const { error } = await supabase
     .from('profiles')
     .update(updates)
@@ -215,5 +215,10 @@ export async function deleteGroup(groupId: string): Promise<void> {
     .delete()
     .eq('id', groupId);
 
+  if (error) throw error;
+}
+
+export async function deleteSettlement(settlementId: string): Promise<void> {
+  const { error } = await supabase.from('settlements').delete().eq('id', settlementId);
   if (error) throw error;
 }
