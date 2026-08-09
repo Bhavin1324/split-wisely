@@ -126,6 +126,12 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
              return;
           }
 
+          if (!targetGroup) {
+            messageApi.error("You must select a group to invite a new user via email.");
+            setLoading(false);
+            return;
+          }
+
           if (targetGroup) {
             const result = await createGroupInvitation({
               groupId: targetGroup,
@@ -134,8 +140,6 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
             });
             try { await navigator.clipboard.writeText(result.joinUrl); } catch { /* clipboard may fail in some envs */ }
             messageApi.success(`Invitation sent! Join link copied to clipboard.`);
-          } else {
-            messageApi.success(`Invitation sent to ${values.emailOrName}!`);
           }
         }
         refetchGroups();
