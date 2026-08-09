@@ -114,7 +114,18 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
         if (matches.length > 0 && targetGroup) {
           await addMemberToGroup(targetGroup, matches[0].id);
           messageApi.success(`Added ${matches[0].full_name} to the group!`);
+        } else if (matches.length > 0 && !targetGroup) {
+          // Added as a general friend (not in a specific group yet)
+          messageApi.success(`Added ${matches[0].full_name} as a friend!`);
         } else {
+          // No user found. Before inviting, we must ensure the input is a valid email address.
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(values.emailOrName)) {
+             messageApi.error("No user found. Please enter a valid email address to send an invite.");
+             setLoading(false);
+             return;
+          }
+
           if (targetGroup) {
             const result = await createGroupInvitation({
               groupId: targetGroup,

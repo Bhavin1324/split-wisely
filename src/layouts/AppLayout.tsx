@@ -14,7 +14,6 @@ import {
   Bell,
   Menu,
 } from 'lucide-react';
-import { MOCK_CURRENT_USER, MOCK_GROUPS } from '../lib/mockData';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { CreateGroupModal } from '../components/CreateGroupModal';
 import { AddFriendModal } from '../components/AddFriendModal';
@@ -43,8 +42,9 @@ export function AppLayout() {
   const { signOut } = useAuth();
   const { currentUser: contextUser, groups: contextGroups } = useAppData();
 
-  const currentUser = contextUser ?? MOCK_CURRENT_USER;
-  const groups = contextGroups?.length ? contextGroups : MOCK_GROUPS;
+  // Provide a safe fallback during initial load to prevent crashes.
+  const currentUser = contextUser ?? { full_name: 'Loading...', created_at: new Date().toISOString() } as any;
+  const groups = contextGroups || [];
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -142,7 +142,7 @@ export function AppLayout() {
           >
             {currentUser.full_name
               .split(' ')
-              .map((n) => n[0])
+              .map((n: string) => n[0])
               .join('')}
           </Avatar>
           <div className="flex-1 min-w-0">

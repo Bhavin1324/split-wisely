@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
             <h2>You've been invited!</h2>
             <p>${body_json.inviter_name} has invited you to join the group <strong>${body_json.group_name}</strong> on SplitWisely.</p>
             <div style="margin: 30px 0;">
-              <a href="https://expense-tracker.vercel.app/join?token=${body_json.token}" 
+              <a href="https://bsplit-wisely.vercel.app/join?token=${body_json.token}" 
                  style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
                 Accept Invitation
               </a>
