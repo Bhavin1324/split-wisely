@@ -157,11 +157,6 @@ export async function createGroupInvitation(params: {
       .select()
       .single();
 
-    // Trigger the edge function to process the email notification
-    supabase.functions.invoke('email-notifier').catch(err => {
-      console.error('Failed to invoke email-notifier:', err);
-    });
-
     return { invitationId: data?.id ?? `inv-${Date.now()}`, token, joinUrl };
   } catch {
     return { invitationId: `inv-${Date.now()}`, token, joinUrl };
@@ -188,11 +183,6 @@ export async function createAppInvitation(params: { email: string, inviterName: 
       }]);
 
     if (error) throw error;
-
-    // Trigger the edge function
-    supabase.functions.invoke('email-notifier').catch(err => {
-      console.error('Failed to invoke email-notifier:', err);
-    });
 
     return { joinUrl: `${window.location.origin}/login` };
   } catch (error) {

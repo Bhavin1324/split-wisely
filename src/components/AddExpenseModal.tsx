@@ -450,6 +450,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
         onCancel={handleCancel}
         width={560}
         destroyOnClose
+        style={{ top: 20 }}
         footer={
           <div className="flex items-center justify-between">
             <div className="flex-1">

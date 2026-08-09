@@ -114,6 +114,7 @@ export function SettleUpModal({
         onCancel={onClose}
         width={480}
         destroyOnClose
+        style={{ top: 20 }}
         footer={[
           <Button key="cancel" onClick={onClose}>
             Cancel
