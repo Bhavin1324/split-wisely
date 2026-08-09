@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Button, Input, Divider, message } from 'antd';
-import { Receipt, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Receipt, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,11 +20,24 @@ export function LoginPage() {
     import.meta.env.VITE_SUPABASE_URL &&
     import.meta.env.VITE_SUPABASE_URL !== 'https://placeholder.supabase.co';
 
-  // ── Real / Demo Email Sign In ──────────────────────────────
-  const handleSignIn = async () => {
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  // If user is already authenticated, don't show login page again
+  if (session) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // ── Real / Demo Email Sign In / Sign Up ──────────────────────────────
+  const handleAuth = async () => {
     if (!isSupabaseConfigured) {
       // Demo mode: go directly to dashboard
-      messageApi.info('Demo Mode: Logging in...');
+      messageApi.info(`Demo Mode: ${isLoginMode ? 'Logging in' : 'Signing up'}...`);
       navigate('/dashboard');
       return;
     }
@@ -29,19 +46,50 @@ export function LoginPage() {
       messageApi.error('Please enter your email and password.');
       return;
     }
+    
+    if (!isLoginMode && !fullName) {
+      messageApi.error('Please enter your full name.');
+      return;
+    }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    let authError = null;
+
+    if (isLoginMode) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      authError = error;
+    } else {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+      authError = error;
+      
+      if (!error && data.user?.identities?.length === 0) {
+        authError = new Error('This email is already registered. Please sign in instead.');
+      }
+    }
+
     setLoading(false);
 
-    if (error) {
-      messageApi.error(error.message);
+    if (authError) {
+      messageApi.error(authError.message);
     } else {
-      messageApi.success('Successfully signed in!');
-      navigate('/dashboard');
+      if (isLoginMode) {
+        messageApi.success('Successfully signed in!');
+        navigate('/dashboard');
+      } else {
+        messageApi.success('Successfully signed up! You are now logged in.');
+        navigate('/dashboard');
+      }
     }
   };
 
@@ -93,13 +141,29 @@ export function LoginPage() {
           </p>
         </div>
 
-        {/* Login Card */}
+        {/* Login/Signup Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
-            Welcome back
+            {isLoginMode ? 'Welcome back' : 'Create an account'}
           </h2>
 
           <div className="space-y-4">
+            {/* Full Name Input (Sign Up Only) */}
+            {!isLoginMode && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Full Name
+                </label>
+                <Input
+                  size="large"
+                  placeholder="John Doe"
+                  prefix={<User className="w-4 h-4 text-gray-400" />}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
+              </div>
+            )}
+
             {/* Email Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -121,27 +185,39 @@ export function LoginPage() {
               </label>
               <Input.Password
                 size="large"
-                placeholder="Enter your password"
+                placeholder={isLoginMode ? "Enter your password" : "Create a password"}
                 prefix={<Lock className="w-4 h-4 text-gray-400" />}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onPressEnter={handleSignIn}
+                onPressEnter={handleAuth}
               />
             </div>
 
-            {/* Sign In Button */}
+            {/* Submit Button */}
             <Button
               type="primary"
               size="large"
               block
               loading={loading}
-              onClick={handleSignIn}
-              className="!bg-primary-600 !border-primary-600 hover:!bg-primary-700 !h-11 !font-semibold"
+              onClick={handleAuth}
+              className="!bg-primary-600 !border-primary-600 hover:!bg-primary-700 !h-11 !font-semibold mt-2"
               icon={<ArrowRight className="w-4 h-4" />}
               iconPosition="end"
             >
-              Sign In
+              {isLoginMode ? 'Sign In' : 'Sign Up'}
             </Button>
+            
+            {/* Toggle Mode */}
+            <div className="text-center text-sm text-gray-500 mt-2">
+              {isLoginMode ? "Don't have an account? " : "Already have an account? "}
+              <button 
+                type="button" 
+                onClick={() => setIsLoginMode(!isLoginMode)}
+                className="text-primary-600 hover:text-primary-700 font-medium transition-colors"
+              >
+                {isLoginMode ? 'Sign up' : 'Sign in'}
+              </button>
+            </div>
           </div>
 
           <Divider className="!my-6">
