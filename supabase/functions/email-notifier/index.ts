@@ -59,10 +59,25 @@ Deno.serve(async (req) => {
                 Accept Invitation
               </a>
             </div>
-            <p style="color: #666; font-size: 14px;">Or copy this link: https://expense-tracker.vercel.app/join?token=${body_json.token}</p>
+            <p style="color: #666; font-size: 14px;">Or copy this link: https://bsplit-wisely.vercel.app/join?token=${body_json.token}</p>
           </div>
         `;
-        textContent = `You've been invited!\n\n${body_json.inviter_name} has invited you to join the group "${body_json.group_name}" on SplitWisely.\n\nAccept Invitation: https://expense-tracker.vercel.app/join?token=${body_json.token}`;
+        textContent = `You've been invited!\n\n${body_json.inviter_name} has invited you to join the group "${body_json.group_name}" on SplitWisely.\n\nAccept Invitation: https://bsplit-wisely.vercel.app/join?token=${body_json.token}`;
+      } else if (notification_type === 'app_invitation') {
+        htmlContent = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2>You've been invited to SplitWisely!</h2>
+            <p>${body_json.inviter_name || 'Someone'} has invited you to join the SplitWisely app.</p>
+            <div style="margin: 30px 0;">
+              <a href="https://bsplit-wisely.vercel.app/login" 
+                 style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                Join SplitWisely
+              </a>
+            </div>
+            <p style="color: #666; font-size: 14px;">Or copy this link: https://bsplit-wisely.vercel.app/login</p>
+          </div>
+        `;
+        textContent = `You've been invited to SplitWisely!\n\n${body_json.inviter_name || 'Someone'} has invited you to join the SplitWisely app.\n\nJoin SplitWisely: https://bsplit-wisely.vercel.app/login`;
       }
 
       if (gmailUser && gmailPass) {

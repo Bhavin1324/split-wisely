@@ -3,7 +3,7 @@ import { Modal, Form, Input, Select, message, Button, Avatar } from 'antd';
 import { UserPlus, Search, CheckCircle2 } from 'lucide-react';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
-import { addMemberToGroup, createGroupInvitation } from '../hooks/supabase/useMutations';
+import { addMemberToGroup, createGroupInvitation, createAppInvitation } from '../hooks/supabase/useMutations';
 import { searchProfiles } from '../hooks/supabase/useProfileData';
 import { MOCK_PROFILES, MOCK_GROUP_MEMBERS } from '../lib/mockData';
 import type { Profile } from '../types';
@@ -127,19 +127,22 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
           }
 
           if (!targetGroup) {
-            messageApi.error("You must select a group to invite a new user via email.");
-            setLoading(false);
-            return;
-          }
-
-          if (targetGroup) {
+            // General app invite
+            const result = await createAppInvitation({
+              email: values.emailOrName,
+              inviterName: currentUser?.full_name || 'A friend',
+            });
+            try { await navigator.clipboard.writeText(result.joinUrl); } catch { /* clipboard may fail in some envs */ }
+            messageApi.success(`App invitation sent! Join link copied to clipboard.`);
+          } else {
+            // Group invite
             const result = await createGroupInvitation({
               groupId: targetGroup,
               email: values.emailOrName,
               invitedBy: currentUserId,
             });
             try { await navigator.clipboard.writeText(result.joinUrl); } catch { /* clipboard may fail in some envs */ }
-            messageApi.success(`Invitation sent! Join link copied to clipboard.`);
+            messageApi.success(`Group invitation sent! Join link copied to clipboard.`);
           }
         }
         refetchGroups();

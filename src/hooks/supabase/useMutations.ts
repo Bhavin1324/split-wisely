@@ -1,3 +1,4 @@
+import { DEMO_MODE } from '../../context/AppDataContext';
 import { supabase } from '../../lib/supabase';
 
 
@@ -164,6 +165,39 @@ export async function createGroupInvitation(params: {
     return { invitationId: data?.id ?? `inv-${Date.now()}`, token, joinUrl };
   } catch {
     return { invitationId: `inv-${Date.now()}`, token, joinUrl };
+  }
+}
+
+export async function createAppInvitation(params: { email: string, inviterName: string }): Promise<{ joinUrl: string }> {
+  if (DEMO_MODE) {
+    return { joinUrl: `${window.location.origin}/login` };
+  }
+
+  try {
+    const { error } = await supabase
+      .from('email_notifications')
+      .insert([{
+        recipient_email: params.email,
+        subject: `${params.inviterName} has invited you to SplitWisely!`,
+        body_json: {
+          inviter_name: params.inviterName,
+          token: null
+        },
+        notification_type: 'app_invitation',
+        sent: false
+      }]);
+
+    if (error) throw error;
+
+    // Trigger the edge function
+    supabase.functions.invoke('email-notifier').catch(err => {
+      console.error('Failed to invoke email-notifier:', err);
+    });
+
+    return { joinUrl: `${window.location.origin}/login` };
+  } catch (error) {
+    console.error('Failed to create app invitation:', error);
+    return { joinUrl: `${window.location.origin}/login` };
   }
 }
 
