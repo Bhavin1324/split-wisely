@@ -121,10 +121,13 @@ export function LoginPage() {
 
   // ── Real / Demo Google OAuth Sign In ──────────────────────
   const handleGoogleSignIn = async () => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const returnTo = searchParams.get('returnTo') || '/dashboard';
+
     if (!isSupabaseConfigured) {
       // Demo mode fallback
       messageApi.info('Demo Mode: Google Sign-In simulated.');
-      navigate('/dashboard');
+      navigate(returnTo);
       return;
     }
 
@@ -132,7 +135,7 @@ export function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}${returnTo}`,
       },
     });
     setLoading(false);
