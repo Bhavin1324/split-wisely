@@ -42,14 +42,35 @@ export function LoginPage() {
       return;
     }
 
+    // Robust Form Validation
     if (!email || !password) {
       messageApi.error('Please enter your email and password.');
       return;
     }
-    
-    if (!isLoginMode && !fullName) {
-      messageApi.error('Please enter your full name.');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      messageApi.error('Please enter a valid email address.');
       return;
+    }
+
+    if (password.length < 6) {
+      messageApi.error('Password must be at least 6 characters long.');
+      return;
+    }
+    
+    if (!isLoginMode) {
+      if (!fullName || fullName.trim().length < 2) {
+        messageApi.error('Please enter a valid full name (at least 2 characters).');
+        return;
+      }
+      
+      // Robust password validation for Sign Up
+      const strongPasswordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
+      if (!strongPasswordRegex.test(password)) {
+        messageApi.error('For your security, password must contain at least one letter and one number.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -67,7 +88,7 @@ export function LoginPage() {
         password,
         options: {
           data: {
-            full_name: fullName,
+            full_name: fullName.trim(),
           },
         },
       });
@@ -81,7 +102,12 @@ export function LoginPage() {
     setLoading(false);
 
     if (authError) {
-      messageApi.error(authError.message);
+      // Provide a helpful message if email confirmation is required but not done
+      if (authError.message.toLowerCase().includes('email not confirmed')) {
+        messageApi.error('Email not confirmed. Please check your inbox or disable "Confirm Email" in your Supabase Auth settings.');
+      } else {
+        messageApi.error(authError.message);
+      }
     } else {
       if (isLoginMode) {
         messageApi.success('Successfully signed in!');
