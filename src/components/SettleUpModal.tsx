@@ -17,6 +17,7 @@ interface SettleUpModalProps {
   open: boolean;
   onClose: () => void;
   defaultPayeeId?: string;
+  defaultPayeeName?: string;
   defaultGroupId?: string;
   defaultAmountCents?: number;
   maxAmountCents?: number;
@@ -26,6 +27,7 @@ export function SettleUpModal({
   open,
   onClose,
   defaultPayeeId,
+  defaultPayeeName,
   defaultGroupId,
   defaultAmountCents,
   maxAmountCents,
@@ -174,10 +176,15 @@ export function SettleUpModal({
               placeholder="Select recipient"
               value={payeeId}
               onChange={(val) => setPayeeId(val)}
-              options={availablePayees.map((p: Profile) => ({
-                label: p.full_name,
-                value: p.id,
-              }))}
+              options={[
+                ...availablePayees.map((p: Profile) => ({
+                  label: p.full_name,
+                  value: p.id,
+                })),
+                ...(payeeId && !availablePayees.some(p => p.id === payeeId) && defaultPayeeName
+                  ? [{ label: defaultPayeeName, value: payeeId }]
+                  : [])
+              ]}
             />
           </Form.Item>
 

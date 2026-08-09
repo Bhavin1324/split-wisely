@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Avatar, Button, Card, Empty } from 'antd';
 import {
   ArrowLeft,
-  DollarSign,
+  
   Receipt,
   CheckCircle2,
 } from 'lucide-react';
@@ -13,7 +13,7 @@ import {
   MOCK_EXPENSES,
   MOCK_SETTLEMENTS,
 } from '../lib/mockData';
-import { formatCents, getBalanceColorClass } from '../utils/currency';
+import { formatCents, getBalanceColorClass, getCurrencySymbol } from '../utils/currency';
 import { formatDate } from '../utils/date';
 import { SettleUpModal } from '../components/SettleUpModal';
 import { AddExpenseModal } from '../components/AddExpenseModal';
@@ -146,7 +146,7 @@ export function FriendDetailPage() {
 
           <Button
             type="primary"
-            icon={<DollarSign className="h-4 w-4" />}
+            icon={<span className="font-financial font-bold text-base w-4 h-4 flex items-center justify-center bg-white/20 rounded-full">{getCurrencySymbol()}</span>}
             size="large"
             onClick={() => setIsSettleUpOpen(true)}
             className="rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none"
@@ -224,6 +224,7 @@ export function FriendDetailPage() {
         open={isSettleUpOpen}
         onClose={() => setIsSettleUpOpen(false)}
         defaultPayeeId={netBalanceCents < 0 ? friendId : userId}
+        defaultPayeeName={netBalanceCents < 0 ? friend.full_name : 'You'}
         defaultAmountCents={Math.abs(netBalanceCents)}
       />
 

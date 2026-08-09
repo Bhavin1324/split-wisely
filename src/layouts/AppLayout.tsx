@@ -266,8 +266,21 @@ export function AppLayout() {
         placement="right"
         onClose={() => setIsMobileMenuOpen(false)}
         open={isMobileMenuOpen}
-        className="md:hidden"
+        className="md:hidden flex flex-col"
         styles={{ body: { padding: 0 } }}
+        footer={
+          <div className="flex items-center justify-between p-2">
+            <span className="text-sm font-medium text-gray-500">{currentUser.full_name}</span>
+            <Button 
+              type="text" 
+              danger 
+              icon={<LogOut className="w-4 h-4" />} 
+              onClick={async () => { await signOut(); navigate('/login'); }}
+            >
+              Sign Out
+            </Button>
+          </div>
+        }
       >
         <div className="p-4 flex justify-between items-center bg-gray-50 border-b border-gray-200">
           <span className="font-semibold text-gray-700">All Groups</span>

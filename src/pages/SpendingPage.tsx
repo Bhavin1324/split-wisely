@@ -95,12 +95,14 @@ export function SpendingPage() {
         if (split.user_id === userId && !isUserPayer) {
           // Someone else paid for me
           const friendId = e.payer_id;
-          if (!friendsStats[friendId]) friendsStats[friendId] = { name: DEMO_MODE ? (MOCK_PROFILES.find(p=>p.id===friendId)?.full_name || friendId) : friendId, youPaid: 0, theyPaid: 0 };
+          const friendName = DEMO_MODE ? (MOCK_PROFILES.find(p=>p.id===friendId)?.full_name || friendId) : (e.payer?.full_name || friendId);
+          if (!friendsStats[friendId]) friendsStats[friendId] = { name: friendName, youPaid: 0, theyPaid: 0 };
           friendsStats[friendId].theyPaid += split.amount_owed;
         } else if (isUserPayer && split.user_id !== userId) {
           // I paid for someone else
           const friendId = split.user_id;
-          if (!friendsStats[friendId]) friendsStats[friendId] = { name: DEMO_MODE ? (MOCK_PROFILES.find(p=>p.id===friendId)?.full_name || friendId) : friendId, youPaid: 0, theyPaid: 0 };
+          const friendName = DEMO_MODE ? (MOCK_PROFILES.find(p=>p.id===friendId)?.full_name || friendId) : (split.user?.full_name || friendId);
+          if (!friendsStats[friendId]) friendsStats[friendId] = { name: friendName, youPaid: 0, theyPaid: 0 };
           friendsStats[friendId].youPaid += split.amount_owed;
         }
       });
@@ -233,19 +235,19 @@ export function SpendingPage() {
             <div className="text-center text-gray-500 py-8">No friend interactions yet.</div>
           ) : (
             friendAnalysis.map((friend, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-3">
                 <div className="flex items-center gap-3">
                   <Avatar style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}>
                     {friend.name.charAt(0).toUpperCase()}
                   </Avatar>
-                  <span className="font-semibold text-gray-800">{friend.name}</span>
+                  <span className="font-semibold text-gray-800 break-words">{friend.name}</span>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <div className="flex items-center gap-1 text-sm text-emerald-600">
-                    <ArrowRight className="h-3 w-3" /> You paid {formatCents(friend.youPaid)}
+                <div className="flex flex-col items-start sm:items-end gap-1.5 ml-11 sm:ml-0">
+                  <div className="flex items-center gap-1.5 text-sm text-emerald-600 font-medium">
+                    <ArrowRight className="h-4 w-4" /> You paid {formatCents(friend.youPaid)}
                   </div>
-                  <div className="flex items-center gap-1 text-sm text-rose-500">
-                    <ArrowLeft className="h-3 w-3" /> They paid {formatCents(friend.theyPaid)}
+                  <div className="flex items-center gap-1.5 text-sm text-rose-500 font-medium">
+                    <ArrowLeft className="h-4 w-4" /> They paid {formatCents(friend.theyPaid)}
                   </div>
                 </div>
               </div>

@@ -46,6 +46,7 @@ export function GroupDetailPage() {
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | undefined>(undefined);
   const [settleUpTarget, setSettleUpTarget] = useState<string | null>(null);
+  const [settleUpTargetName, setSettleUpTargetName] = useState<string | undefined>(undefined);
   const [settleUpMaxAmount, setSettleUpMaxAmount] = useState<number | undefined>(undefined);
 
   const { user } = useAuth();
@@ -521,7 +522,7 @@ export function GroupDetailPage() {
                           {formatCents(debt.amount)}
                         </span>
                         {isUserDebtor && (
-                          <Button type="primary" size="small" onClick={() => { setSettleUpTarget(debt.to); setSettleUpMaxAmount(debt.amount); }} className="rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none text-white shadow-sm">
+                          <Button type="primary" size="small" onClick={() => { setSettleUpTarget(debt.to); setSettleUpTargetName(toProfile?.full_name); setSettleUpMaxAmount(debt.amount); }} className="rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none text-white shadow-sm">
                             Settle Up
                           </Button>
                         )}
@@ -564,8 +565,9 @@ export function GroupDetailPage() {
 
       <SettleUpModal
         open={!!settleUpTarget}
-        onClose={() => { setSettleUpTarget(null); setSettleUpMaxAmount(undefined); }}
+        onClose={() => { setSettleUpTarget(null); setSettleUpTargetName(undefined); setSettleUpMaxAmount(undefined); }}
         defaultPayeeId={settleUpTarget ?? undefined}
+        defaultPayeeName={settleUpTargetName}
         maxAmountCents={settleUpMaxAmount}
         defaultGroupId={groupId}
       />
