@@ -86,7 +86,16 @@ export function ResetPasswordPage() {
               label={<span className="text-gray-700 font-medium">New Password</span>}
               rules={[
                 { required: true, message: 'Please input your new password!' },
-                { min: 6, message: 'Password must be at least 6 characters!' }
+                {
+                  validator: (_, value) => {
+                    if (!value) return Promise.resolve();
+                    const strongPasswordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
+                    if (!strongPasswordRegex.test(value)) {
+                      return Promise.reject(new Error('Password must contain at least one letter and one number, and be at least 6 characters long.'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
               ]}
             >
               <Input.Password

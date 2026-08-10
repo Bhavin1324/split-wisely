@@ -54,21 +54,16 @@ export function LoginPage() {
       return;
     }
 
-    if (password.length < 6) {
-      messageApi.error('Password must be at least 6 characters long.');
+    // Apply Strong Password Validation to BOTH Login and Signup
+    const strongPasswordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
+    if (!strongPasswordRegex.test(password)) {
+      messageApi.error('For your security, password must contain at least one letter and one number, and be at least 6 characters long.');
       return;
     }
     
     if (!isLoginMode) {
       if (!fullName || fullName.trim().length < 2) {
         messageApi.error('Please enter a valid full name (at least 2 characters).');
-        return;
-      }
-      
-      // Robust password validation for Sign Up
-      const strongPasswordRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
-      if (!strongPasswordRegex.test(password)) {
-        messageApi.error('For your security, password must contain at least one letter and one number.');
         return;
       }
     }
