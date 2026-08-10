@@ -14,6 +14,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ defau
 const JoinGroupPage = lazy(() => import('./pages/JoinGroupPage').then(module => ({ default: module.JoinGroupPage })));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage').then(module => ({ default: module.AuthCallbackPage })));
 const AuthRoute = lazy(() => import('./components/AuthRoute').then(module => ({ default: module.AuthRoute })));
 
 const withSuspense = (Component: React.ComponentType) => (
@@ -29,6 +30,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: withSuspense(LoginPage),
+  },
+  {
+    path: '/auth/callback',
+    element: withSuspense(AuthCallbackPage),
   },
   {
     path: '/join',

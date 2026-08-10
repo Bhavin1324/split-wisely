@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
-import { Button, Input, Divider, message } from 'antd';
+import { Button, Input, Divider, message, Modal } from 'antd';
 import { Receipt, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -75,13 +75,16 @@ export function LoginPage() {
 
     setLoading(true);
     let authError = null;
+    let authSession = null;
+    let authUser = null;
 
     if (isLoginMode) {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       authError = error;
+      authSession = data.session;
     } else {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -93,6 +96,8 @@ export function LoginPage() {
         },
       });
       authError = error;
+      authSession = data.session;
+      authUser = data.user;
       
       if (!error && data.user?.identities?.length === 0) {
         authError = new Error('This email is already registered. Please sign in instead.');
@@ -113,8 +118,18 @@ export function LoginPage() {
         messageApi.success('Successfully signed in!');
         navigate('/dashboard');
       } else {
-        messageApi.success('Successfully signed up! You are now logged in.');
-        navigate('/dashboard');
+        if (authSession) {
+          messageApi.success('Successfully signed up! You are now logged in.');
+          navigate('/dashboard');
+        } else if (authUser) {
+          Modal.success({
+            title: 'Check your email',
+            content: 'Registration successful! We have sent a confirmation link to your email address. Please click it to activate your account.',
+            okText: 'Got it',
+          });
+          setIsLoginMode(true);
+          setPassword('');
+        }
       }
     }
   };
