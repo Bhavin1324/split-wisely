@@ -74,7 +74,14 @@ export function SettleUpModal({
 
   const upiIntent = useMemo(() => {
     if (!selectedPayeeObj?.upi_id || !amountValue) return null;
-    return `upi://pay?pa=${selectedPayeeObj.upi_id}&pn=${encodeURIComponent(selectedPayeeObj.full_name)}&am=${amountValue}&cu=INR`;
+    
+    // Ensure amount is formatted strictly to 2 decimal places (e.g., 10.00)
+    // as some strict UPI apps will reject or drop the amount otherwise.
+    const formattedAmount = amountValue.toFixed(2);
+    const payeeName = encodeURIComponent(selectedPayeeObj.full_name);
+    const note = encodeURIComponent('Expense Settlement via Split Wisely');
+    
+    return `upi://pay?pa=${selectedPayeeObj.upi_id}&pn=${payeeName}&am=${formattedAmount}&cu=INR&tn=${note}`;
   }, [selectedPayeeObj, amountValue]);
 
   const handleSave = async (skipClose = false) => {
@@ -134,9 +141,11 @@ export function SettleUpModal({
 
   const handleUpiClick = async () => {
     if (!upiIntent) return;
-    await handleSave(true);
     window.location.href = upiIntent;
-    setTimeout(() => onClose(), 1000);
+    messageApi.info(
+      'Opening UPI App. Please complete the payment there, then return here and click "Save Payment" to record it.',
+      5
+    );
   };
 
   return (
