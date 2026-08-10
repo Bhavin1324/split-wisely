@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Tag } from 'antd';
 import {
   Wallet,
@@ -14,12 +14,9 @@ import {
   MOCK_CURRENT_USER,
   MOCK_GROUPS,
   MOCK_EXPENSES,
-  MOCK_SETTLEMENTS,
-  MOCK_GROUP_MEMBERS,
 } from '../lib/mockData';
-import { getMonthYearKey } from '../utils/date';
-import { DebtSimplifier } from '../core/domain/DebtSimplifier';
-import type { Expense, Group } from '../types';
+import type { Expense } from '../types';
+import { useDashboardData } from '../hooks/useDashboardData';
 
 import { BalanceCard } from '../components/dashboard/BalanceCard';
 import { ActivityItem } from '../components/dashboard/ActivityItem';
@@ -27,122 +24,7 @@ import { GroupCard } from '../components/dashboard/GroupCard';
 import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 
-// ---------------------------------------------------------------------------
-// Balance computation (now parameterised for both modes)
-// ---------------------------------------------------------------------------
-interface UserBalances {
-  totalBalance: number;
-  youOwe: number;
-  youAreOwed: number;
-  /** Per-group net balance for the current user (cents) */
-  groupBalances: Record<string, number>;
-}
 
-function computeUserBalances(
-  userId: string,
-  groups: Group[],
-  allExpenses: Expense[],
-): UserBalances {
-  let totalOwed = 0;
-  let totalOwing = 0;
-  const groupBalances: Record<string, number> = {};
-
-  // In live mode we may not have group_members/settlements loaded globally,
-  // so we compute balance per-group from the expenses that belong to each group.
-  const settlements = DEMO_MODE ? MOCK_SETTLEMENTS : [];
-  const groupMembers = DEMO_MODE ? MOCK_GROUP_MEMBERS : [];
-
-  groups.forEach((group) => {
-    const groupExpenses = allExpenses.filter((e) => e.group_id === group.id);
-    const groupSettlements = settlements.filter(
-      (s) => s.group_id === group.id,
-    );
-    const members = DEMO_MODE
-      ? groupMembers.filter((gm) => gm.group_id === group.id)
-      : [];
-
-    // Collect unique user ids from expenses when not in demo mode
-    const memberIds = DEMO_MODE
-      ? members.map((m) => ({ user_id: m.user_id }))
-      : Array.from(
-          new Set(
-            groupExpenses.flatMap((e) => [
-              e.payer_id,
-              ...(e.splits ?? []).map((s) => s.user_id),
-            ]),
-          ),
-        ).map((id) => ({ user_id: id }));
-
-    const debts = DebtSimplifier.simplifyDebts(
-      groupExpenses.map((e) => ({
-        payer_id: e.payer_id,
-        base_currency_amount: e.base_currency_amount,
-        splits: (e.splits ?? []).map((s) => ({
-          user_id: s.user_id,
-          amount_owed: s.amount_owed,
-        })),
-      })),
-      groupSettlements.map((s) => ({
-        payer_id: s.payer_id,
-        payee_id: s.payee_id,
-        amount: s.amount,
-      })),
-      memberIds,
-    );
-
-    let groupOwed = 0;
-    let groupOwing = 0;
-
-    debts.forEach((d) => {
-      if (d.from === userId) {
-        totalOwing += d.amount;
-        groupOwing += d.amount;
-      }
-      if (d.to === userId) {
-        totalOwed += d.amount;
-        groupOwed += d.amount;
-      }
-    });
-
-    groupBalances[group.id] = groupOwed - groupOwing;
-  });
-
-  return {
-    totalBalance: totalOwed - totalOwing,
-    youOwe: totalOwing,
-    youAreOwed: totalOwed,
-    groupBalances,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Group expenses by month for timeline
-// ---------------------------------------------------------------------------
-function groupExpensesByMonth(
-  expenses: Expense[],
-): { month: string; expenses: Expense[] }[] {
-  const sorted = [...expenses].sort(
-    (a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-  );
-
-  const monthMap = new Map<string, Expense[]>();
-
-  sorted.forEach((expense) => {
-    const key = getMonthYearKey(expense.created_at);
-    const existing = monthMap.get(key);
-    if (existing) {
-      existing.push(expense);
-    } else {
-      monthMap.set(key, [expense]);
-    }
-  });
-
-  return Array.from(monthMap.entries()).map(([month, exps]) => ({
-    month,
-    expenses: exps,
-  }));
-}
 
 // ---------------------------------------------------------------------------
 // Main Component
@@ -162,14 +44,7 @@ export function DashboardPage() {
   const groups = DEMO_MODE ? MOCK_GROUPS : contextGroups;
   const allExpenses = DEMO_MODE ? MOCK_EXPENSES : liveExpenses;
 
-  const balances = useMemo(
-    () => computeUserBalances(userId, groups, allExpenses),
-    [userId, groups, allExpenses],
-  );
-  const expensesByMonth = useMemo(
-    () => groupExpensesByMonth(allExpenses),
-    [allExpenses],
-  );
+  const { balances, expensesByMonth } = useDashboardData(userId, groups, allExpenses);
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6 lg:px-8">

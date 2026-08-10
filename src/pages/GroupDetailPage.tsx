@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Avatar, Segmented, Empty, Tag, Button, Card, Dropdown, Modal, message } from 'antd';
+import { Avatar, Segmented, Empty, Tag, Button, Card, Dropdown, Modal, message, Switch, Drawer, List } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   ArrowRight,
@@ -12,30 +12,26 @@ import {
   UserPlus,
   Settings,
   LogOut,
-  Trash2
+  Trash2,
+  Calculator,
+  X
 } from 'lucide-react';
 import {
-  MOCK_EXPENSES,
-  MOCK_SETTLEMENTS,
-  MOCK_GROUP_MEMBERS,
   MOCK_CURRENT_USER,
-  getProfileById,
 } from '../lib/mockData';
-import { formatCents, getBalanceColorClass } from '../utils/currency';
+import { formatCents } from '../utils/currency';
 import { getCategoryIcon } from '../utils/icons';
 import { formatDate } from '../utils/date';
-import { DebtSimplifier } from '../core/domain/DebtSimplifier';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
 import { AddFriendModal } from '../components/AddFriendModal';
 import { SettleUpModal } from '../components/SettleUpModal';
-import { leaveGroup, deleteGroup, deleteSettlement } from '../hooks/supabase/useMutations';
+import { leaveGroup, deleteGroup, deleteSettlement, removeMemberFromGroup, updateGroupSettings } from '../hooks/supabase/useMutations';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useGroupMembers } from '../hooks/supabase/useGroupsData';
-import { useExpenses } from '../hooks/supabase/useExpensesData';
-import { useSettlements } from '../hooks/supabase/useSettlementsData';
-import type { Profile, Expense } from '../types';
+import { useGroupCalculations } from '../hooks/useGroupCalculations';
+import type { Expense } from '../types';
 
 export function GroupDetailPage() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -48,101 +44,32 @@ export function GroupDetailPage() {
   const [settleUpTarget, setSettleUpTarget] = useState<string | null>(null);
   const [settleUpTargetName, setSettleUpTargetName] = useState<string | undefined>(undefined);
   const [settleUpMaxAmount, setSettleUpMaxAmount] = useState<number | undefined>(undefined);
+  const [isMembersDrawerOpen, setIsMembersDrawerOpen] = useState(false);
+  const [isLedgerOpen, setIsLedgerOpen] = useState(false);
 
   const { user } = useAuth();
   const { currentUser, groups, refetchGroups } = useAppData();
   const userId = currentUser?.id ?? user?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
-  const { data: liveMembers } = useGroupMembers(groupId);
-  const { data: liveExpenses } = useExpenses(groupId);
-  const { data: liveSettlements } = useSettlements(groupId);
+  useGroupMembers(groupId); // pre-fetch or trigger load for cache
 
   const group = useMemo(() => {
     return groups.find((g) => g.id === groupId);
   }, [groups, groupId]);
 
-  const groupMembers = useMemo(() => {
-    if (DEMO_MODE) {
-      if (!groupId) return [];
-      return MOCK_GROUP_MEMBERS.filter((gm) => gm.group_id === groupId);
-    }
-    return liveMembers || [];
-  }, [groupId, liveMembers]);
-
-  const groupExpenses = useMemo(() => {
-    if (DEMO_MODE) {
-      if (!groupId) return [];
-      return MOCK_EXPENSES.filter((e) => e.group_id === groupId).sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
-    }
-    return liveExpenses || [];
-  }, [groupId, liveExpenses]);
-
-  const groupSettlements = useMemo(() => {
-    if (DEMO_MODE) {
-      if (!groupId) return [];
-      return MOCK_SETTLEMENTS.filter((s) => s.group_id === groupId);
-    }
-    return liveSettlements || [];
-  }, [groupId, liveSettlements]);
-
-  // Combine expenses and settlements into a single activity feed
-  const feedItems = useMemo(() => {
-    const items: { type: 'expense' | 'settlement'; data: any; date: number }[] = [
-      ...groupExpenses.map((e) => ({ type: 'expense' as const, data: e, date: new Date(e.created_at).getTime() })),
-      ...groupSettlements.map((s) => ({ type: 'settlement' as const, data: s, date: new Date(s.created_at).getTime() })),
-    ];
-    return items.sort((a, b) => b.date - a.date);
-  }, [groupExpenses, groupSettlements]);
-
-  // Compute simplified debts for this group
-  const simplifiedDebts = useMemo(() => {
-    if (!groupId) return [];
-    return DebtSimplifier.simplifyDebts(
-      groupExpenses.map((e) => ({
-        payer_id: e.payer_id,
-        base_currency_amount: e.base_currency_amount,
-        splits: (e.splits ?? []).map((s) => ({
-          user_id: s.user_id,
-          amount_owed: s.amount_owed,
-        })),
-      })),
-      groupSettlements.map((s) => ({
-        payer_id: s.payer_id,
-        payee_id: s.payee_id,
-        amount: s.amount,
-      })),
-      groupMembers.map((m) => ({ user_id: m.user_id })),
-    );
-  }, [groupId, groupExpenses, groupSettlements, groupMembers]);
-
-  // Compute user's net balance in this group
-  const { userNetBalance, userOwes, userIsOwed } = useMemo(() => {
-    let balance = 0;
-    let owes = 0;
-    let isOwed = 0;
-    simplifiedDebts.forEach((debt) => {
-      if (debt.from === userId) {
-        balance -= debt.amount;
-        owes += debt.amount;
-      }
-      if (debt.to === userId) {
-        balance += debt.amount;
-        isOwed += debt.amount;
-      }
-    });
-    return { userNetBalance: balance, userOwes: owes, userIsOwed: isOwed };
-  }, [simplifiedDebts, userId]);
-
-  const getProfile = (id: string) => {
-    if (DEMO_MODE) return getProfileById(id) as Profile | undefined;
-    const member = liveMembers?.find(m => m.user_id === id);
-    return member?.profile as Profile | undefined;
-  };
+  const {
+    groupMembers,
+    refetchMembers,
+    feedItems,
+    displayedDebts,
+    userNetBalance,
+    myDebts,
+    getProfile,
+    memberLedgers
+  } = useGroupCalculations(groupId, userId, group);
 
   const handleLeaveGroup = () => {
-    if (userNetBalance !== 0 || simplifiedDebts.length > 0) {
+    if (userNetBalance !== 0 || displayedDebts.length > 0) {
       Modal.confirm({
         title: 'Unsettled Debts',
         content: 'You cannot leave this group because you have unsettled debts. Please settle up first.',
@@ -169,8 +96,26 @@ export function GroupDetailPage() {
     });
   };
 
+  const handleRemoveMember = (memberId: string, memberName: string) => {
+    Modal.confirm({
+      title: 'Remove Member',
+      content: `Are you sure you want to remove ${memberName} from this group?`,
+      okText: 'Remove',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await removeMemberFromGroup(groupId!, memberId);
+          message.success(`${memberName} removed from group`);
+          refetchMembers();
+        } catch (error: any) {
+          message.error(error.message || 'Failed to remove member');
+        }
+      }
+    });
+  };
+
   const handleDeleteGroup = () => {
-    if (simplifiedDebts.length > 0) {
+    if (displayedDebts.length > 0) {
       Modal.confirm({
         title: 'Warning: Unsettled Debts!',
         content: 'This group has unsettled expenses. Are you absolutely sure you want to delete it? This action cannot be undone.',
@@ -208,7 +153,27 @@ export function GroupDetailPage() {
     });
   };
 
+  const handleToggleSimplify = async (checked: boolean) => {
+    try {
+      await updateGroupSettings(groupId!, { simplify_debts: checked });
+      message.success(`Debt simplification turned ${checked ? 'on' : 'off'}`);
+      refetchGroups();
+    } catch (error: any) {
+      message.error(error.message || 'Failed to update setting');
+    }
+  };
+
   const settingsMenu: MenuProps['items'] = [
+    {
+      key: 'simplify',
+      label: (
+        <div className="flex items-center justify-between min-w-[160px]" onClick={e => e.stopPropagation()}>
+          <span>Simplify Debts</span>
+          <Switch size="small" checked={group?.simplify_debts !== false} onChange={handleToggleSimplify} />
+        </div>
+      ),
+    },
+    { type: 'divider' },
     {
       key: 'leave',
       icon: <LogOut className="h-4 w-4" />,
@@ -238,89 +203,92 @@ export function GroupDetailPage() {
   return (
     <div className="space-y-6">
       {/* ── Group Header ── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-surface-900 to-surface-800 p-6 text-white shadow-xl">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-500/20 text-primary-400 text-2xl font-bold border border-primary-500/30">
-              {group.name.charAt(0)}
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold tracking-tight text-white mb-0">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-surface-900 to-surface-800 p-5 sm:p-6 text-white shadow-xl">
+        <div className="relative z-10 space-y-5">
+          {/* Top Row: Info & Settings */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-500/20 text-primary-400 text-xl sm:text-2xl font-bold border border-primary-500/30">
+                {group.name.charAt(0)}
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white mb-1 line-clamp-1">
                   {group.name}
                 </h1>
-                <Tag className="bg-primary-500/10 text-primary-400 border border-primary-500/20 rounded-full px-3">
-                  Active Group
-                </Tag>
-              </div>
-              <div className="mt-1 flex items-center gap-2 text-sm text-gray-300">
-                <Users className="h-4 w-4 text-gray-400" />
-                <span>{groupMembers.length} members</span>
+                <Button
+                  type="primary"
+                  onClick={() => setIsMembersDrawerOpen(true)}
+                  className="text-gray-300 hover:text-white hover:bg-white/10 flex items-center gap-2 h-auto"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  <span className="text-xs sm:text-sm font-medium">{groupMembers.length} Members</span>
+                  <ArrowRight className="h-3.5 w-3.5 opacity-50" />
+                </Button>
               </div>
             </div>
+            
+            <Dropdown menu={{ items: settingsMenu }} trigger={['click']} placement="bottomRight">
+              <Button
+                type="default"
+                icon={<Settings className="h-5 w-5" />}
+                className="text-gray-300 hover:text-white hover:bg-white/10"
+              />
+            </Dropdown>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto mt-4 md:mt-0">
-            <div className="text-right mr-2">
-              <div className="text-xs text-gray-400">Your Group Balance</div>
-              <div
-                className={`text-lg font-bold font-financial ${getBalanceColorClass(userNetBalance)}`}
-              >
-                {userNetBalance === 0
-                  ? 'Settled up'
-                  : formatCents(userNetBalance)}
+          {/* Middle Row: Status */}
+          <div className="bg-white/5 rounded-xl p-3 sm:p-4 border border-white/10">
+            <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Your Status</div>
+            {myDebts.length === 0 ? (
+              <div className="text-sm text-emerald-400 flex items-center gap-1.5 font-medium">
+                <CheckCircle2 className="h-4 w-4" /> All settled up!
               </div>
-              <div className="flex items-center justify-end gap-2 mt-0.5">
-                {userOwes > 0 && <span className="text-[10px] text-rose-300">You Owe {formatCents(userOwes)}</span>}
-                {userIsOwed > 0 && <span className="text-[10px] text-emerald-300">Owed {formatCents(userIsOwed)}</span>}
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {myDebts.map((debt, idx) => {
+                  const isOwe = debt.from === userId;
+                  const otherPersonId = isOwe ? debt.to : debt.from;
+                  const otherPerson = getProfile(otherPersonId);
+                  const otherName = otherPerson?.full_name ?? otherPersonId;
+                  
+                  return (
+                    <div key={idx} className="flex items-center justify-between gap-3 text-sm bg-black/20 rounded-lg px-3 py-2">
+                      <span className="text-gray-200 truncate">
+                        {isOwe ? (
+                          <>You owe <strong className="text-white">{otherName}</strong></>
+                        ) : (
+                          <><strong className="text-white">{otherName}</strong> owes you</>
+                        )}
+                      </span>
+                      <span className={`font-bold font-financial shrink-0 ${isOwe ? 'text-rose-400' : 'text-emerald-400'}`}>
+                        {formatCents(debt.amount)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-            <Button
-              icon={<UserPlus className="h-4 w-4" />}
-              size="large"
-              onClick={() => setIsAddMemberOpen(true)}
-              className="rounded-xl bg-primary-500/20 hover:bg-primary-500/30 text-primary-50 border border-primary-500/30 font-semibold"
-            >
-              <span className='hidden md:inline'>Invite Member</span>
-            </Button>
+            )}
+          </div>
+
+          {/* Bottom Row: Actions */}
+          <div className="flex items-center gap-3 w-full">
             <Button
               type="primary"
               icon={<Plus className="h-4 w-4" />}
               size="large"
               onClick={() => setIsAddExpenseOpen(true)}
-              className="rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none"
+              className="flex-1 rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none shadow-lg shadow-primary-500/20"
             >
-              <span className='hidden md:inline'>Add Expense</span>
+              Expenses
             </Button>
-            <Dropdown menu={{ items: settingsMenu }} trigger={['click']} placement="bottomRight">
-              <Button
-                size="large"
-                icon={<Settings className="h-5 w-5" />}
-                className="rounded-xl bg-white/10 hover:bg-white/20 text-white border-white/20 ml-2"
-              />
-            </Dropdown>
-          </div>
-        </div>
-
-        {/* Member Avatar Stack */}
-        <div className="mt-6 border-t border-white/10 pt-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 mr-2">Members:</span>
-            <Avatar.Group maxCount={6} size="small">
-              {groupMembers.map((m) => {
-                const profile = getProfile(m.user_id);
-                console.log(profile)
-                const name = profile?.full_name ?? m.user_id;
-                return (
-                  <Avatar
-                    key={m.user_id}
-                    style={{ backgroundColor: 'var(--color-primary-500)' }}
-                  >
-                    {name.split(' ').map((n) => n[0]).join('')}
-                  </Avatar>
-                );
-              })}
-            </Avatar.Group>
+            <Button
+              icon={<UserPlus className="h-4 w-4" />}
+              size="large"
+              onClick={() => setIsAddMemberOpen(true)}
+              className="flex-1 rounded-xl bg-white/10 hover:bg-white/20 text-white border-white/20 font-semibold backdrop-blur-sm"
+            >
+              Invite
+            </Button>
           </div>
         </div>
       </div>
@@ -340,7 +308,7 @@ export function GroupDetailPage() {
         </div>
 
         <div className="text-sm text-gray-500 font-medium">
-          {activeTab === 'expenses' ? `${feedItems.length} activities` : `${simplifiedDebts.length} pending debts`}
+          {activeTab === 'expenses' ? `${feedItems.length} activities` : `${displayedDebts.length} pending debts`}
         </div>
       </div>
 
@@ -383,9 +351,9 @@ export function GroupDetailPage() {
                       </div>
                       <div>
                         <div className="font-semibold text-gray-900">{expense.description}</div>
-                        <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
+                        <div className="text-xs text-gray-500 flex flex-wrap items-center gap-2 mt-0.5">
                           <span>Paid by <strong className="text-gray-700">{isUserPayer ? 'You' : payer?.full_name}</strong></span>
-                          <span>•</span>
+                          <span className='hidden sm:inline'>•</span>
                           <span>{formatDate(expense.created_at)}</span>
                         </div>
                       </div>
@@ -475,14 +443,14 @@ export function GroupDetailPage() {
               Simplified Repayment Instructions
             </h3>
 
-            {simplifiedDebts.length === 0 ? (
+            {displayedDebts.length === 0 ? (
               <div className="py-8 text-center text-gray-500">
                 <CheckCircle2 className="h-12 w-12 text-primary-500 mx-auto mb-2 opacity-80" />
                 <p className="font-medium text-gray-700">Everyone in this group is settled up!</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {simplifiedDebts.map((debt, index) => {
+                {displayedDebts.map((debt, index) => {
                   const fromProfile = getProfile(debt.from);
                   const toProfile = getProfile(debt.to);
                   const isUserDebtor = debt.from === userId;
@@ -491,38 +459,39 @@ export function GroupDetailPage() {
                   return (
                     <div
                       key={index}
-                      className={`flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 p-4 rounded-xl border ${
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border transition-all ${
                         isUserDebtor
                           ? 'bg-rose-50/50 border-rose-100'
                           : isUserCreditor
                           ? 'bg-emerald-50/50 border-emerald-100'
-                          : 'bg-gray-50 border-gray-100'
+                          : 'bg-white border-gray-100'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <Avatar style={{ backgroundColor: '#1e293b' }}>
-                          {fromProfile?.full_name.charAt(0) ?? debt.from.charAt(0)}
+                        <Avatar size="large" style={{ backgroundColor: isUserDebtor ? '#f43f5e' : isUserCreditor ? '#10b981' : '#64748b' }}>
+                          {isUserDebtor ? toProfile?.full_name.charAt(0) : fromProfile?.full_name.charAt(0)}
                         </Avatar>
-                        <span className="font-medium text-gray-900">
-                          {isUserDebtor ? 'You' : fromProfile?.full_name}
-                        </span>
-
-                        <ArrowRight className="h-4 w-4 text-gray-400" />
-
-                        <Avatar style={{ backgroundColor: 'var(--color-primary-500)' }}>
-                          {toProfile?.full_name.charAt(0) ?? debt.to.charAt(0)}
-                        </Avatar>
-                        <span className="font-medium text-gray-900">
-                          {isUserCreditor ? 'You' : toProfile?.full_name}
-                        </span>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {isUserDebtor ? (
+                              <>You owe <strong className="text-gray-900">{toProfile?.full_name}</strong></>
+                            ) : isUserCreditor ? (
+                              <><strong className="text-gray-900">{fromProfile?.full_name}</strong> owes you</>
+                            ) : (
+                              <><strong className="text-gray-900">{fromProfile?.full_name}</strong> owes <strong className="text-gray-900">{toProfile?.full_name}</strong></>
+                            )}
+                          </div>
+                          <div className="text-xl font-bold font-financial mt-0.5">
+                            <span className={isUserDebtor ? 'text-rose-600' : isUserCreditor ? 'text-emerald-600' : 'text-gray-700'}>
+                              {formatCents(debt.amount)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <span className="text-base font-bold font-financial text-gray-900">
-                          {formatCents(debt.amount)}
-                        </span>
+                      <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                         {isUserDebtor && (
-                          <Button type="primary" size="small" onClick={() => { setSettleUpTarget(debt.to); setSettleUpTargetName(toProfile?.full_name); setSettleUpMaxAmount(debt.amount); }} className="rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none text-white shadow-sm">
+                          <Button type="primary" size="large" onClick={() => { setSettleUpTarget(debt.to); setSettleUpTargetName(toProfile?.full_name); setSettleUpMaxAmount(debt.amount); }} className="w-full sm:w-auto rounded-xl bg-primary-500 hover:bg-primary-600 font-semibold border-none text-white shadow-sm">
                             Settle Up
                           </Button>
                         )}
@@ -532,6 +501,12 @@ export function GroupDetailPage() {
                 })}
               </div>
             )}
+            
+            <div className="mt-6 border-t border-gray-100 pt-4 flex justify-center">
+              <Button type="link" icon={<Calculator className="h-4 w-4" />} onClick={() => setIsLedgerOpen(true)} className="text-gray-500 hover:text-primary-600">
+                How are these calculated?
+              </Button>
+            </div>
           </Card>
         </div>
       )}
@@ -568,9 +543,138 @@ export function GroupDetailPage() {
         onClose={() => { setSettleUpTarget(null); setSettleUpTargetName(undefined); setSettleUpMaxAmount(undefined); }}
         defaultPayeeId={settleUpTarget ?? undefined}
         defaultPayeeName={settleUpTargetName}
+        defaultAmountCents={settleUpMaxAmount}
         maxAmountCents={settleUpMaxAmount}
         defaultGroupId={groupId}
       />
+
+      {/* Members Drawer */}
+      <Drawer
+        title="Group Members"
+        placement="right"
+        onClose={() => setIsMembersDrawerOpen(false)}
+        open={isMembersDrawerOpen}
+        width={360}
+      >
+        <List
+          dataSource={groupMembers}
+          renderItem={(m) => {
+            const profile = getProfile(m.user_id);
+            const name = profile?.full_name ?? m.user_id;
+            const isMe = m.user_id === userId;
+            return (
+              <List.Item
+                actions={
+                  !isMe
+                    ? [
+                        <Button
+                          key="remove"
+                          type="text"
+                          danger
+                          icon={<X className="h-4 w-4" />}
+                          onClick={() => {
+                            handleRemoveMember(m.user_id, name);
+                            setIsMembersDrawerOpen(false);
+                          }}
+                        >
+                          Remove
+                        </Button>,
+                      ]
+                    : [<Tag key="me" color="blue">You</Tag>]
+                }
+              >
+                <List.Item.Meta
+                  avatar={
+                    <Avatar style={{ backgroundColor: 'var(--color-primary-500)' }}>
+                      {name.split(' ').map(n => n[0]).join('')}
+                    </Avatar>
+                  }
+                  title={<span className="font-semibold text-gray-800">{name}</span>}
+                  description={<span className="text-xs text-gray-500">Joined {formatDate(m.joined_at)}</span>}
+                />
+              </List.Item>
+            );
+          }}
+        />
+        <Button
+          type="dashed"
+          block
+          icon={<Plus className="h-4 w-4" />}
+          className="mt-6"
+          onClick={() => {
+            setIsMembersDrawerOpen(false);
+            setIsAddMemberOpen(true);
+          }}
+        >
+          Add New Member
+        </Button>
+      </Drawer>
+
+      {/* Ledger Breakdown Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <Calculator className="h-5 w-5 text-primary-500" />
+            <span>Calculation Breakdown</span>
+          </div>
+        }
+        open={isLedgerOpen}
+        onCancel={() => setIsLedgerOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsLedgerOpen(false)}>
+            Close
+          </Button>
+        ]}
+        width={720}
+        style={{ top: 20 }}
+      >
+        <div className="my-4 space-y-4">
+          <p className="text-sm text-gray-500">
+            This breakdown fully explains your current balance by separating your group expenses from the payments you've sent and received.
+          </p>
+          <div className="space-y-3 mt-4 max-h-[85vh] overflow-y-auto pr-2">
+            {memberLedgers.map((l) => (
+              <div key={l.userId} className="bg-gray-50 rounded-xl p-4 border border-gray-100 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-2">
+                    <Avatar size="small" style={{ backgroundColor: '#94a3b8' }}>{l.avatarChar}</Avatar>
+                    <span className="font-semibold text-gray-800">{l.userId === userId ? `${l.name} (You)` : l.name}</span>
+                  </div>
+                  <div className={`font-financial font-bold ${l.netBalance > 0 ? 'text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md' : l.netBalance < 0 ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md' : 'text-gray-500'}`}>
+                    {l.netBalance > 0 ? '+' : ''}{formatCents(l.netBalance)}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {/* Expenses Column */}
+                  <div className="bg-white p-3 rounded-lg border border-gray-100 space-y-3">
+                    <div>
+                      <div className="text-gray-400 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Expenses Paid</div>
+                      <div className="font-financial font-medium text-gray-700">{formatCents(l.expensesPaid)}</div>
+                    </div>
+                    <div className="pt-2 border-t border-gray-50">
+                      <div className="text-gray-400 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Expense Share</div>
+                      <div className="font-financial font-medium text-gray-700">{formatCents(l.expenseShare)}</div>
+                    </div>
+                  </div>
+
+                  {/* Settlements Column */}
+                  <div className="bg-white p-3 rounded-lg border border-gray-100 space-y-3">
+                    <div>
+                      <div className="text-gray-400 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Payments Sent</div>
+                      <div className="font-financial font-medium text-gray-700">{formatCents(l.paymentsSent)}</div>
+                    </div>
+                    <div className="pt-2 border-t border-gray-50">
+                      <div className="text-gray-400 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Payments Received</div>
+                      <div className="font-financial font-medium text-gray-700">{formatCents(l.paymentsReceived)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

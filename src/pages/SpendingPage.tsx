@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Card, Tag, Segmented, Avatar } from 'antd';
 import { PieChart as PieIcon, ArrowRight, ArrowLeft } from 'lucide-react';
 import {
@@ -12,11 +12,12 @@ import {
   YAxis,
   Tooltip as RechartsTooltip,
 } from 'recharts';
-import { MOCK_EXPENSES, MOCK_CATEGORIES, MOCK_PROFILES, MOCK_CURRENT_USER } from '../lib/mockData';
+import { MOCK_EXPENSES, MOCK_CATEGORIES, MOCK_CURRENT_USER } from '../lib/mockData';
 import { formatCents, getCurrencySymbol } from '../utils/currency';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useAllExpenses } from '../hooks/supabase/useExpensesData';
+import { useSpendingAnalytics } from '../hooks/useSpendingAnalytics';
 
 const CHART_COLORS = [
   'var(--color-primary-500)', // emerald
@@ -36,80 +37,14 @@ export function SpendingPage() {
   const expenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses ?? []);
   const categories = contextCategories?.length ? contextCategories : MOCK_CATEGORIES;
 
-  const categoryData = useMemo(() => {
-    const totals: Record<string, number> = {};
-    expenses.forEach((e) => {
-      const cat = categories.find((c) => c.id === e.category_id);
-      const name = cat?.name ?? 'General';
-      totals[name] = (totals[name] ?? 0) + e.total_amount;
-    });
-
-    return Object.entries(totals).map(([name, amountCents]) => ({
-      name,
-      value: amountCents / 100,
-      amountCents,
-    }));
-  }, [expenses, categories]);
-
-  const totalSpentCents = useMemo(() => {
-    return expenses.reduce((sum, e) => sum + e.total_amount, 0);
-  }, [expenses]);
-
-  const topCategory = useMemo(() => {
-    if (categoryData.length === 0) return { name: 'None', amountCents: 0 };
-    return [...categoryData].sort((a, b) => b.amountCents - a.amountCents)[0];
-  }, [categoryData]);
-
-  const monthlyData = useMemo(() => {
-    const data: Record<string, number> = {};
-    expenses.forEach((e) => {
-      const date = new Date(e.created_at);
-      if (timeframe === 'Monthly') {
-        const key = new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit' }).format(date);
-        data[key] = (data[key] ?? 0) + e.total_amount / 100;
-      } else {
-        // Simple week string (e.g. "Week 32")
-        const startOfYear = new Date(date.getFullYear(), 0, 1);
-        const pastDaysOfYear = (date.getTime() - startOfYear.getTime()) / 86400000;
-        const week = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-        const key = `Wk ${week} '${date.getFullYear().toString().slice(2)}`;
-        data[key] = (data[key] ?? 0) + e.total_amount / 100;
-      }
-    });
-
-    return Object.entries(data).map(([label, total]) => ({
-      label,
-      total,
-    }));
-  }, [expenses, timeframe]);
-
-  const friendAnalysis = useMemo(() => {
-    const userId = user?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
-    const friendsStats: Record<string, { name: string; youPaid: number; theyPaid: number }> = {};
-    
-    expenses.forEach((e) => {
-      if (!e.splits || e.splits.length === 0) return;
-      const isUserPayer = e.payer_id === userId;
-      
-      e.splits.forEach((split) => {
-        if (split.user_id === userId && !isUserPayer) {
-          // Someone else paid for me
-          const friendId = e.payer_id;
-          const friendName = DEMO_MODE ? (MOCK_PROFILES.find(p=>p.id===friendId)?.full_name || friendId) : (e.payer?.full_name || friendId);
-          if (!friendsStats[friendId]) friendsStats[friendId] = { name: friendName, youPaid: 0, theyPaid: 0 };
-          friendsStats[friendId].theyPaid += split.amount_owed;
-        } else if (isUserPayer && split.user_id !== userId) {
-          // I paid for someone else
-          const friendId = split.user_id;
-          const friendName = DEMO_MODE ? (MOCK_PROFILES.find(p=>p.id===friendId)?.full_name || friendId) : (split.user?.full_name || friendId);
-          if (!friendsStats[friendId]) friendsStats[friendId] = { name: friendName, youPaid: 0, theyPaid: 0 };
-          friendsStats[friendId].youPaid += split.amount_owed;
-        }
-      });
-    });
-
-    return Object.values(friendsStats).sort((a, b) => (b.youPaid + b.theyPaid) - (a.youPaid + a.theyPaid)).slice(0, 5); // top 5
-  }, [expenses, user]);
+  const userId = user?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
+  const {
+    categoryData,
+    totalSpentCents,
+    topCategory,
+    monthlyData,
+    friendAnalysis
+  } = useSpendingAnalytics(expenses, categories, timeframe, userId);
 
   return (
     <div className="space-y-6">

@@ -48,10 +48,13 @@ export function SettleUpModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (open && userId) {
-      setPayerId(userId);
+    if (open) {
+      if (userId) setPayerId(userId);
+      setPayeeId(defaultPayeeId);
+      setSelectedGroupId(defaultGroupId);
+      setAmountValue(defaultAmountCents ? defaultAmountCents / 100 : null);
     }
-  }, [open, userId]);
+  }, [open, userId, defaultPayeeId, defaultGroupId, defaultAmountCents]);
 
   const { data: liveFriends } = useFriends(user?.id);
 
@@ -117,6 +120,7 @@ export function SettleUpModal({
           currency_code: getStoredCurrency(),
         });
         messageApi.success(`Recorded payment of ${formatCents(totalCents)} from ${payer} to ${payee}`);
+        window.dispatchEvent(new Event('expenseAdded'));
         if (!skipClose) {
           onClose();
         }
@@ -145,19 +149,7 @@ export function SettleUpModal({
         width={480}
         destroyOnClose
         style={{ top: 20 }}
-        footer={[
-          <Button key="cancel" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </Button>,
-          upiIntent && (
-            <Button key="upi" type="primary" onClick={handleUpiClick} loading={isSubmitting} className="bg-[#1ea142] hover:bg-[#158032] font-semibold rounded-xl text-white border-none">
-              Pay via UPI App
-            </Button>
-          ),
-          <Button key="save" type="primary" onClick={() => handleSave()} loading={isSubmitting} className="bg-primary-500 hover:bg-primary-600 font-semibold rounded-xl text-white border-none">
-            Save Payment
-          </Button>,
-        ].filter(Boolean)}
+        footer={null}
       >
         <Form form={form} layout="vertical" className="space-y-4 pt-2">
           <Form.Item label="Payer (Who paid?)" className="mb-3">
@@ -219,6 +211,20 @@ export function SettleUpModal({
               ✨ Recording payment: <Text strong>{formatCents(totalCents)}</Text>
             </div>
           )}
+
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+            <Button onClick={onClose} disabled={isSubmitting} size="large" className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            {upiIntent && (
+              <Button type="primary" onClick={handleUpiClick} loading={isSubmitting} size="large" className="w-full sm:w-auto bg-[#1ea142] hover:bg-[#158032] font-semibold rounded-xl text-white border-none shadow-md">
+                Pay via UPI App
+              </Button>
+            )}
+            <Button type="primary" onClick={() => handleSave()} loading={isSubmitting} size="large" className="w-full sm:w-auto bg-primary-500 hover:bg-primary-600 font-semibold rounded-xl text-white border-none shadow-md">
+              Save Payment
+            </Button>
+          </div>
         </Form>
       </Modal>
     </>

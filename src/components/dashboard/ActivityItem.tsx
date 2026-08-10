@@ -69,7 +69,7 @@ export function ActivityItem({
         <p className="truncate text-sm font-semibold text-gray-800">
           {expense.description}
         </p>
-        <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-400">
+        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-400">
           <span>
             {isCurrentUserPayer ? 'You' : payerName} paid{' '}
             <span className="font-financial font-medium text-gray-500">
@@ -78,7 +78,7 @@ export function ActivityItem({
           </span>
           {groupName && (
             <>
-              <span className="text-gray-300">·</span>
+              <span className="hidden sm:inline text-gray-300">·</span>
               <span className="truncate">{groupName}</span>
             </>
           )}
@@ -88,12 +88,12 @@ export function ActivityItem({
       {/* Amount & date */}
       <div className="flex flex-shrink-0 flex-col items-end gap-0.5">
         <span
-          className={`font-financial text-sm font-bold ${
+          className={`font-financial text-sm font-bold px-2.5 py-0.5 rounded-full ${
             userAmount > 0
-              ? 'text-primary-500'
+              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
               : userAmount < 0
-                ? 'text-orange-500'
-                : 'text-gray-400'
+                ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                : 'bg-gray-50 text-gray-500 border border-gray-200'
           }`}
         >
           {userAmount > 0 ? '+' : ''}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { Button, Input, Divider, message } from 'antd';
 import { Receipt, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -220,6 +220,13 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 onPressEnter={handleAuth}
               />
+              {isLoginMode && (
+                <div className="flex justify-end mt-2">
+                  <Link to="/forgot-password" className="text-sm text-primary-600 hover:text-primary-700">
+                    Forgot your password?
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}

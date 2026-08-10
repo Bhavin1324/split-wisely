@@ -137,6 +137,82 @@ export async function addMemberToGroup(groupId: string, userId: string): Promise
   }
 }
 
+export async function removeMemberFromGroup(groupId: string, userId: string): Promise<void> {
+  // 1. Delete all settlements where the user is either the payer or payee in this group
+  const { error: errSettlements } = await supabase
+    .from('settlements')
+    .delete()
+    .eq('group_id', groupId)
+    .or(`payer_id.eq.${userId},payee_id.eq.${userId}`);
+  
+  if (errSettlements) throw errSettlements;
+
+  // 2. Fetch all expenses for this group to handle payer/split logic
+  const { data: expenses, error: errExp } = await supabase
+    .from('expenses')
+    .select('id, total_amount, base_currency_amount, payer_id, splits:expense_splits(user_id, amount_owed)')
+    .eq('group_id', groupId);
+
+  if (errExp) throw errExp;
+
+  if (expenses && expenses.length > 0) {
+    // 3. Delete expenses entirely where this user was the payer
+    const expensesToDelete = expenses.filter(e => e.payer_id === userId);
+    for (const exp of expensesToDelete) {
+      await supabase.from('expenses').delete().eq('id', exp.id);
+    }
+
+    // 4. For expenses paid by OTHERS, where this user owes a split, remove their split and shrink the total
+    const expensesToUpdate = expenses.filter(e => 
+      e.payer_id !== userId && e.splits?.some((s: any) => s.user_id === userId)
+    );
+
+    for (const exp of expensesToUpdate) {
+      const userSplit = exp.splits.find((s: any) => s.user_id === userId);
+      if (userSplit) {
+        const newTotal = Math.max(0, exp.total_amount - userSplit.amount_owed);
+        const newBase = Math.max(0, exp.base_currency_amount - userSplit.amount_owed);
+        
+        // Delete the split first
+        await supabase.from('expense_splits').delete().eq('expense_id', exp.id).eq('user_id', userId);
+
+        // Update the parent expense to reflect the removed share
+        await supabase.from('expenses').update({
+          total_amount: newTotal,
+          base_currency_amount: newBase
+        }).eq('id', exp.id);
+      }
+    }
+  }
+
+  // 5. Finally, remove the user from the group members table
+  const { error } = await supabase
+    .from('group_members')
+    .delete()
+    .eq('group_id', groupId)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw error;
+  }
+
+  // 6. Trigger global refresh to update UI instantly
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('expenseAdded'));
+  }
+}
+
+export async function updateGroupSettings(groupId: string, settings: { simplify_debts?: boolean; name?: string; cover_image_url?: string }): Promise<void> {
+  const { error } = await supabase
+    .from('groups')
+    .update(settings)
+    .eq('id', groupId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function createGroupInvitation(params: {
   groupId: string;
   email: string;

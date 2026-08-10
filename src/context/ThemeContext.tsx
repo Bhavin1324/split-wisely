@@ -28,10 +28,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    // 1. Update the CSS Variables
     if (theme === 'green') {
       document.documentElement.removeAttribute('data-theme');
     } else {
       document.documentElement.setAttribute('data-theme', theme);
+    }
+    
+    // 2. Update the PWA Mobile Status Bar Color
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', themeHexMap[theme]);
     }
   }, [theme]);
 

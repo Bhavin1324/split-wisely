@@ -71,20 +71,27 @@ export function useFriends(userId: string | undefined) {
       
       const { data: otherMembers, error: membersErr } = await supabase
         .from('group_members')
-        .select('*, profile:profiles(*)')
+        .select('user_id')
         .in('group_id', groupIds)
         .neq('user_id', userId);
 
       if (membersErr) throw membersErr;
       
-      const uniqueProfiles = new Map<string, Profile>();
-      (otherMembers || []).forEach((m: any) => {
-        if (m.profile && !uniqueProfiles.has(m.profile.id)) {
-          uniqueProfiles.set(m.profile.id, m.profile as Profile);
-        }
-      });
-      
-      setData(Array.from(uniqueProfiles.values()));
+      const uniqueUserIds = Array.from(new Set((otherMembers || []).map(m => m.user_id)));
+
+      if (uniqueUserIds.length === 0) {
+        setData([]);
+        return;
+      }
+
+      const { data: profiles, error: profilesErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', uniqueUserIds);
+
+      if (profilesErr) throw profilesErr;
+
+      setData((profiles || []) as Profile[]);
     } catch (err: any) {
       setError(err);
     } finally {

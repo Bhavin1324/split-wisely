@@ -35,6 +35,9 @@ export function useSettlements(groupId: string | undefined) {
   useEffect(() => {
     fetchSettlements();
 
+    // Listen for manual triggers from the AddExpenseModal and SettleUp interactions
+    window.addEventListener('expenseAdded', fetchSettlements);
+
     if (!groupId) return;
     const channelId = Math.random().toString(36).substring(2, 9);
     const channel = supabase
@@ -47,6 +50,7 @@ export function useSettlements(groupId: string | undefined) {
       .subscribe();
 
     return () => {
+      window.removeEventListener('expenseAdded', fetchSettlements);
       supabase.removeChannel(channel);
     };
   }, [groupId, fetchSettlements]);

@@ -16,6 +16,7 @@ export interface Group {
   created_by: string;
   created_at: string;
   member_count?: number;
+  simplify_debts?: boolean;
 }
 
 // GroupMember type

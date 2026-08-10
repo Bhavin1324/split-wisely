@@ -66,4 +66,53 @@ export class DebtSimplifier {
     }
     return simplifiedTransactions;
   }
+
+  static calculateIndividualDebts(
+    expenses: DebtExpense[],
+    settlements: DebtSettlement[],
+    groupMembers: DebtGroupMember[]
+  ): SimplifiedTransaction[] {
+    const debts: Record<string, Record<string, number>> = {};
+    
+    groupMembers.forEach(m => {
+      debts[m.user_id] = {};
+    });
+
+    expenses.forEach(e => {
+      e.splits.forEach(s => {
+        if (s.user_id !== e.payer_id) {
+          if (!debts[s.user_id]) debts[s.user_id] = {};
+          debts[s.user_id][e.payer_id] = (debts[s.user_id][e.payer_id] ?? 0) + s.amount_owed;
+        }
+      });
+    });
+
+    settlements.forEach(s => {
+      if (!debts[s.payer_id]) debts[s.payer_id] = {};
+      debts[s.payer_id][s.payee_id] = (debts[s.payer_id][s.payee_id] ?? 0) - s.amount;
+    });
+
+    const individualTransactions: SimplifiedTransaction[] = [];
+    const processedPairs = new Set<string>();
+
+    Object.keys(debts).forEach(userA => {
+      Object.keys(debts[userA]).forEach(userB => {
+        const pairId = [userA, userB].sort().join('-');
+        if (processedPairs.has(pairId)) return;
+        processedPairs.add(pairId);
+
+        const aOwesB = debts[userA][userB] ?? 0;
+        const bOwesA = debts[userB]?.[userA] ?? 0;
+        const net = aOwesB - bOwesA;
+
+        if (net > 0) {
+          individualTransactions.push({ from: userA, to: userB, amount: net });
+        } else if (net < 0) {
+          individualTransactions.push({ from: userB, to: userA, amount: -net });
+        }
+      });
+    });
+
+    return individualTransactions;
+  }
 }

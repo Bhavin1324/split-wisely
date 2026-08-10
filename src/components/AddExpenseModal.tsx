@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import {
   Modal,
   Form,
@@ -26,6 +26,7 @@ import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useGroupMembers } from '../hooks/supabase/useGroupsData';
 import { createExpenseWithSplits, updateExpenseWithSplits } from '../hooks/supabase/useMutations';
 import type { Expense } from '../types';
+import { useExpenseForm } from '../hooks/useExpenseForm';
 
 import { EqualSplitTab } from './expenses/EqualSplitTab';
 import { ExactSplitTab } from './expenses/ExactSplitTab';
@@ -61,128 +62,32 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
 export function AddExpenseModal({ open, onClose, groupId, existingExpense }: AddExpenseModalProps) {
   const { currentUser, groups, categories } = useAppData();
 
-  const [form] = Form.useForm();
-  const [messageApi, contextHolder] = message.useMessage();
-
-  // ── Form state ──────────────────────────────────────────────
-  const [description, setDescription] = useState('');
-  const [amountValue, setAmountValue] = useState<number | null>(null);
-  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | undefined>(groupId);
-  const [expenseDate, setExpenseDate] = useState<Dayjs>(dayjs());
-  
   const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
-  const [payerId, setPayerId] = useState(userId);
-  const [splitMode, setSplitMode] = useState<SplitMode>('equal');
 
-  // ── Split-specific state ────────────────────────────────────
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
-  const [exactAmounts, setExactAmounts] = useState<Record<string, number | null>>({});
-  const [percentages, setPercentages] = useState<Record<string, number | null>>({});
-  const [shares, setShares] = useState<Record<string, number>>({});
-
-  // ── Validation ──────────────────────────────────────────────
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-
-  // ── Data fetching ───────────────────────────────────────────
-  const { data: liveMembers } = useGroupMembers(selectedGroupId || '');
-
-  // ── Derived: members of the selected group ──────────────────
-  const members = useMemo(() => {
-    if (!selectedGroupId) return [];
-    return DEMO_MODE 
-      ? MOCK_GROUP_MEMBERS.filter((gm) => gm.group_id === selectedGroupId)
-      : (liveMembers || []);
-  }, [selectedGroupId, liveMembers]);
-
-  // Reset split state whenever group or split mode changes
-  useEffect(() => {
-    // If we're populating an exact split from existingExpense, we might want to bypass reset if they just opened the modal.
-    // However, if the user changes the group or split mode manually, we reset.
-    // To handle initial load of existingExpense without resetting, we do it in a separate effect that depends on `open`.
-    if (!existingExpense) {
-      const allIds = members.map((m) => m.user_id);
-      setSelectedUserIds(allIds);
-      setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
-      setPercentages(Object.fromEntries(allIds.map((id) => [id, null])));
-      setShares(Object.fromEntries(allIds.map((id) => [id, 1])));
-      setValidationError(null);
-    }
-  }, [members, splitMode]); // Note: removed existingExpense from dep array deliberately to prevent reset loops
-
-  // Initialize from existingExpense or defaults when modal opens
-  useEffect(() => {
-    if (open) {
-      if (existingExpense) {
-        setDescription(existingExpense.description);
-        setAmountValue(existingExpense.total_amount / 100);
-        setCategoryId(existingExpense.category_id || undefined);
-        setSelectedGroupId(existingExpense.group_id || undefined);
-        setPayerId(existingExpense.payer_id);
-        setExpenseDate(existingExpense.expense_date ? dayjs(existingExpense.expense_date) : dayjs());
-        setSplitMode('exact');
-
-        const allIds = members.map((m) => m.user_id);
-        setSelectedUserIds(allIds);
-        
-        if (existingExpense.splits && existingExpense.splits.length > 0) {
-          const exacts: Record<string, number | null> = {};
-          allIds.forEach(id => {
-            const split = existingExpense.splits?.find(s => s.user_id === id);
-            exacts[id] = split ? split.amount_owed / 100 : null;
-          });
-          setExactAmounts(exacts);
-        } else {
-          setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
-        }
-      } else {
-        // New Expense mode
-        if (groupId) setSelectedGroupId(groupId);
-        if (userId) setPayerId(userId);
-        
-        // Ensure split states are reset
-        const allIds = members.map((m) => m.user_id);
-        setSelectedUserIds(allIds);
-        setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
-        setPercentages(Object.fromEntries(allIds.map((id) => [id, null])));
-        setShares(Object.fromEntries(allIds.map((id) => [id, 1])));
-      }
-    }
-  }, [open, existingExpense, groupId, userId, members]);
-
-  // ── Total in cents ──────────────────────────────────────────
-  const totalCents = useMemo(() => {
-    if (amountValue == null || amountValue <= 0) return 0;
-    return Math.round(amountValue * 100);
-  }, [amountValue]);
-
-  // ── Equal split preview ─────────────────────────────────────
-  const equalPerPerson = useMemo(() => {
-    if (selectedUserIds.length === 0 || totalCents === 0) return 0;
-    return Math.floor(totalCents / selectedUserIds.length);
-  }, [totalCents, selectedUserIds]);
-
-  // ── Exact split: remaining indicator ────────────────────────
-  const exactSum = useMemo(() => {
-    return Object.values(exactAmounts).reduce<number>(
-      (acc, val) => acc + Math.round((val ?? 0) * 100),
-      0,
-    );
-  }, [exactAmounts]);
-
-  const exactRemaining = totalCents - exactSum;
-
-  // ── Percentage split: sum indicator ─────────────────────────
-  const percentageSum = useMemo(() => {
-    return Object.values(percentages).reduce<number>((acc, val) => acc + (val ?? 0), 0);
-  }, [percentages]);
-
-  // ── Shares split: total shares ──────────────────────────────
-  const totalShares = useMemo(() => {
-    return Object.values(shares).reduce<number>((acc, val) => acc + val, 0);
-  }, [shares]);
+  const {
+    form,
+    description, setDescription,
+    amountValue, setAmountValue,
+    categoryId, setCategoryId,
+    selectedGroupId, setSelectedGroupId,
+    expenseDate, setExpenseDate,
+    payerId, setPayerId,
+    splitMode, setSplitMode,
+    selectedUserIds, setSelectedUserIds,
+    exactAmounts, setExactAmounts,
+    percentages, setPercentages,
+    shares, setShares,
+    validationError, setValidationError,
+    isSubmitting, setIsSubmitting,
+    fieldErrors, setFieldErrors,
+    members,
+    totalCents,
+    equalPerPerson,
+    exactRemaining,
+    percentageSum,
+    totalShares,
+    resetForm,
+  } = useExpenseForm(groupId, existingExpense, open, userId, categories);
 
   /**
    * Resolves the display name for a user ID.
@@ -199,19 +104,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
     [members, userId],
   );
 
-  // ── Reset all form state ────────────────────────────────────
-  const resetForm = useCallback(() => {
-    setDescription('');
-    setAmountValue(null);
-    setCategoryId(undefined);
-    setSelectedGroupId(groupId);
-    setExpenseDate(dayjs());
-    setPayerId(userId);
-    setSplitMode('equal');
-    setValidationError(null);
-    setFieldErrors({});
-    form.resetFields();
-  }, [form, groupId, userId]);
+  const [messageApi, contextHolder] = message.useMessage();
 
   // ── Auto-categorization handler ─────────────────────────────
   const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
