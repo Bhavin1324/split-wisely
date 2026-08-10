@@ -14,16 +14,15 @@ import {
   Typography,
   DatePicker,
 } from 'antd';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import {
   MOCK_CURRENT_USER,
-  MOCK_GROUP_MEMBERS,
 } from '../lib/mockData';
 import { SplitEngine } from '../core/domain/SplitEngine';
 import type { SplitMode, SplitParticipant } from '../types';
 import { formatCents, getStoredCurrency, getCurrencySymbol } from '../utils/currency';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
-import { useGroupMembers } from '../hooks/supabase/useGroupsData';
+
 import { createExpenseWithSplits, updateExpenseWithSplits } from '../hooks/supabase/useMutations';
 import type { Expense } from '../types';
 import { useExpenseForm } from '../hooks/useExpenseForm';

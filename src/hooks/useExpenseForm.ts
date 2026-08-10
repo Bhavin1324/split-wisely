@@ -12,7 +12,7 @@ export function useExpenseForm(
   existingExpense: Expense | undefined,
   open: boolean,
   userId: string,
-  categories: any[],
+  _categories: any[],
 ) {
   const [form] = Form.useForm();
 
