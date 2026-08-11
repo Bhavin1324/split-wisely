@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Avatar, Button, Tooltip, Popover, Empty, Drawer } from 'antd';
+import { Avatar, Button, Tooltip, Popover, Drawer } from 'antd';
 import {
   LayoutDashboard,
   Users,
@@ -17,6 +17,8 @@ import {
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { CreateGroupModal } from '../components/CreateGroupModal';
 import { AddFriendModal } from '../components/AddFriendModal';
+import { NotificationList } from '../components/ui/NotificationList';
+import { useNotifications } from '../hooks/supabase/useNotifications';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -36,11 +38,13 @@ export function AppLayout() {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false);
+  const [mobileNotificationPopoverOpen, setMobileNotificationPopoverOpen] = useState(false);
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { currentUser: contextUser, groups: contextGroups } = useAppData();
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
 
   // Provide a safe fallback during initial load to prevent crashes.
   const currentUser = contextUser ?? { full_name: 'Loading...', created_at: new Date().toISOString() } as any;
@@ -152,20 +156,27 @@ export function AppLayout() {
           </div>
           <div className="flex items-center gap-1">
             <Popover
-              content={<Empty description="No new notifications" className="my-4 mx-2" />}
+              content={
+                <NotificationList 
+                  notifications={notifications}
+                  loading={loading}
+                  unreadCount={unreadCount}
+                  markAsRead={markAsRead}
+                  markAllAsRead={markAllAsRead}
+                  onClose={() => setNotificationPopoverOpen(false)} 
+                />
+              }
               trigger="click"
               placement="topRight"
-              onOpenChange={(open) => {
-                if (open) setHasUnread(false);
-              }}
+              open={notificationPopoverOpen}
+              onOpenChange={setNotificationPopoverOpen}
+              overlayInnerStyle={{ padding: 0 }}
             >
               <Tooltip title="Notifications">
-                <button
-                  className="relative p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                >
+                <button className="relative p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
                   <Bell className="w-4 h-4" />
-                  {hasUnread && (
-                    <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+                  {unreadCount > 0 && (
+                    <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-surface-900" />
                   )}
                 </button>
               </Tooltip>
@@ -191,6 +202,30 @@ export function AppLayout() {
           <span className="font-bold text-lg">SplitWisely</span>
         </div>
         <div className="flex items-center gap-3">
+          <Popover
+            content={
+              <NotificationList 
+                notifications={notifications}
+                loading={loading}
+                unreadCount={unreadCount}
+                markAsRead={markAsRead}
+                markAllAsRead={markAllAsRead}
+                onClose={() => setMobileNotificationPopoverOpen(false)} 
+              />
+            }
+            trigger="click"
+            placement="bottomRight"
+            open={mobileNotificationPopoverOpen}
+            onOpenChange={setMobileNotificationPopoverOpen}
+            overlayInnerStyle={{ padding: 0 }}
+          >
+            <button className="relative p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <div className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-surface-900" />
+              )}
+            </button>
+          </Popover>
           <NavLink
             to="/search"
             className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"

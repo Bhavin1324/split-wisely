@@ -20,14 +20,14 @@ export function ExactSplitTab({
   return (
     <div className="space-y-3">
       {members.map((m) => (
-        <div key={m.user_id} className="flex items-center gap-3">
-          <span className="min-w-[120px] text-sm font-medium">{memberName(m.user_id)}</span>
+        <div key={m.user_id} className="flex items-center gap-2 sm:gap-3">
+          <span className="flex-1 min-w-0 truncate text-sm font-medium">{memberName(m.user_id)}</span>
           <InputNumber
             prefix={getCurrencySymbol()}
             min={0}
             step={0.01}
             precision={2}
-            className="flex-1"
+            className="w-[120px] shrink-0"
             placeholder="0.00"
             value={exactAmounts[m.user_id]}
             onChange={(val) =>

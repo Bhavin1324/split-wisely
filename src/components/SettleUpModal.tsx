@@ -78,10 +78,19 @@ export function SettleUpModal({
     // Ensure amount is formatted strictly to 2 decimal places (e.g., 10.00)
     // as some strict UPI apps will reject or drop the amount otherwise.
     const formattedAmount = amountValue.toFixed(2);
-    const payeeName = encodeURIComponent(selectedPayeeObj.full_name);
-    const note = encodeURIComponent('Expense Settlement via Split Wisely');
     
-    return `upi://pay?pa=${selectedPayeeObj.upi_id}&pn=${payeeName}&am=${formattedAmount}&cu=INR&tn=${note}`;
+    // Utility to encode for strictly buggy UPI apps like BHIM
+    const encodeUpiParam = (str: string) => {
+      // Aggressively remove ALL spaces and special characters.
+      // "John Doe" -> "JohnDoe"
+      return str.trim().replace(/[^a-zA-Z0-9]/g, '');
+    };
+
+    const upiId = selectedPayeeObj.upi_id.trim();
+    const payeeName = encodeUpiParam(selectedPayeeObj.full_name);
+    const note = 'Settlement'; // Single word, no spaces needed
+    
+    return `upi://pay?pa=${upiId}&pn=${payeeName}&am=${formattedAmount}&cu=INR&tn=${note}`;
   }, [selectedPayeeObj, amountValue]);
 
   const handleSave = async (skipClose = false) => {

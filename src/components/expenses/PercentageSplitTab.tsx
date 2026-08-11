@@ -24,15 +24,15 @@ export function PercentageSplitTab({
   return (
     <div className="space-y-3">
       {members.map((m) => (
-        <div key={m.user_id} className="flex items-center gap-3">
-          <span className="min-w-[120px] text-sm font-medium">{memberName(m.user_id)}</span>
+        <div key={m.user_id} className="flex items-center gap-2 sm:gap-3">
+          <span className="flex-1 min-w-0 truncate text-sm font-medium">{memberName(m.user_id)}</span>
           <InputNumber
             suffix="%"
             min={0}
             max={100}
             step={1}
             precision={2}
-            className="flex-1"
+            className="w-[80px] shrink-0"
             placeholder="0"
             value={percentages[m.user_id]}
             onChange={(val) =>
@@ -40,7 +40,7 @@ export function PercentageSplitTab({
             }
           />
           {totalCents > 0 && percentages[m.user_id] != null && (
-            <Text type="secondary" className="min-w-[70px] text-right text-xs">
+            <Text type="secondary" className="w-[60px] sm:min-w-[70px] shrink-0 text-right text-xs">
               {formatCents(Math.round(((percentages[m.user_id] ?? 0) / 100) * totalCents))}
             </Text>
           )}

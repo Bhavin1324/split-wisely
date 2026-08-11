@@ -30,6 +30,21 @@ export async function createExpenseWithSplits(params: {
   });
 
   if (error) throw error;
+
+  // Insert notifications for all users involved (except the creator)
+  const notificationUsers = params.splits.filter(s => s.user_id !== params.created_by).map(s => s.user_id);
+  if (notificationUsers.length > 0) {
+    const notificationsToInsert = notificationUsers.map(uid => ({
+      user_id: uid,
+      actor_id: params.created_by,
+      type: 'EXPENSE_ADDED',
+      title: 'New Expense Added',
+      message: `An expense "${params.description}" was added.`,
+      link: params.group_id ? `/groups/${params.group_id}` : '/dashboard'
+    }));
+    await supabase.from('notifications').insert(notificationsToInsert);
+  }
+
   return data as string;
 }
 
@@ -84,8 +99,19 @@ export async function createSettlement(params: {
       amount: params.amount,
       currency_code: params.currency_code
     }]);
-    
   if (error) throw error;
+
+  // Notify the payee
+  if (params.payer_id !== params.payee_id) {
+    await supabase.from('notifications').insert([{
+      user_id: params.payee_id,
+      actor_id: params.payer_id,
+      type: 'SETTLEMENT_RECORDED',
+      title: 'Payment Received',
+      message: 'A payment was recorded for you.',
+      link: params.group_id ? `/groups/${params.group_id}` : '/dashboard'
+    }]);
+  }
 }
 
 export async function createGroup(params: { name: string; created_by: string }): Promise<string> {

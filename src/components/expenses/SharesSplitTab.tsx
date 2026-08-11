@@ -31,9 +31,9 @@ export function SharesSplitTab({
             : 0;
 
         return (
-          <div key={m.user_id} className="flex items-center gap-3">
-            <span className="min-w-[120px] text-sm font-medium">{memberName(m.user_id)}</span>
-            <div className="flex items-center gap-1">
+          <div key={m.user_id} className="flex items-center gap-2 sm:gap-3">
+            <span className="flex-1 min-w-0 truncate text-sm font-medium">{memberName(m.user_id)}</span>
+            <div className="flex items-center gap-1 shrink-0">
               <Button
                 size="small"
                 disabled={userShare <= 0}
@@ -50,7 +50,7 @@ export function SharesSplitTab({
                 min={0}
                 step={1}
                 precision={0}
-                className="w-16 text-center"
+                className="w-12 sm:w-16 text-center"
                 value={userShare}
                 onChange={(val) =>
                   setShares((prev) => ({ ...prev, [m.user_id]: val ?? 0 }))
@@ -69,7 +69,7 @@ export function SharesSplitTab({
               </Button>
             </div>
             {totalCents > 0 && (
-              <Text type="secondary" className="min-w-[70px] text-right text-xs">
+              <Text type="secondary" className="w-[60px] sm:min-w-[70px] shrink-0 text-right text-xs">
                 {formatCents(shareAmount)}
               </Text>
             )}
