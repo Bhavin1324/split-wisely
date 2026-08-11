@@ -8,9 +8,11 @@ import { DEMO_MODE } from '../context/AppDataContext';
 import type { Profile, Group } from '../types';
 
 export function useGroupCalculations(groupId: string | undefined, userId: string, group: Group | undefined) {
-  const { data: liveMembers, refetch: refetchMembers } = useGroupMembers(groupId);
-  const { data: liveExpenses } = useExpenses(groupId);
-  const { data: liveSettlements } = useSettlements(groupId);
+  const { data: liveMembers, loading: membersLoading, refetch: refetchMembers } = useGroupMembers(groupId);
+  const { data: liveExpenses, loading: expensesLoading } = useExpenses(groupId);
+  const { data: liveSettlements, loading: settlementsLoading } = useSettlements(groupId);
+
+  const loading = membersLoading || expensesLoading || settlementsLoading;
 
   const groupMembers = useMemo(() => {
     if (DEMO_MODE) {
@@ -150,6 +152,7 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
     userIsOwed,
     myDebts,
     getProfile,
-    memberLedgers
+    memberLedgers,
+    loading
   };
 }

@@ -23,6 +23,7 @@ import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useFriends } from '../hooks/supabase/useProfileData';
 import { useAllExpenses } from '../hooks/supabase/useExpensesData';
+import { PageSkeleton } from '../components/ui/PageSkeleton';
 
 export function FriendDetailPage() {
   const { friendId } = useParams<{ friendId: string }>();
@@ -33,11 +34,11 @@ export function FriendDetailPage() {
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
 
   const { user } = useAuth();
-  const { currentUser } = useAppData();
+  const { currentUser, loading: appLoading } = useAppData();
   const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
-  const { data: liveFriends } = useFriends(userId);
-  const { data: liveExpenses } = useAllExpenses(user?.id);
+  const { data: liveFriends, loading: friendsLoading } = useFriends(userId);
+  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
 
   const friend = useMemo(() => {
     if (DEMO_MODE) return MOCK_PROFILES.find((p) => p.id === friendId);
@@ -94,6 +95,10 @@ export function FriendDetailPage() {
 
     return balance;
   }, [friendId, sharedExpenses, sharedSettlements, userId]);
+
+  if (appLoading || friendsLoading || expensesLoading) {
+    return <PageSkeleton layout="list" />;
+  }
 
   if (!friend) {
     return (

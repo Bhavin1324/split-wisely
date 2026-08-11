@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
 import { lazy, Suspense } from 'react';
 import { PageLoader } from './components/ui/PageLoader';
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(module => ({ default: module.DashboardPage })));
 const GroupDetailPage = lazy(() => import('./pages/GroupDetailPage').then(module => ({ default: module.GroupDetailPage })));
@@ -30,26 +31,32 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: withSuspense(LoginPage),
+    errorElement: <GlobalErrorBoundary />,
   },
   {
     path: '/auth/callback',
     element: withSuspense(AuthCallbackPage),
+    errorElement: <GlobalErrorBoundary />,
   },
   {
     path: '/join',
     element: withSuspense(JoinGroupPage),
+    errorElement: <GlobalErrorBoundary />,
   },
   {
     path: '/forgot-password',
     element: withSuspense(ForgotPasswordPage),
+    errorElement: <GlobalErrorBoundary />,
   },
   {
     path: '/reset-password',
     element: withSuspense(ResetPasswordPage),
+    errorElement: <GlobalErrorBoundary />,
   },
   {
     path: '/',
     element: withSuspense(AuthRoute),
+    errorElement: <GlobalErrorBoundary />,
     children: [
       {
         path: '/',

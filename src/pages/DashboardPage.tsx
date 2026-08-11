@@ -23,6 +23,7 @@ import { ActivityItem } from '../components/dashboard/ActivityItem';
 import { GroupCard } from '../components/dashboard/GroupCard';
 import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
 import { AddExpenseModal } from '../components/AddExpenseModal';
+import { PageSkeleton } from '../components/ui/PageSkeleton';
 
 
 
@@ -36,8 +37,8 @@ export function DashboardPage() {
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
 
   const { user } = useAuth();
-  const { currentUser, groups: contextGroups } = useAppData();
-  const { data: liveExpenses } = useAllExpenses(user?.id);
+  const { currentUser, groups: contextGroups, loading: appLoading } = useAppData();
+  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
 
   const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
   const displayName = currentUser?.full_name ?? (DEMO_MODE ? MOCK_CURRENT_USER.full_name : 'User');
@@ -45,6 +46,10 @@ export function DashboardPage() {
   const allExpenses = DEMO_MODE ? MOCK_EXPENSES : liveExpenses;
 
   const { balances, expensesByMonth } = useDashboardData(userId, groups, allExpenses);
+
+  if (appLoading || expensesLoading) {
+    return <PageSkeleton layout="dashboard" />;
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6 lg:px-8">

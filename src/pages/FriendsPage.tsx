@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useFriends } from '../hooks/supabase/useProfileData';
 import { useAllExpenses } from '../hooks/supabase/useExpensesData';
 import { AddFriendModal } from '../components/AddFriendModal';
+import { PageSkeleton } from '../components/ui/PageSkeleton';
 
 /**
  * Computes the net balance between the current user and a friend.
@@ -96,8 +97,9 @@ export function FriendsPage() {
   
   const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
-  const { data: liveFriends } = useFriends(user?.id);
-  const { data: liveExpenses } = useAllExpenses(user?.id);
+  const { loading: appLoading } = useAppData();
+  const { data: liveFriends, loading: friendsLoading } = useFriends(user?.id);
+  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
 
   const friends = DEMO_MODE ? getFriendsForUser(MOCK_CURRENT_USER.id) : (liveFriends || []);
 
@@ -129,6 +131,10 @@ export function FriendsPage() {
 
   friendsWithBalances.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
   const totalBalance = friendsWithBalances.reduce((sum, f) => sum + f.balance, 0);
+
+  if (appLoading || friendsLoading || expensesLoading) {
+    return <PageSkeleton layout="list" />;
+  }
 
   return (
     <div className="space-y-6">

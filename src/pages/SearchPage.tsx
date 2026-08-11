@@ -12,12 +12,13 @@ import { useAuth } from '../context/AuthContext';
 import { useAllExpenses } from '../hooks/supabase/useExpensesData';
 import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
 import { AddExpenseModal } from '../components/AddExpenseModal';
+import { PageSkeleton } from '../components/ui/PageSkeleton';
 import type { Expense } from '../types';
 
 export function SearchPage() {
   const { user } = useAuth();
-  const { groups, categories } = useAppData();
-  const { data: liveExpenses } = useAllExpenses(user?.id);
+  const { groups, categories, loading: appLoading } = useAppData();
+  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
@@ -50,6 +51,10 @@ export function SearchPage() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }, [searchTerm, selectedCategory, selectedGroup, sortBy, liveExpenses]);
+
+  if (appLoading || expensesLoading) {
+    return <PageSkeleton layout="list" />;
+  }
 
   return (
     <div className="space-y-6">

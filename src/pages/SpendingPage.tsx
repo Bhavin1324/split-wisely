@@ -18,6 +18,7 @@ import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useAllExpenses } from '../hooks/supabase/useExpensesData';
 import { useSpendingAnalytics } from '../hooks/useSpendingAnalytics';
+import { PageSkeleton } from '../components/ui/PageSkeleton';
 
 const CHART_COLORS = [
   'var(--color-primary-500)', // emerald
@@ -30,9 +31,9 @@ const CHART_COLORS = [
 
 export function SpendingPage() {
   const [timeframe, setTimeframe] = useState<'Monthly' | 'Weekly'>('Monthly');
-  const { categories: contextCategories } = useAppData();
+  const { categories: contextCategories, loading: appLoading } = useAppData();
   const { user } = useAuth();
-  const { data: liveExpenses } = useAllExpenses(user?.id);
+  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
 
   const expenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses ?? []);
   const categories = contextCategories?.length ? contextCategories : MOCK_CATEGORIES;
@@ -45,6 +46,10 @@ export function SpendingPage() {
     monthlyData,
     friendAnalysis
   } = useSpendingAnalytics(expenses, categories, timeframe, userId);
+
+  if (appLoading || expensesLoading) {
+    return <PageSkeleton layout="analytics" />;
+  }
 
   return (
     <div className="space-y-6">

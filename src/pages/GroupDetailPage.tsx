@@ -25,6 +25,7 @@ import { formatDate } from '../utils/date';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
 import { AddFriendModal } from '../components/AddFriendModal';
+import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { SettleUpModal } from '../components/SettleUpModal';
 import { leaveGroup, deleteGroup, deleteSettlement, removeMemberFromGroup, updateGroupSettings } from '../hooks/supabase/useMutations';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
@@ -48,7 +49,7 @@ export function GroupDetailPage() {
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
 
   const { user } = useAuth();
-  const { currentUser, groups, refetchGroups } = useAppData();
+  const { currentUser, groups, refetchGroups, loading: appLoading } = useAppData();
   const userId = currentUser?.id ?? user?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
   useGroupMembers(groupId); // pre-fetch or trigger load for cache
@@ -65,8 +66,13 @@ export function GroupDetailPage() {
     userNetBalance,
     myDebts,
     getProfile,
-    memberLedgers
+    memberLedgers,
+    loading: groupLoading
   } = useGroupCalculations(groupId, userId, group);
+
+  if (appLoading || groupLoading) {
+    return <PageSkeleton layout="dashboard" />;
+  }
 
   const handleLeaveGroup = () => {
     if (userNetBalance !== 0 || displayedDebts.length > 0) {
