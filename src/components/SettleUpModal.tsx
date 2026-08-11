@@ -225,8 +225,20 @@ export function SettleUpModal({
           </Form.Item>
 
           {totalCents > 0 && (
-            <div className="rounded-lg bg-primary-50 border border-primary-100 p-3 text-primary-800 text-sm">
-              ✨ Recording payment: <Text strong>{formatCents(totalCents)}</Text>
+            <div className={`rounded-lg p-3 text-sm border ${
+              maxAmountCents !== undefined && totalCents > maxAmountCents
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : maxAmountCents !== undefined && totalCents < maxAmountCents
+                ? 'bg-orange-50 border-orange-200 text-orange-700'
+                : 'bg-primary-50 border-primary-200 text-primary-800'
+            }`}>
+              {maxAmountCents !== undefined && totalCents > maxAmountCents ? (
+                <>⚠️ Cannot settle more than you owe ({formatCents(maxAmountCents)})</>
+              ) : maxAmountCents !== undefined && totalCents < maxAmountCents ? (
+                <>✨ Recording partial payment. Remaining balance: <Text strong className="text-orange-700">{formatCents(maxAmountCents - totalCents)}</Text></>
+              ) : (
+                <>✨ Recording payment: <Text strong className={maxAmountCents !== undefined ? "text-primary-800" : ""}>{formatCents(totalCents)}</Text></>
+              )}
             </div>
           )}
 
@@ -235,11 +247,11 @@ export function SettleUpModal({
               Cancel
             </Button>
             {upiIntent && (
-              <Button type="primary" onClick={handleUpiClick} loading={isSubmitting} size="large" className="w-full sm:w-auto bg-[#1ea142] hover:bg-[#158032] font-semibold rounded-xl text-white border-none shadow-md">
+              <Button type="primary" onClick={handleUpiClick} loading={isSubmitting} disabled={isSubmitting || (maxAmountCents !== undefined && totalCents > maxAmountCents)} size="large" className="w-full sm:w-auto bg-[#1ea142] hover:bg-[#158032] font-semibold rounded-xl text-white border-none shadow-md">
                 Pay via UPI App
               </Button>
             )}
-            <Button type="primary" onClick={() => handleSave()} loading={isSubmitting} size="large" className="w-full sm:w-auto bg-primary-500 hover:bg-primary-600 font-semibold rounded-xl text-white border-none shadow-md">
+            <Button type="primary" onClick={() => handleSave()} loading={isSubmitting} disabled={isSubmitting || (maxAmountCents !== undefined && totalCents > maxAmountCents)} size="large" className="w-full sm:w-auto bg-primary-500 hover:bg-primary-600 font-semibold rounded-xl text-white border-none shadow-md">
               Save Payment
             </Button>
           </div>

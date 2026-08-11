@@ -231,6 +231,7 @@ export function FriendDetailPage() {
         defaultPayeeId={netBalanceCents < 0 ? friendId : userId}
         defaultPayeeName={netBalanceCents < 0 ? friend.full_name : 'You'}
         defaultAmountCents={Math.abs(netBalanceCents)}
+        maxAmountCents={Math.abs(netBalanceCents)}
       />
 
       <AddExpenseModal

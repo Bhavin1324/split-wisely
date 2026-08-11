@@ -170,7 +170,8 @@ export function AppLayout() {
               placement="topRight"
               open={notificationPopoverOpen}
               onOpenChange={setNotificationPopoverOpen}
-              overlayInnerStyle={{ padding: 0 }}
+              overlayStyle={{ maxWidth: 'calc(100vw - 32px)' }}
+              overlayInnerStyle={{ padding: 0, borderRadius: '12px', overflow: 'hidden' }}
             >
               <Tooltip title="Notifications">
                 <button className="relative p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
@@ -202,30 +203,34 @@ export function AppLayout() {
           <span className="font-bold text-lg">SplitWisely</span>
         </div>
         <div className="flex items-center gap-3">
-          <Popover
-            content={
-              <NotificationList 
-                notifications={notifications}
-                loading={loading}
-                unreadCount={unreadCount}
-                markAsRead={markAsRead}
-                markAllAsRead={markAllAsRead}
-                onClose={() => setMobileNotificationPopoverOpen(false)} 
-              />
-            }
-            trigger="click"
-            placement="bottomRight"
-            open={mobileNotificationPopoverOpen}
-            onOpenChange={setMobileNotificationPopoverOpen}
-            overlayInnerStyle={{ padding: 0 }}
+          <button 
+            className="relative p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
+            onClick={() => setMobileNotificationPopoverOpen(true)}
           >
-            <button className="relative p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white">
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <div className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-surface-900" />
-              )}
-            </button>
-          </Popover>
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <div className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-surface-900" />
+            )}
+          </button>
+          
+          <Drawer
+            placement="top"
+            closable={false}
+            onClose={() => setMobileNotificationPopoverOpen(false)}
+            open={mobileNotificationPopoverOpen}
+            height="85vh" 
+            styles={{ body: { padding: 0 } }}
+            className="rounded-b-3xl overflow-hidden shadow-2xl"
+          >
+            <NotificationList 
+              notifications={notifications}
+              loading={loading}
+              unreadCount={unreadCount}
+              markAsRead={markAsRead}
+              markAllAsRead={markAllAsRead}
+              onClose={() => setMobileNotificationPopoverOpen(false)} 
+            />
+          </Drawer>
           <NavLink
             to="/search"
             className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"

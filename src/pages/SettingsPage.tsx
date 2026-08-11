@@ -79,7 +79,7 @@ export function SettingsPage() {
     const csvData = expenses.map((exp) => ({
       id: exp.id,
       description: exp.description,
-      amount_cents: exp.total_amount,
+      amount: exp.total_amount / 100,
       currency: exp.currency_code,
       payer: exp.payer?.full_name ?? exp.payer_id,
       category: exp.category?.name ?? 'Uncategorized',
@@ -90,11 +90,26 @@ export function SettingsPage() {
   };
 
   const handleExportJSON = () => {
+    const mappedExpenses = expenses.map(exp => ({
+      ...exp,
+      total_amount: exp.total_amount / 100,
+      base_currency_amount: exp.base_currency_amount ? exp.base_currency_amount / 100 : exp.base_currency_amount,
+      splits: exp.splits?.map(split => ({
+        ...split,
+        amount_owed: split.amount_owed / 100
+      }))
+    }));
+
+    const mappedSettlements = (DEMO_MODE ? MOCK_SETTLEMENTS : []).map(settlement => ({
+      ...settlement,
+      amount: settlement.amount / 100
+    }));
+
     const backupData = {
       exportedAt: new Date().toISOString(),
       user: currentUser,
-      expenses: expenses,
-      settlements: DEMO_MODE ? MOCK_SETTLEMENTS : [], // we skip settlements here since we just need expenses and simple data
+      expenses: mappedExpenses,
+      settlements: mappedSettlements,
     };
     ExportAdapter.exportToJSON(backupData, 'splitwisely-backup.json');
     messageApi.success('Full backup exported as JSON');
