@@ -105,6 +105,13 @@ export function SettleUpModal({
     const merchantCategoryCode = "0000";
     const initiationMode = "04";
     const selectedCurrency = getStoredCurrency();
+    /**
+     * Adding this code block to test the successfull redirection in BHIM upi, it's expecting user to manually insert amounts. 
+     */
+    if(formattedAmount){
+      return `upi://pay?pa=${upiId}&pn=${payeeName}&cu=${selectedCurrency}&tn=${note}&mc=${merchantCategoryCode}&mode=${initiationMode}`;
+    }
+    //
 
     // return `upi://pay?pa=${upiId}&pn=${payeeName}&am=${formattedAmount}&cu=INR&tn=${note}`;
     return `upi://pay?pa=${upiId}&pn=${payeeName}&am=${formattedAmount}&cu=${selectedCurrency}&tn=${note}&mc=${merchantCategoryCode}&mode=${initiationMode}`;
