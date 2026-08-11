@@ -10,6 +10,7 @@ import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useFriends } from '../hooks/supabase/useProfileData';
 import { createSettlement } from '../hooks/supabase/useMutations';
+import { supabase } from '../lib/supabase';
 
 const { Text } = Typography;
 
@@ -150,6 +151,22 @@ export function SettleUpModal({
 
   const handleUpiClick = async () => {
     if (!upiIntent) return;
+   if (user) {
+    try {
+      await supabase.from('activity_logs').insert({
+        user_id: user.id,
+        group_id: selectedGroupId || null,
+        action_type: 'UPI_REDIRECT_INITIATED',
+        metadata: { 
+          upi_url: upiIntent,
+          payee_id: selectedPayeeObj?.id,
+          amount_cents: totalCents
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log UPI redirect activity:', error);
+    }
+  }
     window.location.href = upiIntent;
     messageApi.info(
       'Opening UPI App. Please complete the payment there, then return here and click "Save Payment" to record it.',
