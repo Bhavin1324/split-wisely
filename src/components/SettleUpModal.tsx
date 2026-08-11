@@ -92,26 +92,12 @@ export function SettleUpModal({
     // as some strict UPI apps will reject or drop the amount otherwise.
     const formattedAmount = amountValue.toFixed(2);
 
-    // Utility to encode for strictly buggy UPI apps like BHIM
-    const encodeUpiParam = (str: string) => {
-      // Aggressively remove ALL spaces and special characters.
-      // "John Doe" -> "JohnDoe"
-      return str.trim().replace(/[^a-zA-Z0-9]/g, "");
-    };
-
     const upiId = selectedPayeeObj.upi_id.trim();
-    const payeeName = encodeUpiParam(selectedPayeeObj.full_name);
+    const payeeName = encodeURIComponent(selectedPayeeObj.full_name);
     const note = "Settlement"; // Single word, no spaces needed
     const merchantCategoryCode = "0000";
     const initiationMode = "04";
     const selectedCurrency = getStoredCurrency();
-    /**
-     * Adding this code block to test the successfull redirection in BHIM upi, it's expecting user to manually insert amounts. 
-     */
-    if(formattedAmount){
-      return `upi://pay?pa=${upiId}&pn=${payeeName}&cu=${selectedCurrency}&tn=${note}&mc=${merchantCategoryCode}&mode=${initiationMode}`;
-    }
-    //
 
     // return `upi://pay?pa=${upiId}&pn=${payeeName}&am=${formattedAmount}&cu=INR&tn=${note}`;
     return `upi://pay?pa=${upiId}&pn=${payeeName}&am=${formattedAmount}&cu=${selectedCurrency}&tn=${note}&mc=${merchantCategoryCode}&mode=${initiationMode}`;
