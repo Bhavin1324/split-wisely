@@ -25,7 +25,7 @@ export function EqualSplitTab({
       {members.map((m) => (
         <div
           key={m.user_id}
-          className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
+          className="flex items-center justify-between rounded-lg border border-border-base bg-bg-base px-3 py-2"
         >
           <Checkbox
             checked={selectedUserIds.includes(m.user_id)}

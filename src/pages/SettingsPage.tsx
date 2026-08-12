@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Button, Select, Avatar, Divider, message, Input } from 'antd';
+import { Card, Button, Select, Avatar, Divider, message, Input, Switch } from 'antd';
 import { Download, User, Globe, Palette } from 'lucide-react';
 import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS } from '../lib/mockData';
 import { CurrencyAdapter } from '../adapters/CurrencyAdapter';
@@ -30,7 +30,7 @@ export function SettingsPage() {
   const [isSavingUpi, setIsSavingUpi] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, scheme, setScheme } = useTheme();
 
   const { user } = useAuth();
   const { data: liveExpenses } = useAllExpenses(user?.id);
@@ -119,13 +119,13 @@ export function SettingsPage() {
     <>
       {contextHolder}
       <div className="flex flex-col gap-4 max-w-2xl">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <h1 className="text-2xl font-bold text-text-base">Settings</h1>
 
       {/* Profile Section */}
-      <Card className="rounded-2xl border-gray-100 shadow-sm">
+      <Card className="rounded-2xl border-border-base shadow-sm">
         <div className="flex items-center gap-4">
-          <User className="w-5 h-5 text-gray-400 flex-shrink-0" />
-          <h2 className="text-base font-semibold text-gray-900">Profile</h2>
+          <User className="w-5 h-5 text-text-muted flex-shrink-0" />
+          <h2 className="text-base font-semibold text-text-base">Profile</h2>
         </div>
         <Divider className="my-4" />
         <div className="flex items-center gap-4">
@@ -136,10 +136,10 @@ export function SettingsPage() {
             {getInitials(currentUser.full_name)}
           </Avatar>
           <div>
-            <p className="text-lg font-medium text-gray-900">
+            <p className="text-lg font-medium text-text-base">
               {currentUser.full_name}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-text-muted">
               Member since {new Date(currentUser.created_at).toLocaleDateString('en-US', {
                 month: 'long',
                 year: 'numeric',
@@ -150,7 +150,7 @@ export function SettingsPage() {
         
         <Divider className="my-4" />
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-900">UPI ID for receiving payments</label>
+          <label className="text-sm font-semibold text-text-base">UPI ID for receiving payments</label>
           <div className="flex items-center gap-3">
             <Input 
               value={upiId} 
@@ -162,15 +162,15 @@ export function SettingsPage() {
               Save
             </Button>
           </div>
-          <p className="text-xs text-gray-500">Friends can pay you instantly via UPI apps using this ID.</p>
+          <p className="text-xs text-text-muted">Friends can pay you instantly via UPI apps using this ID.</p>
         </div>
       </Card>
 
       {/* Currency Section */}
-      <Card className="rounded-2xl border-gray-100 shadow-sm">
+      <Card className="rounded-2xl border-border-base shadow-sm">
         <div className="flex items-center gap-4">
-          <Globe className="w-5 h-5 text-gray-400 flex-shrink-0" />
-          <h2 className="text-base font-semibold text-gray-900">Default Currency</h2>
+          <Globe className="w-5 h-5 text-text-muted flex-shrink-0" />
+          <h2 className="text-base font-semibold text-text-base">Default Currency</h2>
         </div>
         <Divider className="my-4" />
         <div className="flex items-center gap-4">
@@ -183,17 +183,17 @@ export function SettingsPage() {
               label: `${code} (${code === 'INR' ? '₹ Rupees' : code === 'USD' ? '$ Dollars' : code === 'EUR' ? '€ Euros' : '£ Pounds'})`,
             }))}
           />
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-text-muted">
             Changes your active display symbol & new expense defaults
           </span>
         </div>
       </Card>
 
       {/* Theme Section */}
-      <Card className="rounded-2xl border-gray-100 shadow-sm">
+      <Card className="rounded-2xl border-border-base shadow-sm">
         <div className="flex items-center gap-4">
-          <Palette className="w-5 h-5 text-gray-400 flex-shrink-0" />
-          <h2 className="text-base font-semibold text-gray-900">Application Theme</h2>
+          <Palette className="w-5 h-5 text-text-muted flex-shrink-0" />
+          <h2 className="text-base font-semibold text-text-base">Application Theme</h2>
         </div>
         <Divider className="my-4" />
         <div className="flex items-center gap-4">
@@ -210,20 +210,31 @@ export function SettingsPage() {
               { value: 'teal', label: 'Modern Teal' },
             ]}
           />
-          <span className="text-sm text-gray-500">
-            Customize the look and feel of your app
+          <span className="text-sm text-text-muted hidden sm:inline">
+            Customize the primary color
+          </span>
+        </div>
+        <Divider className="my-4" />
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-semibold text-text-base">Dark Mode</span>
+          <Switch 
+            checked={scheme === 'dark'} 
+            onChange={(checked: boolean) => setScheme(checked ? 'dark' : 'light')} 
+          />
+          <span className="text-sm text-text-muted hidden sm:inline">
+            Customize the look and feel of the application.
           </span>
         </div>
       </Card>
 
       {/* Export Section */}
-      <Card className="rounded-2xl border-gray-100 shadow-sm">
+      <Card className="rounded-2xl border-border-base shadow-sm">
         <div className="flex items-center gap-4">
-          <Download className="w-5 h-5 text-gray-400 flex-shrink-0" />
-          <h2 className="text-base font-semibold text-gray-900">Export Data</h2>
+          <Download className="w-5 h-5 text-text-muted flex-shrink-0" />
+          <h2 className="text-base font-semibold text-text-base">Export Data</h2>
         </div>
         <Divider className="my-4" />
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-text-muted mb-4">
           Download your expense data for personal records or backup.
         </p>
         <div className="flex gap-3">

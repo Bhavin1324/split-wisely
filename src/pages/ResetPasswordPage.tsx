@@ -47,23 +47,23 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-bg-base flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
             <Receipt className="w-8 h-8 text-white" />
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-text-base">
           Set New Password
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-text-muted">
           Please enter your new password below.
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-xl shadow-gray-200/50 sm:rounded-2xl sm:px-10 border border-gray-100">
+        <div className="bg-bg-surface py-8 px-4 shadow-xl shadow-gray-200/50 sm:rounded-2xl sm:px-10 border border-border-base">
           
           {sessionError && (
             <Alert
@@ -100,9 +100,9 @@ export function ResetPasswordPage() {
             >
               <Input.Password
                 size="large"
-                prefix={<Lock className="w-5 h-5 text-gray-400 mr-2" />}
+                prefix={<Lock className="w-5 h-5 text-text-muted mr-2" />}
                 placeholder="Enter new password"
-                className="rounded-xl h-12 border-gray-200 hover:border-primary-400 focus:border-primary-500"
+                className="rounded-xl h-12 border-border-base hover:border-primary-400 focus:border-primary-500"
               />
             </Form.Item>
 
@@ -124,9 +124,9 @@ export function ResetPasswordPage() {
             >
               <Input.Password
                 size="large"
-                prefix={<Lock className="w-5 h-5 text-gray-400 mr-2" />}
+                prefix={<Lock className="w-5 h-5 text-text-muted mr-2" />}
                 placeholder="Confirm new password"
-                className="rounded-xl h-12 border-gray-200 hover:border-primary-400 focus:border-primary-500"
+                className="rounded-xl h-12 border-border-base hover:border-primary-400 focus:border-primary-500"
               />
             </Form.Item>
 

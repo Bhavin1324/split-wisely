@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, ArrowDownLeft, Users, ChevronRight } from 'lucide-react';
 import type { Group } from '../../types';
-import { getBalanceColorClass, formatCents } from '../../utils/currency';
+import { formatCents } from '../../utils/currency';
 import { useGroupMembers } from '../../hooks/supabase/useGroupsData';
 import { DEMO_MODE } from '../../context/AppDataContext';
 import { MOCK_GROUP_MEMBERS } from '../../lib/mockData';
@@ -24,25 +24,25 @@ export function GroupCard({
       onClick={() => navigate(`/groups/${group.id}`)}
       className="
         group relative flex flex-col justify-between overflow-hidden rounded-2xl
-        border border-gray-100 bg-white p-5 text-left shadow-sm
+        border border-border-base bg-bg-surface p-5 text-left shadow-sm
         transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer
       "
     >
       {/* Header */}
       <div>
         <div className="flex items-start justify-between">
-          <h3 className="text-base font-bold text-gray-800 leading-snug pr-4">
+          <h3 className="text-base font-bold text-text-base leading-snug pr-4">
             {group.name}
           </h3>
           <ChevronRight
             className="
               h-4 w-4 flex-shrink-0 text-gray-300
               transition-transform duration-200 group-hover:translate-x-0.5
-              group-hover:text-gray-500
+              group-hover:text-text-muted
             "
           />
         </div>
-        <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-400">
+        <div className="mt-2 flex items-center gap-1.5 text-xs text-text-muted">
           <Users className="h-3.5 w-3.5" />
           <span>
             {memberCount} member{memberCount !== 1 ? 's' : ''}
@@ -51,31 +51,24 @@ export function GroupCard({
       </div>
 
       {/* Balance footer */}
-      <div className="mt-5 flex items-center justify-between border-t border-gray-50 pt-3">
-        <span className="text-xs text-gray-400">Your balance</span>
-        <div className="flex items-center gap-1">
+      <div className="mt-5 flex items-center justify-between border-t border-border-base pt-4">
+        <span className="text-xs font-medium text-text-muted">Your balance</span>
+        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
+          balance > 0 ? 'bg-success-bg text-success-text' : 
+          balance < 0 ? 'bg-error-bg text-error-text' : 
+          'bg-bg-subtle text-text-muted'
+        }`}>
           {balance > 0 && (
-            <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />
+            <ArrowUpRight className="h-3.5 w-3.5" />
           )}
           {balance < 0 && (
-            <ArrowDownLeft className="h-3.5 w-3.5 text-rose-500" />
+            <ArrowDownLeft className="h-3.5 w-3.5" />
           )}
-          <span
-            className={`font-financial text-sm font-bold ${getBalanceColorClass(balance)}`}
-          >
+          <span className="font-financial text-sm font-bold">
             {formatCents(Math.abs(balance))}
           </span>
         </div>
       </div>
-
-      {/* Balance accent bar at bottom */}
-      <div
-        className={`
-          absolute bottom-0 left-0 h-1 w-full transition-opacity duration-300
-          ${balance > 0 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : balance < 0 ? 'bg-gradient-to-r from-rose-400 to-rose-500' : 'bg-gray-200'}
-          opacity-60 group-hover:opacity-100
-        `}
-      />
     </button>
   );
 }

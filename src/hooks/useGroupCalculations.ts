@@ -111,6 +111,10 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
         expenseShare: 0,
         paymentsSent: 0,
         paymentsReceived: 0,
+        expensesPaidList: [] as { description: string; amount: number }[],
+        expenseShareList: [] as { description: string; amount: number }[],
+        paymentsSentList: [] as { description: string; amount: number }[],
+        paymentsReceivedList: [] as { description: string; amount: number }[],
         netBalance: 0
       };
     });
@@ -119,20 +123,37 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
 
     groupExpenses.forEach(exp => {
       const payerLedger = ledgerMap.get(exp.payer_id);
-      if (payerLedger) payerLedger.expensesPaid += exp.base_currency_amount;
+      if (payerLedger) {
+        payerLedger.expensesPaid += exp.base_currency_amount;
+        payerLedger.expensesPaidList.push({ description: exp.description, amount: exp.base_currency_amount });
+      }
 
       exp.splits?.forEach(s => {
         const splitLedger = ledgerMap.get(s.user_id);
-        if (splitLedger) splitLedger.expenseShare += s.amount_owed;
+        if (splitLedger) {
+          splitLedger.expenseShare += s.amount_owed;
+          splitLedger.expenseShareList.push({ description: exp.description, amount: s.amount_owed });
+        }
       });
     });
 
     groupSettlements.forEach(s => {
+      const payerProfile = getProfile(s.payer_id);
+      const payeeProfile = getProfile(s.payee_id);
+      const payerName = payerProfile?.full_name ?? "Someone";
+      const payeeName = payeeProfile?.full_name ?? "Someone";
+
       const payerLedger = ledgerMap.get(s.payer_id);
-      if (payerLedger) payerLedger.paymentsSent += s.amount;
+      if (payerLedger) {
+        payerLedger.paymentsSent += s.amount;
+        payerLedger.paymentsSentList.push({ description: `To ${payeeName}`, amount: s.amount });
+      }
 
       const payeeLedger = ledgerMap.get(s.payee_id);
-      if (payeeLedger) payeeLedger.paymentsReceived += s.amount;
+      if (payeeLedger) {
+        payeeLedger.paymentsReceived += s.amount;
+        payeeLedger.paymentsReceivedList.push({ description: `From ${payerName}`, amount: s.amount });
+      }
     });
 
     ledgers.forEach(l => {

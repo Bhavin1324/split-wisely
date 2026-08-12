@@ -172,13 +172,13 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
         width={480}
         className="rounded-2xl overflow-hidden"
         title={
-          <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+          <div className="flex items-center gap-3 pb-3 border-b border-border-base">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/10 text-primary-500">
               <UserPlus className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-0">Add / Invite Friend</h3>
-              <p className="text-xs text-gray-400 font-normal">Connect with friends by name or email address</p>
+              <h3 className="text-lg font-bold text-text-base mb-0">Add / Invite Friend</h3>
+              <p className="text-xs text-text-muted font-normal">Connect with friends by name or email address</p>
             </div>
           </div>
         }
@@ -199,7 +199,7 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
               prefix={<Search className="h-4 w-4 text-primary-500 mr-1" />}
               placeholder="e.g. sarah@example.com or Sarah Chen"
               size="large"
-              className="rounded-xl border-gray-200 hover:border-primary-500 focus:border-primary-500"
+              className="rounded-xl border-border-base hover:border-primary-500 focus:border-primary-500"
               onChange={(e) => handleInputChange(e.target.value)}
             />
           </Form.Item>
@@ -212,7 +212,7 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
                   {getInitials(matchedProfile.full_name)}
                 </Avatar>
                 <div>
-                  <div className="text-sm font-bold text-gray-900">{matchedProfile.full_name}</div>
+                  <div className="text-sm font-bold text-text-base">{matchedProfile.full_name}</div>
                   <div className="text-xs text-primary-700 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Registered SplitWisely User
                   </div>
@@ -246,8 +246,8 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
             />
           </Form.Item>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-            <Button size="large" onClick={onClose} className="rounded-xl text-gray-600">
+          <div className="flex justify-end gap-3 pt-4 border-t border-border-base">
+            <Button size="large" onClick={onClose} className="rounded-xl text-text-muted">
               Cancel
             </Button>
             <Button

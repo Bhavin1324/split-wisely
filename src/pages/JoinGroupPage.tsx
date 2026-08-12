@@ -114,7 +114,7 @@ export function JoinGroupPage() {
           {status === 'loading' && (
             <div className="text-center py-12">
               <Spin size="large" />
-              <p className="mt-4 text-gray-500">Processing your invitation...</p>
+              <p className="mt-4 text-text-muted">Processing your invitation...</p>
             </div>
           )}
 
@@ -123,8 +123,8 @@ export function JoinGroupPage() {
               <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-primary-600" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">You're In!</h2>
-              <p className="text-gray-500 mb-1">
+              <h2 className="text-xl font-bold text-text-base mb-2">You're In!</h2>
+              <p className="text-text-muted mb-1">
                 You've successfully joined
               </p>
               <p className="text-lg font-semibold text-primary-500 mb-6 flex items-center justify-center gap-2">
@@ -146,11 +146,11 @@ export function JoinGroupPage() {
 
           {status === 'error' && (
             <div className="text-center py-8">
-              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mx-auto mb-4">
-                <XCircle className="w-8 h-8 text-red-600" />
+              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-error-bg mx-auto mb-4">
+                <XCircle className="w-8 h-8 text-error-text" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Invitation Error</h2>
-              <p className="text-gray-500 mb-6">{errorMsg}</p>
+              <h2 className="text-xl font-bold text-text-base mb-2">Invitation Error</h2>
+              <p className="text-text-muted mb-6">{errorMsg}</p>
               <Button
                 type="primary"
                 size="large"
@@ -167,8 +167,8 @@ export function JoinGroupPage() {
               <div className="flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mx-auto mb-4">
                 <Users className="w-8 h-8 text-amber-600" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Sign In to Join</h2>
-              <p className="text-gray-500 mb-2">
+              <h2 className="text-xl font-bold text-text-base mb-2">Sign In to Join</h2>
+              <p className="text-text-muted mb-2">
                 You've been invited to join
               </p>
               <p className="text-lg font-semibold text-primary-500 mb-6">

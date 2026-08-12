@@ -60,22 +60,22 @@ export function SearchPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-text-base tracking-tight mb-1 flex items-center gap-2">
           <SearchIcon className="h-6 w-6 text-primary-500" />
           Instant Expense Search
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-text-muted">
           Find any expense across all your groups by description, payer, category, or group.
         </p>
       </div>
 
       {/* Filter Bar */}
-      <Card className="rounded-2xl border-gray-100 shadow-sm">
+      <Card className="rounded-2xl border-border-base shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div>
-            <label className="text-xs text-gray-500 font-medium block mb-1">Search text</label>
+            <label className="text-xs text-text-muted font-medium block mb-1">Search text</label>
             <Input
-              prefix={<SearchIcon className="h-4 w-4 text-gray-400" />}
+              prefix={<SearchIcon className="h-4 w-4 text-text-muted" />}
               placeholder="Search description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -84,7 +84,7 @@ export function SearchPage() {
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium block mb-1">Group</label>
+            <label className="text-xs text-text-muted font-medium block mb-1">Group</label>
             <Select
               placeholder="All groups"
               allowClear
@@ -99,7 +99,7 @@ export function SearchPage() {
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium block mb-1">Category</label>
+            <label className="text-xs text-text-muted font-medium block mb-1">Category</label>
             <Select
               placeholder="All categories"
               allowClear
@@ -114,7 +114,7 @@ export function SearchPage() {
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium block mb-1">Sort By</label>
+            <label className="text-xs text-text-muted font-medium block mb-1">Sort By</label>
             <Select
               className="w-full"
               value={sortBy}
@@ -130,7 +130,7 @@ export function SearchPage() {
       </Card>
 
       {/* Results Header */}
-      <div className="flex items-center justify-between text-sm text-gray-500">
+      <div className="flex items-center justify-between text-sm text-text-muted">
         <span>Found {filteredExpenses.length} matching expenses</span>
         {(searchTerm || selectedCategory || selectedGroup) && (
           <Tag color="blue" className="rounded-full">
@@ -158,26 +158,26 @@ export function SearchPage() {
               <div
                 key={expense.id}
                 onClick={() => setSelectedExpense(expense as unknown as Expense)}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all gap-3 cursor-pointer"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-bg-surface rounded-xl border border-border-base shadow-sm hover:shadow-md transition-all gap-3 cursor-pointer"
               >
                 <div className="flex items-start sm:items-center gap-4 min-w-0">
                   <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600 font-bold">
                     <Receipt className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-gray-900 truncate">{expense.description}</div>
-                    <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-1.5">
+                    <div className="font-semibold text-text-base truncate">{expense.description}</div>
+                    <div className="text-xs text-text-muted mt-1 flex flex-wrap items-center gap-1.5">
                       <span className="truncate">Paid by <strong className="text-gray-700">{payerName}</strong></span>
                       {group && <span className="text-gray-300">•</span>}
                       {group && <span className="truncate">{group.name}</span>}
-                      {category && <Tag className="rounded-full text-[10px] m-0 border-gray-200">{category.name}</Tag>}
+                      {category && <Tag className="rounded-full text-[10px] m-0 border-border-base">{category.name}</Tag>}
                       <span className="text-gray-300">•</span>
                       <span className="whitespace-nowrap">{formatDate(expense.expense_date ?? expense.created_at)}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="text-left sm:text-right font-bold font-financial text-gray-900 text-base self-start sm:self-auto ml-15 sm:ml-0">
+                <div className="text-left sm:text-right font-bold font-financial text-text-base text-base self-start sm:self-auto ml-15 sm:ml-0">
                   {formatCents(expense.total_amount)}
                 </div>
               </div>

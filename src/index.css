@@ -19,11 +19,24 @@
   --color-brand-800: #166534;
   --color-brand-900: #14532d;
 
-  /* Surface colors for dark sidebar */
-  --color-surface-900: #0f172a;
-  --color-surface-800: #1e293b;
-  --color-surface-700: #334155;
-  --color-surface-600: #475569;
+  /* Semantic Tokens for centralized scheme */
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-subtle: var(--bg-subtle);
+  
+  --color-text-base: var(--text-base);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  
+  --color-border-base: var(--border-base);
+  
+  --color-success-bg: var(--success-bg);
+  --color-success-text: var(--success-text);
+  --color-success-border: var(--success-border);
+  
+  --color-error-bg: var(--error-bg);
+  --color-error-text: var(--error-text);
+  --color-error-border: var(--error-border);
 
   /* Dynamic Primary Color Palette */
   --color-primary-50: var(--primary-50);
@@ -36,9 +49,36 @@
   --color-primary-700: var(--primary-700);
   --color-primary-800: var(--primary-800);
   --color-primary-900: var(--primary-900);
+
+  /* Navigation Layer */
+  --color-nav-bg: var(--nav-bg);
+  --color-nav-border: var(--nav-border);
+  --color-nav-text: var(--nav-text);
+  --color-nav-text-muted: var(--nav-text-muted);
+  --color-nav-icon-bg: var(--nav-icon-bg);
+  --color-nav-icon-hover: var(--nav-icon-hover);
 }
 
-:root {
+/* Light Scheme (Default) */
+:root, [data-scheme="light"] {
+  --bg-base: #f9fafb;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f3f4f6;
+  
+  --text-base: #111827;
+  --text-muted: #6b7280;
+  --text-inverse: #ffffff;
+  
+  --border-base: #e5e7eb;
+  
+  --success-bg: #ecfdf5;
+  --success-text: #059669;
+  --success-border: #a7f3d0;
+  
+  --error-bg: #fff1f2;
+  --error-text: #e11d48;
+  --error-border: #fecdd3;
+
   /* Default Green (emerald) */
   --primary-50: #ecfdf5;
   --primary-100: #d1fae5;
@@ -51,6 +91,14 @@
   --primary-800: #065f46;
   --primary-900: #064e3b;
   --primary-hex: #10b981;
+
+  /* Navigation Layer (Dark in Light Mode) */
+  --nav-bg: #0f172a;
+  --nav-border: transparent;
+  --nav-text: #ffffff;
+  --nav-text-muted: #94a3b8;
+  --nav-icon-bg: rgba(255, 255, 255, 0.1);
+  --nav-icon-hover: rgba(255, 255, 255, 0.2);
 }
 
 [data-theme="blue"] {
@@ -123,10 +171,39 @@
   --primary-hex: #14b8a6;
 }
 
+/* Dark Scheme */
+[data-scheme="dark"] {
+  --bg-base: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-subtle: #334155;
+  
+  --text-base: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+  
+  --border-base: #475569;
+  
+  --success-bg: #064e3b;
+  --success-text: #34d399;
+  --success-border: #065f46;
+  
+  --error-bg: #881337;
+  --error-text: #fb7185;
+  --error-border: #9f1239;
+
+  /* Navigation Layer (Translucent Glass in Dark Mode) */
+  --nav-bg: rgba(15, 23, 42, 0.65);
+  --nav-border: var(--border-base);
+  --nav-text: var(--text-base);
+  --nav-text-muted: var(--text-muted);
+  --nav-icon-bg: var(--bg-subtle);
+  --nav-icon-hover: var(--bg-surface);
+}
+
 /* Base layer */
 @layer base {
   body {
-    @apply font-sans antialiased bg-gray-50 text-gray-900;
+    @apply font-sans antialiased bg-bg-base text-text-base transition-colors duration-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
@@ -141,7 +218,7 @@
 /* Component utilities */
 @layer utilities {
   .glass-card {
-    @apply bg-white/80 backdrop-blur-xl border border-white/20 shadow-lg;
+    @apply bg-bg-surface/80 backdrop-blur-xl border border-border-base/50 shadow-lg;
   }
 
   .sidebar-item {
@@ -154,7 +231,7 @@
   }
 
   .sidebar-item-inactive {
-    @apply text-gray-400 hover:text-white hover:bg-white/5;
+    @apply text-text-muted hover:text-text-base hover:bg-bg-subtle/50;
   }
 
   .balance-positive {
@@ -166,7 +243,7 @@
   }
 
   .balance-zero {
-    @apply text-gray-400;
+    @apply text-text-muted;
   }
 
   .card-hover {
@@ -196,6 +273,11 @@
 .ant-btn-primary:hover {
   background-color: var(--color-primary-600) !important;
   border-color: var(--color-primary-600) !important;
+}
+
+/* Prevent AntDesign from globally overriding NavLink anchor tags with primary color */
+.ant-app a, .ant-app a:hover {
+  color: inherit;
 }
 
 /* Modal styling */
