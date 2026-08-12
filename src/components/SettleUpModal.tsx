@@ -228,6 +228,8 @@ export function SettleUpModal({
             <Select
               value={payerId}
               onChange={(val) => setPayerId(val)}
+              className="w-full"
+              style={{ width: '100%' }}
               options={[
                 {
                   label: `${currentUser?.full_name ?? (DEMO_MODE ? MOCK_CURRENT_USER.full_name : "You")} (You)`,
@@ -242,6 +244,8 @@ export function SettleUpModal({
               placeholder="Select recipient"
               value={payeeId}
               onChange={(val) => setPayeeId(val)}
+              className="w-full"
+              style={{ width: '100%' }}
               options={[
                 ...availablePayees.map((p: Profile) => ({
                   label: p.full_name,
@@ -262,6 +266,8 @@ export function SettleUpModal({
               allowClear
               value={selectedGroupId}
               onChange={(val) => setSelectedGroupId(val)}
+              className="w-full"
+              style={{ width: '100%' }}
               options={groups.map((g) => ({
                 label: g.name,
                 value: g.id,
@@ -277,6 +283,7 @@ export function SettleUpModal({
               step={0.01}
               precision={2}
               className="w-full text-lg"
+              style={{ width: '100%' }}
               value={amountValue}
               onChange={(val) => setAmountValue(val)}
             />
@@ -286,10 +293,10 @@ export function SettleUpModal({
             <div
               className={`rounded-lg p-3 text-sm border ${
                 maxAmountCents !== undefined && totalCents > maxAmountCents
-                  ? "bg-red-50 border-red-200 text-red-700"
+                  ? "bg-error-bg border-error-border text-error-text"
                   : maxAmountCents !== undefined && totalCents < maxAmountCents
-                    ? "bg-orange-50 border-orange-200 text-orange-700"
-                    : "bg-primary-50 border-primary-200 text-primary-800"
+                    ? "bg-orange-500/10 border-orange-500/20 text-orange-500"
+                    : "bg-primary-500/10 border-primary-500/20 text-primary-500"
               }`}
             >
               {maxAmountCents !== undefined && totalCents > maxAmountCents ? (
@@ -301,7 +308,7 @@ export function SettleUpModal({
                 totalCents < maxAmountCents ? (
                 <>
                   ✨ Recording partial payment. Remaining balance:{" "}
-                  <Text strong className="text-orange-700">
+                  <Text strong className="text-orange-500">
                     {formatCents(maxAmountCents - totalCents)}
                   </Text>
                 </>
@@ -311,7 +318,7 @@ export function SettleUpModal({
                   <Text
                     strong
                     className={
-                      maxAmountCents !== undefined ? "text-primary-800" : ""
+                      maxAmountCents !== undefined ? "text-primary-500" : "text-primary-500"
                     }
                   >
                     {formatCents(totalCents)}
@@ -321,7 +328,7 @@ export function SettleUpModal({
             </div>
           )}
 
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-border-base mt-6">
             <Button
               onClick={onClose}
               disabled={isSubmitting}

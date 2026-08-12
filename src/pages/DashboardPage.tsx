@@ -55,10 +55,10 @@ export function DashboardPage() {
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6 lg:px-8">
       {/* ── Page header ──────────────────────────────────────── */}
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
+        <h1 className="text-2xl font-extrabold tracking-tight text-text-base">
           Dashboard
         </h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <p className="mt-1 text-sm text-text-muted">
           Welcome back, {displayName}
         </p>
       </div>
@@ -71,18 +71,18 @@ export function DashboardPage() {
           icon={Wallet}
           colorClass={
             balances.totalBalance >= 0
-              ? 'text-emerald-600'
-              : 'text-rose-600'
+              ? 'text-success-text'
+              : 'text-error-text'
           }
           bgGradient={
             balances.totalBalance >= 0
-              ? 'bg-emerald-400'
-              : 'bg-rose-400'
+              ? 'bg-success-bg'
+              : 'bg-error-bg'
           }
           iconBgClass={
             balances.totalBalance >= 0
-              ? 'bg-emerald-100'
-              : 'bg-rose-100'
+              ? 'bg-success-bg'
+              : 'bg-error-bg'
           }
           subtitle={
             balances.totalBalance >= 0
@@ -95,9 +95,9 @@ export function DashboardPage() {
           title="You have to pay"
           amount={-balances.youOwe}
           icon={TrendingDown}
-          colorClass="text-rose-600"
-          bgGradient="bg-rose-400"
-          iconBgClass="bg-rose-100"
+          colorClass="text-error-text"
+          bgGradient="bg-error-bg"
+          iconBgClass="bg-error-bg"
           subtitle="Total amount You have to pay others"
         />
 
@@ -105,9 +105,9 @@ export function DashboardPage() {
           title="You will receive"
           amount={balances.youAreOwed}
           icon={TrendingUp}
-          colorClass="text-emerald-600"
+          colorClass="text-success-text"
           bgGradient="bg-emerald-400"
-          iconBgClass="bg-emerald-100"
+          iconBgClass="bg-success-bg"
           subtitle="Total amount owed to you"
         />
       </section>
@@ -115,7 +115,7 @@ export function DashboardPage() {
       {/* ── Groups Overview ──────────────────────────────────── */}
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800">Your Groups</h2>
+          <h2 className="text-lg font-bold text-text-base">Your Groups</h2>
           <div className="flex items-center gap-3">
             <Tag color="default" className="rounded-full text-xs">
               {groups.length} group{groups.length !== 1 ? 's' : ''}
@@ -123,7 +123,7 @@ export function DashboardPage() {
             <button
               type="button"
               onClick={() => setIsCreateGroupOpen(true)}
-              className="flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 bg-primary-50 px-2.5 py-1 rounded-full border border-primary-200 transition-colors"
+              className="flex items-center gap-1 text-xs font-semibold text-primary-500 bg-primary-500/10 px-2.5 py-1 rounded-full border border-primary-500/20 hover:bg-primary-500/20 transition-colors"
             >
               + Create Group
             </button>
@@ -142,7 +142,7 @@ export function DashboardPage() {
 
       {/* ── Recent Activity Timeline ─────────────────────────── */}
       <section>
-        <h2 className="mb-5 text-lg font-bold text-gray-800">
+        <h2 className="mb-5 text-lg font-bold text-text-base">
           Recent Activity
         </h2>
 
@@ -151,10 +151,10 @@ export function DashboardPage() {
             <div key={month}>
               {/* Month header */}
               <div className="mb-3 flex items-center gap-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                   {month}
                 </h3>
-                <div className="h-px flex-1 bg-gray-100" />
+                <div className="h-px flex-1 bg-bg-subtle" />
                 <span className="font-financial text-[11px] text-gray-300">
                   {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
                 </span>
@@ -176,9 +176,9 @@ export function DashboardPage() {
           ))}
 
           {expensesByMonth.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center">
+            <div className="rounded-2xl border border-dashed border-border-base py-16 text-center">
               <Receipt className="mx-auto h-10 w-10 text-gray-300" />
-              <p className="mt-3 text-sm text-gray-400">No recent activity</p>
+              <p className="mt-3 text-sm text-text-muted">No recent activity</p>
             </div>
           )}
         </div>

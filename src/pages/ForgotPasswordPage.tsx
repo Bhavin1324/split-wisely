@@ -22,17 +22,17 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-bg-base flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
             <Receipt className="w-8 h-8 text-white" />
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-text-base">
           Reset your password
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-text-muted">
           Or{' '}
           <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500 transition-colors">
             return to login
@@ -41,14 +41,14 @@ export function ForgotPasswordPage() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-xl shadow-gray-200/50 sm:rounded-2xl sm:px-10 border border-gray-100">
+        <div className="bg-bg-surface py-8 px-4 shadow-xl shadow-gray-200/50 sm:rounded-2xl sm:px-10 border border-border-base">
           {submitted ? (
             <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mail className="w-8 h-8 text-green-600" />
+              <div className="w-16 h-16 bg-success-bg rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-8 h-8 text-success-text" />
               </div>
-              <h3 className="text-xl font-medium text-gray-900 mb-2">Check your email</h3>
-              <p className="text-gray-500 mb-6">
+              <h3 className="text-xl font-medium text-text-base mb-2">Check your email</h3>
+              <p className="text-text-muted mb-6">
                 We have sent a password reset link to your email address.
               </p>
               <Link to="/login">
@@ -69,9 +69,9 @@ export function ForgotPasswordPage() {
               >
                 <Input
                   size="large"
-                  prefix={<Mail className="w-5 h-5 text-gray-400 mr-2" />}
+                  prefix={<Mail className="w-5 h-5 text-text-muted mr-2" />}
                   placeholder="Enter your email"
-                  className="rounded-xl h-12 border-gray-200 hover:border-primary-400 focus:border-primary-500"
+                  className="rounded-xl h-12 border-border-base hover:border-primary-400 focus:border-primary-500"
                 />
               </Form.Item>
 
@@ -88,7 +88,7 @@ export function ForgotPasswordPage() {
               </Form.Item>
 
               <div className="mt-6 flex justify-center">
-                <Link to="/login" className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                <Link to="/login" className="flex items-center text-sm font-medium text-text-muted hover:text-text-base transition-colors">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to login
                 </Link>

@@ -22,7 +22,7 @@ export function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-bg-base">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
       </div>
     );
@@ -181,8 +181,8 @@ export function LoginPage() {
         </div>
 
         {/* Login/Signup Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
+        <div className="bg-bg-surface rounded-2xl shadow-2xl p-8">
+          <h2 className="text-xl font-semibold text-text-base text-center mb-6">
             {isLoginMode ? 'Welcome back' : 'Create an account'}
           </h2>
 
@@ -196,7 +196,7 @@ export function LoginPage() {
                 <Input
                   size="large"
                   placeholder="John Doe"
-                  prefix={<User className="w-4 h-4 text-gray-400" />}
+                  prefix={<User className="w-4 h-4 text-text-muted" />}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                 />
@@ -211,7 +211,7 @@ export function LoginPage() {
               <Input
                 size="large"
                 placeholder="you@example.com"
-                prefix={<Mail className="w-4 h-4 text-gray-400" />}
+                prefix={<Mail className="w-4 h-4 text-text-muted" />}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -225,7 +225,7 @@ export function LoginPage() {
               <Input.Password
                 size="large"
                 placeholder={isLoginMode ? "Enter your password" : "Create a password"}
-                prefix={<Lock className="w-4 h-4 text-gray-400" />}
+                prefix={<Lock className="w-4 h-4 text-text-muted" />}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onPressEnter={handleAuth}
@@ -254,7 +254,7 @@ export function LoginPage() {
             </Button>
             
             {/* Toggle Mode */}
-            <div className="text-center text-sm text-gray-500 mt-2">
+            <div className="text-center text-sm text-text-muted mt-2">
               {isLoginMode ? "Don't have an account? " : "Already have an account? "}
               <button 
                 type="button" 
@@ -267,7 +267,7 @@ export function LoginPage() {
           </div>
 
           <Divider className="!my-6">
-            <span className="text-xs text-gray-400 px-2">or</span>
+            <span className="text-xs text-text-muted px-2">or</span>
           </Divider>
 
           {/* Real Supabase Google Sign In */}
@@ -302,7 +302,7 @@ export function LoginPage() {
           </Button>
 
           {/* Mode Indicator */}
-          <p className="text-center text-xs text-gray-400 mt-6">
+          <p className="text-center text-xs text-text-muted mt-6">
             {isSupabaseConfigured
               ? 'Connected to live Supabase Auth'
               : 'Demo mode active — click Sign In or Google to explore'}

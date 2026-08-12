@@ -392,6 +392,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
                 step={0.01}
                 precision={2}
                 className="w-full"
+                style={{ width: '100%' }}
                 value={amountValue}
                 onChange={(val) => setAmountValue(val)}
               />
@@ -407,6 +408,8 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
                 size="large"
                 placeholder="Select category"
                 allowClear
+                className="w-full"
+                style={{ width: '100%' }}
                 value={categoryId}
                 onChange={(val) => setCategoryId(val)}
                 options={categories.map((c) => ({
@@ -425,6 +428,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
               <DatePicker 
                 size="large"
                 className="w-full"
+                style={{ width: '100%' }}
                 value={expenseDate}
                 onChange={(val) => setExpenseDate(val || dayjs())}
                 allowClear={false}
@@ -441,6 +445,8 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
             <Select
               size="large"
               placeholder="Select group"
+              className="w-full"
+              style={{ width: '100%' }}
               value={selectedGroupId}
               onChange={(val) => setSelectedGroupId(val)}
               options={groups.map((g) => ({
@@ -488,7 +494,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
           </div>
 
           {/* ── Split Details ──────────────────────────────────── */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="rounded-lg border border-border-base bg-bg-surface p-4">
             {renderSplitDetails()}
           </div>
 

@@ -57,13 +57,13 @@ export function ExpenseStatementModal({
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-50 text-primary-600 mb-4 shadow-sm">
             <CatIcon className="h-8 w-8" strokeWidth={1.8} />
           </div>
-          <Title level={4} className="mb-1 text-gray-900 text-center">
+          <Title level={4} className="mb-1 text-text-base text-center">
             {expense.description}
           </Title>
-          <Text className="text-xl font-bold font-financial text-gray-900 mb-1">
+          <Text className="text-xl font-bold font-financial text-text-base mb-1">
             {formatCents(expense.total_amount)}
           </Text>
-          <Text className="text-sm text-gray-500 font-medium">
+          <Text className="text-sm text-text-muted font-medium">
             Added by {payerName} on {formatDate(expense.expense_date ?? expense.created_at)}
           </Text>
         </div>
@@ -78,17 +78,17 @@ export function ExpenseStatementModal({
             return (
               <div key={split.user_id} className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600 text-xs">
+                  <div className="h-8 w-8 rounded-full bg-bg-subtle flex items-center justify-center font-bold text-text-muted text-xs">
                     {splitUser.charAt(0).toUpperCase()}
                   </div>
-                  <Text className="font-medium text-gray-800">{splitUser}</Text>
+                  <Text className="font-medium text-text-base">{splitUser}</Text>
                 </div>
                 <div className="text-right">
-                  <Text className="block font-medium font-financial text-gray-900">
+                  <Text className="block font-medium font-financial text-text-base">
                     {formatCents(split.amount_owed)}
                   </Text>
                   {isPayer && (
-                    <Text className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">
+                    <Text className="text-[10px] uppercase font-bold text-success-text tracking-wider">
                       Paid
                     </Text>
                   )}

@@ -22,7 +22,7 @@ export function PageSkeleton({ layout = 'list' }: { layout?: SkeletonLayout }) {
               </Card>
             ))}
           </section>
-          <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100 mt-8">
+          <div className="rounded-xl bg-bg-surface p-6 shadow-sm border border-border-base mt-8">
             <Skeleton active paragraph={{ rows: 6 }} />
           </div>
         </>
@@ -32,7 +32,7 @@ export function PageSkeleton({ layout = 'list' }: { layout?: SkeletonLayout }) {
       {layout === 'list' && (
         <div className="space-y-4 mt-8">
           {[1, 2, 3, 4, 5].map((key) => (
-            <div key={key} className="rounded-xl bg-white p-4 shadow-sm border border-gray-100">
+            <div key={key} className="rounded-xl bg-bg-surface p-4 shadow-sm border border-border-base">
               <Skeleton active avatar paragraph={{ rows: 0 }} />
             </div>
           ))}

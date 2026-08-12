@@ -74,7 +74,7 @@ export function centsToDecimal(cents: number): number {
  * Returns the sign class for balance display.
  */
 export function getBalanceColorClass(cents: number): string {
-  if (cents > 0) return 'text-emerald-500';
-  if (cents < 0) return 'text-rose-500';
-  return 'text-gray-400';
+  if (cents > 0) return 'text-success-text';
+  if (cents < 0) return 'text-error-text';
+  return 'text-text-muted';
 }

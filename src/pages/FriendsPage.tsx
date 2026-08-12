@@ -141,21 +141,21 @@ export function FriendsPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Friends</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-text-base">Friends</h1>
+          <p className="text-sm text-text-muted mt-1">
             {friends.length} friend{friends.length !== 1 ? 's' : ''}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Overall balance</p>
+          <p className="text-xs text-text-muted uppercase tracking-wide">Overall balance</p>
           <p className={`text-xl font-semibold font-financial ${getBalanceColorClass(totalBalance)}`}>
             {totalBalance > 0 ? '+' : ''}{formatCents(totalBalance)}
           </p>
         </div>
       </div>
 
-      <div className="flex justify-between items-center bg-primary-50 p-4 rounded-xl border border-primary-100">
-        <p className="text-sm text-primary-700 font-medium">Add friends to split bills more easily.</p>
+      <div className="flex justify-between items-center bg-primary-500/10 p-4 rounded-xl border border-primary-500/20">
+        <p className="text-sm text-primary-500 font-medium">Add friends to split bills more easily.</p>
         <Button
           type="primary"
           icon={<UserPlus className="w-4 h-4" />}
@@ -173,7 +173,7 @@ export function FriendsPage() {
             key={profile.id}
             size="small"
             onClick={() => navigate(`/friends/${profile.id}`)}
-            className="hover:shadow-md transition-shadow cursor-pointer rounded-xl border-gray-100"
+            className="hover:shadow-md transition-shadow cursor-pointer rounded-xl border-border-base"
           >
             <div className="flex items-center gap-4">
               <Avatar
@@ -184,10 +184,10 @@ export function FriendsPage() {
               </Avatar>
 
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 truncate">
+                <p className="font-medium text-text-base truncate">
                   {profile.full_name}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-text-muted">
                   {getBalanceLabel(balance, profile.full_name.split(' ')[0])}
                 </p>
               </div>
@@ -204,12 +204,12 @@ export function FriendsPage() {
         ))}
 
         {friends.length === 0 && (
-          <Card className="rounded-2xl border-dashed border-2 border-gray-200">
-            <div className="text-center py-12 text-gray-400">
-              <div className="mx-auto w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+          <Card className="rounded-2xl border-dashed border-2 border-border-base">
+            <div className="text-center py-12 text-text-muted">
+              <div className="mx-auto w-12 h-12 bg-bg-base rounded-full flex items-center justify-center mb-4">
                 <UserPlus className="w-6 h-6 text-gray-300" />
               </div>
-              <p className="text-lg font-medium text-gray-900">No friends yet</p>
+              <p className="text-lg font-medium text-text-base">No friends yet</p>
               <p className="text-sm mt-1 mb-6">
                 Add friends by creating a group together or inviting them directly
               </p>

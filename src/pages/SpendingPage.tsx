@@ -55,20 +55,20 @@ export function SpendingPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-text-base tracking-tight mb-1 flex items-center gap-2">
           <PieIcon className="h-6 w-6 text-primary-500" />
           Pro Spending Analytics
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-text-muted">
           Visualize your expense distribution across categories and monthly trends.
         </p>
       </div>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="rounded-2xl border-gray-100 shadow-sm">
-          <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Total Tracked Expenses</div>
-          <div className="text-2xl font-bold font-financial text-gray-900 mt-2">
+        <Card className="rounded-2xl border-border-base shadow-sm">
+          <div className="text-xs text-text-muted font-medium uppercase tracking-wider">Total Tracked Expenses</div>
+          <div className="text-2xl font-bold font-financial text-text-base mt-2">
             {formatCents(totalSpentCents)}
           </div>
           <Tag color="green" className="mt-2 rounded-full">
@@ -76,24 +76,24 @@ export function SpendingPage() {
           </Tag>
         </Card>
 
-        <Card className="rounded-2xl border-gray-100 shadow-sm">
-          <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Top Spending Category</div>
+        <Card className="rounded-2xl border-border-base shadow-sm">
+          <div className="text-xs text-text-muted font-medium uppercase tracking-wider">Top Spending Category</div>
           <div className="text-2xl font-bold font-financial text-primary-600 mt-2">
             {topCategory.name}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-text-muted mt-1">
             {formatCents(topCategory.amountCents)} total
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-gray-100 shadow-sm">
-          <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Average Expense</div>
+        <Card className="rounded-2xl border-border-base shadow-sm">
+          <div className="text-xs text-text-muted font-medium uppercase tracking-wider">Average Expense</div>
           <div className="text-2xl font-bold font-financial text-blue-600 mt-2">
             {expenses.length > 0
               ? formatCents(Math.round(totalSpentCents / expenses.length))
               : '$0.00'}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-text-muted mt-1">
             Across {expenses.length} recorded items
           </div>
         </Card>
@@ -101,7 +101,7 @@ export function SpendingPage() {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Expense Distribution by Category" className="rounded-2xl border-gray-100 shadow-sm">
+        <Card title="Expense Distribution by Category" className="rounded-2xl border-border-base shadow-sm">
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -120,6 +120,7 @@ export function SpendingPage() {
                 </Pie>
                 <RechartsTooltip
                   formatter={(val: unknown) => `${getCurrencySymbol()}${Number(val ?? 0).toFixed(2)}`}
+                  contentStyle={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-base)', color: 'var(--text-base)' }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -132,7 +133,7 @@ export function SpendingPage() {
                    className="w-3 h-3 rounded-full shrink-0"
                    style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
                  />
-                 <span className="truncate text-gray-600">{cat.name}</span>
+                 <span className="truncate text-text-muted">{cat.name}</span>
                  <span className="ml-auto font-semibold font-financial">{formatCents(cat.amountCents)}</span>
                </div>
             ))}
@@ -151,7 +152,7 @@ export function SpendingPage() {
               />
             </div>
           } 
-          className="rounded-2xl border-gray-100 shadow-sm"
+          className="rounded-2xl border-border-base shadow-sm"
         >
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -160,6 +161,8 @@ export function SpendingPage() {
                 <YAxis stroke="#94a3b8" fontSize={12} />
                 <RechartsTooltip
                   formatter={(val: unknown) => `${getCurrencySymbol()}${Number(val ?? 0).toFixed(2)}`}
+                  contentStyle={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-base)', color: 'var(--text-base)' }}
+                  cursor={{ fill: 'var(--bg-subtle)' }}
                 />
                 <Bar dataKey="total" fill="var(--color-primary-500)" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -169,24 +172,24 @@ export function SpendingPage() {
       </div>
 
       {/* Friends Analysis Section */}
-      <Card title="Friends Analysis (Top Interactions)" className="rounded-2xl border-gray-100 shadow-sm">
+      <Card title="Friends Analysis (Top Interactions)" className="rounded-2xl border-border-base shadow-sm">
         <div className="space-y-4">
           {friendAnalysis.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">No friend interactions yet.</div>
+            <div className="text-center text-text-muted py-8">No friend interactions yet.</div>
           ) : (
             friendAnalysis.map((friend, idx) => (
-              <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-3">
+              <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-bg-base rounded-xl border border-border-base gap-3">
                 <div className="flex items-center gap-3">
                   <Avatar style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}>
                     {friend.name.charAt(0).toUpperCase()}
                   </Avatar>
-                  <span className="font-semibold text-gray-800 break-words">{friend.name}</span>
+                  <span className="font-semibold text-text-base break-words">{friend.name}</span>
                 </div>
                 <div className="flex flex-col items-start sm:items-end gap-1.5 ml-11 sm:ml-0">
-                  <div className="flex items-center gap-1.5 text-sm text-emerald-600 font-medium">
+                  <div className="flex items-center gap-1.5 text-sm text-success-text font-medium">
                     <ArrowRight className="h-4 w-4" /> You paid {formatCents(friend.youPaid)}
                   </div>
-                  <div className="flex items-center gap-1.5 text-sm text-rose-500 font-medium">
+                  <div className="flex items-center gap-1.5 text-sm text-error-text font-medium">
                     <ArrowLeft className="h-4 w-4" /> They paid {formatCents(friend.theyPaid)}
                   </div>
                 </div>

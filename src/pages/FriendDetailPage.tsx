@@ -116,7 +116,7 @@ export function FriendDetailPage() {
       {/* Back button */}
       <button
         onClick={() => navigate('/friends')}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+        className="flex items-center gap-2 text-sm text-text-muted hover:text-text-base transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Friends List
@@ -133,13 +133,13 @@ export function FriendDetailPage() {
           </Avatar>
           <div>
             <h1 className="text-2xl font-bold text-white mb-0">{friend.full_name}</h1>
-            <div className="text-xs text-gray-400 mt-1">1-on-1 Balance Summary</div>
+            <div className="text-xs text-text-muted mt-1">1-on-1 Balance Summary</div>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <div className="text-xs text-gray-400">Net 1-on-1 Balance</div>
+            <div className="text-xs text-text-muted">Net 1-on-1 Balance</div>
             <div className={`text-xl font-bold font-financial ${getBalanceColorClass(netBalanceCents)}`}>
               {netBalanceCents === 0
                 ? 'Settled Up'
@@ -163,7 +163,7 @@ export function FriendDetailPage() {
 
       {/* Shared Expenses Feed */}
       <div className="space-y-4">
-        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-text-base flex items-center gap-2">
           <Receipt className="h-5 w-5 text-primary-500" />
           Shared Transaction History ({sharedExpenses.length})
         </h2>
@@ -171,7 +171,7 @@ export function FriendDetailPage() {
         {sharedExpenses.length === 0 ? (
           <Card className="rounded-2xl text-center py-12">
             <CheckCircle2 className="h-12 w-12 text-primary-500 mx-auto mb-2 opacity-80" />
-            <p className="text-gray-600 font-medium">No direct expenses shared with {friend.full_name} yet</p>
+            <p className="text-text-muted font-medium">No direct expenses shared with {friend.full_name} yet</p>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -184,7 +184,7 @@ export function FriendDetailPage() {
                 <div
                   key={expense.id}
                   onClick={() => setSelectedExpense(expense)}
-                  className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                  className="flex items-center justify-between p-4 bg-bg-surface rounded-xl border border-border-base shadow-sm hover:shadow-md transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600 font-bold">
@@ -194,24 +194,24 @@ export function FriendDetailPage() {
                       })()}
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900">{expense.description}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
+                      <div className="font-semibold text-text-base">{expense.description}</div>
+                      <div className="text-xs text-text-muted mt-0.5">
                         {isUserPayer ? 'You paid' : `${friend.full_name} paid`} • {formatDate(expense.created_at)}
                       </div>
                     </div>
                   </div>
 
                   <div className="text-right">
-                    <div className="text-base font-bold font-financial text-gray-900">
+                    <div className="text-base font-bold font-financial text-text-base">
                       {formatCents(expense.total_amount)}
                     </div>
                     <div className="text-xs font-medium mt-0.5">
                       {isUserPayer ? (
-                        <span className="text-emerald-600">
+                        <span className="text-success-text">
                           {friend.full_name.split(' ')[0]} owes you {formatCents(friendSplit?.amount_owed ?? 0)}
                         </span>
                       ) : (
-                        <span className="text-rose-500">
+                        <span className="text-error-text">
                           You owe {formatCents(userSplit?.amount_owed ?? 0)}
                         </span>
                       )}

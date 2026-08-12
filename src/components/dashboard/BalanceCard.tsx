@@ -21,7 +21,7 @@ export function BalanceCard({
   return (
     <div
       className={`
-        relative overflow-hidden rounded-2xl border border-white/60 bg-white
+        relative overflow-hidden rounded-2xl border border-white/60 bg-bg-surface
         p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
       `}
     >
@@ -35,7 +35,7 @@ export function BalanceCard({
 
       <div className="relative z-10">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <p className="text-sm font-medium text-text-muted">{title}</p>
           <div
             className={`
               flex h-9 w-9 items-center justify-center rounded-xl
@@ -50,7 +50,7 @@ export function BalanceCard({
           {formatCents(Math.abs(amount))}
         </p>
 
-        <p className="mt-1.5 text-xs text-gray-400">{subtitle}</p>
+        <p className="mt-1.5 text-xs text-text-muted">{subtitle}</p>
       </div>
     </div>
   );

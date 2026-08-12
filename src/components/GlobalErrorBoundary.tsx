@@ -22,7 +22,7 @@ export function GlobalErrorBoundary() {
   if (isRouteErrorResponse(error)) {
     if (error.status === 404) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-bg-base p-4">
           <Result
             status="404"
             title="404"
@@ -35,7 +35,7 @@ export function GlobalErrorBoundary() {
     
     if (error.status === 401 || error.status === 403) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-bg-base p-4">
           <Result
             status="403"
             title="403"
@@ -49,7 +49,7 @@ export function GlobalErrorBoundary() {
 
   // 3. Handle unexpected Javascript crashes (Fallback)
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-bg-base p-4">
       <Result
         status="500"
         title="Something went wrong"

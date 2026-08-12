@@ -97,13 +97,13 @@ export function CreateGroupModal({ open, onClose, onSuccess }: CreateGroupModalP
         width={500}
         className="rounded-2xl overflow-hidden"
         title={
-          <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+          <div className="flex items-center gap-3 pb-3 border-b border-border-base">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/10 text-primary-500">
               <Users className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-0">Create New Group</h3>
-              <p className="text-xs text-gray-400 font-normal">Organize shared expenses with friends or roommates</p>
+              <h3 className="text-lg font-bold text-text-base mb-0">Create New Group</h3>
+              <p className="text-xs text-text-muted font-normal">Organize shared expenses with friends or roommates</p>
             </div>
           </div>
         }
@@ -116,7 +116,7 @@ export function CreateGroupModal({ open, onClose, onSuccess }: CreateGroupModalP
         >
           {/* Group Type Selector */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            <label className="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">
               Group Type
             </label>
             <div className="flex flex-wrap gap-2">
@@ -130,7 +130,7 @@ export function CreateGroupModal({ open, onClose, onSuccess }: CreateGroupModalP
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
                       isSelected
                         ? 'bg-primary-500 text-white shadow-sm font-semibold scale-105'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        : 'bg-bg-subtle text-text-muted hover:bg-bg-subtle'
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -150,7 +150,7 @@ export function CreateGroupModal({ open, onClose, onSuccess }: CreateGroupModalP
               prefix={<Sparkles className="h-4 w-4 text-primary-500 mr-1" />}
               placeholder="e.g. Miami Trip 2026, Apartment 4B, Office Lunch"
               size="large"
-              className="rounded-xl border-gray-200 hover:border-primary-500 focus:border-primary-500"
+              className="rounded-xl border-border-base hover:border-primary-500 focus:border-primary-500"
             />
           </Form.Item>
 
@@ -172,15 +172,15 @@ export function CreateGroupModal({ open, onClose, onSuccess }: CreateGroupModalP
                     <Avatar size={24} style={{ backgroundColor: 'var(--color-primary-500)' }}>
                       {getInitials(f.full_name)}
                     </Avatar>
-                    <span className="text-sm font-medium text-gray-800">{f.full_name}</span>
+                    <span className="text-sm font-medium text-text-base">{f.full_name}</span>
                   </div>
                 ),
               }))}
             />
           </Form.Item>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-            <Button size="large" onClick={onClose} className="rounded-xl text-gray-600">
+          <div className="flex justify-end gap-3 pt-4 border-t border-border-base">
+            <Button size="large" onClick={onClose} className="rounded-xl text-text-muted">
               Cancel
             </Button>
             <Button

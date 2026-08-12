@@ -40,8 +40,8 @@ export function ExactSplitTab({
       <div
         className={`mt-2 rounded-md px-3 py-2 text-sm font-medium ${
           exactRemaining === 0
-            ? 'bg-primary-50 text-primary-700'
-            : 'bg-orange-50 text-orange-700'
+            ? 'bg-success-bg text-success-text border-success-border'
+            : 'bg-error-bg text-error-text border-error-border'
         }`}
       >
         {exactRemaining === 0

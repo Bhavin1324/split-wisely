@@ -53,26 +53,26 @@ export function ActivityItem({
         }
       }}
       className="
-        flex w-full items-center gap-4 rounded-xl bg-white/70 px-4 py-3.5
+        flex w-full items-center gap-4 rounded-xl bg-bg-surface/70 px-4 py-3.5
         text-left transition-all duration-200
-        hover:bg-white hover:shadow-md cursor-pointer
-        border border-transparent hover:border-gray-100
+        hover:bg-bg-surface hover:shadow-md cursor-pointer
+        border border-transparent hover:border-border-base
       "
     >
       {/* Category icon */}
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-500/10 text-primary-500">
         <CatIcon className="h-5 w-5" strokeWidth={1.8} />
       </div>
 
       {/* Description & payer */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-gray-800">
+        <p className="truncate text-sm font-semibold text-text-base">
           {expense.description}
         </p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-text-muted">
           <span>
             {isCurrentUserPayer ? 'You' : payerName} paid{' '}
-            <span className="font-financial font-medium text-gray-500">
+            <span className="font-financial font-medium text-text-muted">
               {formatCents(expense.base_currency_amount)}
             </span>
           </span>
@@ -90,16 +90,16 @@ export function ActivityItem({
         <span
           className={`font-financial text-sm font-bold px-2.5 py-0.5 rounded-full ${
             userAmount > 0
-              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+              ? 'bg-success-bg text-success-text border border-success-border'
               : userAmount < 0
-                ? 'bg-rose-50 text-rose-600 border border-rose-100'
-                : 'bg-gray-50 text-gray-500 border border-gray-200'
+                ? 'bg-error-bg text-error-text border border-error-border'
+                : 'bg-bg-base text-text-muted border border-border-base'
           }`}
         >
           {userAmount > 0 ? '+' : ''}
           {formatCents(userAmount)}
         </span>
-        <span className="text-[11px] text-gray-400">
+        <span className="text-[11px] text-text-muted">
           {formatDate(expense.expense_date ?? expense.created_at)}
         </span>
       </div>
