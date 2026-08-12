@@ -21,6 +21,10 @@ export function useNotifications() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [clearedUntil, setClearedUntil] = useState<number>(() => {
+    return parseInt(localStorage.getItem('notificationsClearedUntil') || '0', 10);
+  });
+
   useEffect(() => {
     if (DEMO_MODE || !user?.id) {
       setNotifications([]);
@@ -110,7 +114,18 @@ export function useNotifications() {
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const clearSeen = () => {
+    const now = Date.now();
+    setClearedUntil(now);
+    localStorage.setItem('notificationsClearedUntil', now.toString());
+  };
 
-  return { notifications, unreadCount, loading, error, markAsRead, markAllAsRead };
+  const visibleNotifications = notifications.filter(n => {
+    if (!n.is_read) return true;
+    return new Date(n.created_at).getTime() > clearedUntil;
+  });
+
+  const unreadCount = visibleNotifications.filter((n) => !n.is_read).length;
+
+  return { notifications: visibleNotifications, unreadCount, loading, error, markAsRead, markAllAsRead, clearSeen };
 }

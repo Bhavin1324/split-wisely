@@ -13,6 +13,7 @@ interface NotificationListProps {
   unreadCount: number;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
+  clearSeen: () => void;
   onClose?: () => void;
 }
 
@@ -22,6 +23,7 @@ export function NotificationList({
   unreadCount,
   markAsRead,
   markAllAsRead,
+  clearSeen,
   onClose,
 }: NotificationListProps) {
   const navigate = useNavigate();
@@ -33,6 +35,8 @@ export function NotificationList({
     }
     return notifications;
   }, [notifications, activeTab]);
+
+  const hasSeenNotifications = notifications.some((n) => n.is_read);
 
   const handleNotificationClick = (notification: AppNotification) => {
     if (!notification.is_read) {
@@ -65,16 +69,28 @@ export function NotificationList({
               </span>
             )}
           </Text>
-          {unreadCount > 0 && (
-            <Button
-              type="link"
-              size="small"
-              onClick={markAllAsRead}
-              className="px-0 text-sm text-primary-600 font-medium"
-            >
-              Mark all as read
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {hasSeenNotifications && (
+              <Button
+                type="link"
+                size="small"
+                onClick={clearSeen}
+                className="px-0 text-sm text-text-muted hover:text-text-base font-medium"
+              >
+                Clear read
+              </Button>
+            )}
+            {unreadCount > 0 && (
+              <Button
+                type="link"
+                size="small"
+                onClick={markAllAsRead}
+                className="px-0 text-sm text-primary-600 font-medium"
+              >
+                Mark all as read
+              </Button>
+            )}
+          </div>
         </div>
         
           <Segmented

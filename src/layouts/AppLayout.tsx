@@ -45,7 +45,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { currentUser: contextUser, groups: contextGroups } = useAppData();
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearSeen } =
     useNotifications();
 
   // Provide a safe fallback during initial load to prevent crashes.
@@ -197,6 +197,7 @@ export function AppLayout() {
                   unreadCount={unreadCount}
                   markAsRead={markAsRead}
                   markAllAsRead={markAllAsRead}
+                  clearSeen={clearSeen}
                   onClose={() => setNotificationPopoverOpen(false)}
                 />
               }
@@ -269,8 +270,10 @@ export function AppLayout() {
               unreadCount={unreadCount}
               markAsRead={markAsRead}
               markAllAsRead={markAllAsRead}
+              clearSeen={clearSeen}
               onClose={() => setMobileNotificationPopoverOpen(false)}
             />
+
           </Drawer>
           <NavLink
             to="/search"

@@ -156,9 +156,24 @@ export function GroupHeader({
               {group.name.charAt(0)}
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-base mb-1 line-clamp-1">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-base mb-0.5 line-clamp-1">
                 {group.name}
               </h1>
+              <div className="mb-1.5">
+                {userNetBalance === 0 ? (
+                  <span className="text-sm font-medium text-text-muted flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> All settled up
+                  </span>
+                ) : userNetBalance > 0 ? (
+                  <span className="text-sm font-medium text-success-text">
+                    You are owed <span className="font-financial font-bold">{formatCents(userNetBalance)}</span> overall
+                  </span>
+                ) : (
+                  <span className="text-sm font-medium text-error-text">
+                    You owe <span className="font-financial font-bold">{formatCents(Math.abs(userNetBalance))}</span> overall
+                  </span>
+                )}
+              </div>
               <Button
                 type="primary"
                 onClick={onOpenMembers}
