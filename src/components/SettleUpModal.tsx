@@ -93,14 +93,32 @@ export function SettleUpModal({
     const formattedAmount = amountValue.toFixed(2);
 
     const upiId = selectedPayeeObj.upi_id.trim();
-    const payeeName = encodeURIComponent(selectedPayeeObj.full_name);
-    const note = "Settlement"; // Single word, no spaces needed
+    // BHIM BUG WORKAROUND: BHIM fails to decode %20 and will display "John%20Doe". 
+    // Since literal spaces are illegal in URIs, we remove spaces entirely -> "JohnDoe"
+    const payeeName = selectedPayeeObj.full_name.replace(/\s+/g, '');
+    const note = "Settlement"; 
     const merchantCategoryCode = "0000";
     const initiationMode = "04";
     const selectedCurrency = getStoredCurrency();
 
-    // return `upi://pay?pa=${upiId}&pn=${payeeName}&am=${formattedAmount}&cu=INR&tn=${note}`;
-    return `upi://pay?pa=${upiId}&pn=${payeeName}&am=${formattedAmount}&cu=${selectedCurrency}&tn=${note}&mc=${merchantCategoryCode}&mode=${initiationMode}`;
+    // Generate a stable transaction reference ID tied to this specific amount & payee.
+    // This safely allows idempotent retries if the user clicks "Pay" multiple times.
+    const transactionRefId = uuidv4().replace(/-/g, '');
+
+    const params = new URLSearchParams({
+      pa: upiId,
+      pn: payeeName,
+      am: formattedAmount,
+      cu: selectedCurrency,
+      tn: note,
+      mc: merchantCategoryCode,
+      mode: initiationMode,
+      tr: transactionRefId
+    });
+
+    const queryString = params.toString().replace(/\+/g, '%20');
+
+    return `upi://pay?${queryString}`;
   }, [selectedPayeeObj, amountValue]);
 
   const handleSave = async (skipClose = false) => {
@@ -168,8 +186,7 @@ export function SettleUpModal({
 
   const handleUpiClick = async () => {
     if (!upiIntent) return;
-    const transactionRefId = uuidv4().replace(/-/g, '');
-    const finalUpiIntent = `${upiIntent}&tr=${transactionRefId}`;
+    
     if (user) {
       try {
         await supabase.from("activity_logs").insert({
@@ -177,7 +194,7 @@ export function SettleUpModal({
           group_id: selectedGroupId || null,
           action_type: "UPI_REDIRECT_INITIATED",
           metadata: {
-            upi_url: finalUpiIntent,
+            upi_url: upiIntent,
             payee_id: selectedPayeeObj?.id,
             amount_cents: totalCents
           },
@@ -186,7 +203,8 @@ export function SettleUpModal({
         console.error("Failed to log UPI redirect activity:", error);
       }
     }
-    window.location.href = finalUpiIntent;
+    
+    window.location.href = upiIntent;
     messageApi.info(
       'Opening UPI App. Please complete the payment there, then return here and click "Save Payment" to record it.',
       5,
