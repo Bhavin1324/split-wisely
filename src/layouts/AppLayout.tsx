@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Avatar, Button, Tooltip, Popover, Drawer } from "antd";
+import dayjs from "dayjs";
 import {
   LayoutDashboard,
   Users,
+  Wallet,
   PieChart,
   Search,
   Settings,
@@ -18,6 +20,10 @@ import { AddExpenseModal } from "../components/AddExpenseModal";
 import { CreateGroupModal } from "../components/CreateGroupModal";
 import { AddFriendModal } from "../components/AddFriendModal";
 import { NotificationList } from "../components/ui/NotificationList";
+import { MobileBottomNav } from "../components/navigation/MobileBottomNav";
+import { SidebarDrawer } from "../components/navigation/SidebarDrawer";
+import { AddPersonalTransactionDrawer } from "../components/personal/AddPersonalTransactionDrawer";
+import { usePersonalLedger } from "../hooks/usePersonalLedger";
 import { useNotifications } from "../hooks/supabase/useNotifications";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
@@ -25,10 +31,12 @@ import { useAuth } from "../context/AuthContext";
 const NAV_ITEMS = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/friends", label: "Friends", icon: Users },
+  { path: "/personal", label: "Personal", icon: Wallet },
   { path: "/spending", label: "Analytics", icon: PieChart },
   { path: "/search", label: "Search", icon: Search },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
+
 
 /**
  * Main application layout with persistent sidebar and content area.
@@ -39,6 +47,7 @@ export function AppLayout() {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPersonalDrawerOpen, setIsPersonalDrawerOpen] = useState(false);
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false);
   const [mobileNotificationPopoverOpen, setMobileNotificationPopoverOpen] =
     useState(false);
@@ -47,6 +56,10 @@ export function AppLayout() {
   const { currentUser: contextUser, groups: contextGroups } = useAppData();
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearSeen } =
     useNotifications();
+  const { addTransaction: addPersonalTransaction } = usePersonalLedger(
+    dayjs().format("YYYY-MM")
+  );
+
 
   // Provide a safe fallback during initial load to prevent crashes.
   const currentUser =
@@ -298,147 +311,27 @@ export function AppLayout() {
       </main>
 
       {/* ── Mobile Bottom Nav ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface border-t border-border-base flex h-16 pb-safe">
-        {/* Left Items */}
-        {NAV_ITEMS.filter((item) => item.path !== "/search")
-          .slice(0, 2)
-          .map(({ path, label, icon: Icon }) => (
-            <NavLink
-              key={path}
-              to={path}
-              // Kept purely for flex layout and removing the ugly mobile browser tap flash
-              className="flex-1 flex flex-col items-center justify-center gap-1 [-webkit-tap-highlight-color:transparent]"
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    className={`w-5 h-5 transition-colors duration-200 ${
-                      isActive ? "text-primary-500" : "text-text-muted"
-                    }`}
-                  />
-                  <span
-                    className={`text-[10px] font-medium transition-colors duration-200 ${
-                      isActive ? "text-primary-500" : "text-text-muted"
-                    }`}
-                  >
-                    {label}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          ))}
+      <MobileBottomNav
+        onOpenGroupExpense={() => setIsExpenseModalOpen(true)}
+        onOpenPersonalExpense={() => setIsPersonalDrawerOpen(true)}
+      />
 
-        {/* Center Add Button */}
-        <div className="flex-1 flex justify-center items-center">
-          <div className="relative -top-1">
-            <button
-              onClick={() => setIsExpenseModalOpen(true)}
-              className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white transition-colors duration-200 active:bg-primary-600 [-webkit-tap-highlight-color:transparent]"
-            >
-              <Plus className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-
-        {/* Right Items */}
-        {NAV_ITEMS.filter((item) => item.path !== "/search")
-          .slice(2)
-          .map(({ path, label, icon: Icon }) => (
-            <NavLink
-              key={path}
-              to={path}
-              className="flex-1 flex flex-col items-center justify-center gap-1 [-webkit-tap-highlight-color:transparent]"
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    className={`w-5 h-5 transition-colors duration-200 ${
-                      isActive ? "text-primary-500" : "text-text-muted"
-                    }`}
-                  />
-                  <span
-                    className={`text-[10px] font-medium transition-colors duration-200 ${
-                      isActive ? "text-primary-500" : "text-text-muted"
-                    }`}
-                  >
-                    {label}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          ))}
-      </nav>
-
-      {/* ── Mobile Groups Drawer ── */}
-      <Drawer
-        title="Your Groups"
-        placement="right"
-        onClose={() => setIsMobileMenuOpen(false)}
+      {/* ── Mobile Groups & Navigation Drawer ── */}
+      <SidebarDrawer
         open={isMobileMenuOpen}
-        className="md:hidden flex flex-col"
-        styles={{ body: { padding: 0 } }}
-        footer={
-          <div className="flex items-center justify-between p-2">
-            <span className="text-sm font-medium text-text-muted">
-              {currentUser.full_name}
-            </span>
-            <Button
-              type="text"
-              danger
-              icon={<LogOut className="w-4 h-4" />}
-              onClick={async () => {
-                await signOut();
-                navigate("/login");
-              }}
-            >
-              Sign Out
-            </Button>
-          </div>
-        }
-      >
-        <div className="p-4 flex justify-between items-center bg-bg-base border-b border-border-base">
-          <span className="font-semibold text-base">All Groups</span>
-          <Button
-            icon={<Plus className="w-3 h-3" />}
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              setIsCreateGroupOpen(true);
-            }}
-          >
-            New
-          </Button>
-        </div>
-        <div className="flex flex-col">
-          {groups.map((group) => (
-            <NavLink
-              key={group.id}
-              to={`/groups/${group.id}`}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 p-4 border-b border-border-base transition-colors ${
-                  isActive
-                    ? "bg-primary-50 text-primary-600"
-                    : "text-gray-700 hover:bg-bg-base"
-                }`
-              }
-            >
-              <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center text-primary-600 font-bold shrink-0 text-lg">
-                {group.name.charAt(0)}
-              </div>
-              <span className="font-medium truncate text-base">
-                {group.name}
-              </span>
-            </NavLink>
-          ))}
-          {groups.length === 0 && (
-            <div className="p-8 text-center text-text-muted">
-              No groups yet. Create one to get started!
-            </div>
-          )}
-        </div>
-      </Drawer>
+        onClose={() => setIsMobileMenuOpen(false)}
+        groups={groups}
+        currentUser={currentUser}
+        onOpenCreateGroup={() => setIsCreateGroupOpen(true)}
+        onSignOut={async () => {
+          await signOut();
+          navigate("/login");
+        }}
+      />
 
-      {/* ── Modals ── */}
+
+
+      {/* ── Modals & Drawers ── */}
       <AddExpenseModal
         open={isExpenseModalOpen}
         onClose={() => setIsExpenseModalOpen(false)}
@@ -452,6 +345,12 @@ export function AppLayout() {
         open={isAddFriendOpen}
         onClose={() => setIsAddFriendOpen(false)}
       />
+      <AddPersonalTransactionDrawer
+        open={isPersonalDrawerOpen}
+        onClose={() => setIsPersonalDrawerOpen(false)}
+        onAddTransaction={addPersonalTransaction}
+      />
     </div>
   );
 }
+

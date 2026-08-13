@@ -195,3 +195,69 @@ export function getSettlementsForGroup(groupId: string): Settlement[] {
 export function getMembersForGroup(groupId: string): GroupMember[] {
   return MOCK_GROUP_MEMBERS.filter(gm => gm.group_id === groupId);
 }
+
+// -- Mock Personal Budgets & Transactions --
+export const MOCK_PERSONAL_BUDGETS: import('../types').PersonalBudget[] = [
+  {
+    id: 'pbudget-1',
+    user_id: 'user-1',
+    month_year: '2026-08',
+    budget_amount: 5000000, // 50,000 INR (in cents/paisa)
+    created_at: '2026-08-01T00:00:00Z',
+    updated_at: '2026-08-01T00:00:00Z',
+  },
+];
+
+export const MOCK_PERSONAL_TRANSACTIONS: import('../types').PersonalTransaction[] = [
+  {
+    id: 'ptrans-1',
+    user_id: 'user-1',
+    type: 'INCOME',
+    amount: 12000000, // 1,20,000 INR
+    category: 'Salary',
+    description: 'Monthly Salary Credit',
+    transaction_date: '2026-08-01T09:00:00Z',
+    created_at: '2026-08-01T09:00:00Z',
+  },
+  {
+    id: 'ptrans-2',
+    user_id: 'user-1',
+    type: 'EXPENSE',
+    amount: 1500000, // 15,000 INR
+    category: 'Rent',
+    description: 'Apartment Maintenance & Rent',
+    transaction_date: '2026-08-02T10:30:00Z',
+    created_at: '2026-08-02T10:30:00Z',
+  },
+  {
+    id: 'ptrans-3',
+    user_id: 'user-1',
+    type: 'EXPENSE',
+    amount: 245000, // 2,450 INR
+    category: 'Food',
+    description: 'Grocery Shopping at Supermarket',
+    transaction_date: '2026-08-05T18:15:00Z',
+    created_at: '2026-08-05T18:15:00Z',
+  },
+  {
+    id: 'ptrans-4',
+    user_id: 'user-1',
+    type: 'EXPENSE',
+    amount: 120000, // 1,200 INR
+    category: 'Bills',
+    description: 'Electricity & Internet Bill',
+    transaction_date: '2026-08-10T14:20:00Z',
+    created_at: '2026-08-10T14:20:00Z',
+  },
+  {
+    id: 'ptrans-5',
+    user_id: 'user-1',
+    type: 'EXPENSE',
+    amount: 65000, // 650 INR
+    category: 'Transport',
+    description: 'Fuel for Scooter',
+    transaction_date: '2026-08-12T11:00:00Z',
+    created_at: '2026-08-12T11:00:00Z',
+  },
+];
+

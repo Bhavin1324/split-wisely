@@ -23,20 +23,28 @@
   --color-bg-base: var(--bg-base);
   --color-bg-surface: var(--bg-surface);
   --color-bg-subtle: var(--bg-subtle);
+  --color-bg-surface-hover: var(--bg-subtle);
   
   --color-text-base: var(--text-base);
+  --color-text-main: var(--text-base);
   --color-text-muted: var(--text-muted);
   --color-text-inverse: var(--text-inverse);
   
   --color-border-base: var(--border-base);
+  --color-border-subtle: var(--border-base);
   
   --color-success-bg: var(--success-bg);
   --color-success-text: var(--success-text);
   --color-success-border: var(--success-border);
+  --color-success-500: var(--success-text);
   
   --color-error-bg: var(--error-bg);
   --color-error-text: var(--error-text);
   --color-error-border: var(--error-border);
+  --color-danger-500: var(--error-text);
+  --color-danger-bg: var(--error-bg);
+  --color-danger-border: var(--error-border);
+
 
   /* Dynamic Primary Color Palette */
   --color-primary-50: var(--primary-50);
@@ -213,7 +221,21 @@
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
   }
+
+  /* Hide number input spin buttons across browsers and AntD controls */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+  .ant-input-number-handler-wrap {
+    display: none !important;
+  }
 }
+
 
 /* Component utilities */
 @layer utilities {

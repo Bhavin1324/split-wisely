@@ -9,6 +9,7 @@ const GroupDetailPage = lazy(() => import('./pages/GroupDetailPage').then(module
 const FriendsPage = lazy(() => import('./pages/FriendsPage').then(module => ({ default: module.FriendsPage })));
 const FriendDetailPage = lazy(() => import('./pages/FriendDetailPage').then(module => ({ default: module.FriendDetailPage })));
 const SpendingPage = lazy(() => import('./pages/SpendingPage').then(module => ({ default: module.SpendingPage })));
+const PersonalPage = lazy(() => import('./pages/PersonalPage').then(module => ({ default: module.PersonalPage })));
 const SearchPage = lazy(() => import('./pages/SearchPage').then(module => ({ default: module.SearchPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ default: module.LoginPage })));
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
           { path: 'groups/:groupId', element: withSuspense(GroupDetailPage) },
           { path: 'friends', element: withSuspense(FriendsPage) },
           { path: 'friends/:friendId', element: withSuspense(FriendDetailPage) },
+          { path: 'personal', element: withSuspense(PersonalPage) },
           { path: 'spending', element: withSuspense(SpendingPage) },
           { path: 'search', element: withSuspense(SearchPage) },
           { path: 'settings', element: withSuspense(SettingsPage) },
@@ -74,6 +76,7 @@ export const router = createBrowserRouter([
       },
     ],
   },
+
   {
     path: '*',
     element: <Navigate to="/dashboard" replace />,

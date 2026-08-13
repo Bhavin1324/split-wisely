@@ -116,3 +116,27 @@ export interface FriendWithBalance {
   profile: Profile;
   balance: number; // positive = they owe you, negative = you owe them
 }
+
+// Personal Ledger types
+export type TransactionType = 'INCOME' | 'EXPENSE';
+
+export interface PersonalBudget {
+  id: string;
+  user_id: string;
+  month_year: string; // "YYYY-MM"
+  budget_amount: number | null; // cents
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonalTransaction {
+  id: string;
+  user_id: string;
+  type: TransactionType;
+  amount: number; // cents
+  category: string;
+  description: string;
+  transaction_date: string;
+  created_at: string;
+}
+
