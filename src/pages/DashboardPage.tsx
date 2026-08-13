@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Tag } from 'antd';
+import { Tag, Segmented } from 'antd';
 import {
   Wallet,
   TrendingUp,
@@ -9,13 +9,14 @@ import {
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useAllExpenses } from '../hooks/supabase/useExpensesData';
+import { useAllSettlements } from '../hooks/supabase/useSettlementsData';
 import { CreateGroupModal } from '../components/CreateGroupModal';
 import {
   MOCK_CURRENT_USER,
   MOCK_GROUPS,
   MOCK_EXPENSES,
 } from '../lib/mockData';
-import type { Expense } from '../types';
+import type { Expense, SimplifiedTransaction } from '../types';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 import { BalanceCard } from '../components/dashboard/BalanceCard';
@@ -25,29 +26,34 @@ import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 
-
-
-// ---------------------------------------------------------------------------
-// Main Component
-// ---------------------------------------------------------------------------
 export function DashboardPage() {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | undefined>(undefined);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [hideSettledGroups, setHideSettledGroups] = useState(true);
 
   const { user } = useAuth();
   const { currentUser, groups: contextGroups, loading: appLoading } = useAppData();
   const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
+  const { data: liveSettlements, loading: settlementsLoading } = useAllSettlements(user?.id);
 
   const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
   const displayName = currentUser?.full_name ?? (DEMO_MODE ? MOCK_CURRENT_USER.full_name : 'User');
   const groups = DEMO_MODE ? MOCK_GROUPS : contextGroups;
-  const allExpenses = DEMO_MODE ? MOCK_EXPENSES : liveExpenses;
+  const allExpenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses || []);
 
-  const { balances, expensesByMonth } = useDashboardData(userId, groups, allExpenses);
+  const { balances, expensesByMonth } = useDashboardData(userId, groups, allExpenses, liveSettlements || []);
+  console.log("Groups, ", groups)
+  const displayedGroups = groups.filter((g) => {
+    if (!hideSettledGroups) return true;
+    const bal = balances.groupBalances[g.id] ?? 0;
+    const debts = balances.groupDebtsMap?.[g.id] ?? [];
+    const myDebts = debts.filter((d: SimplifiedTransaction) => d.from === userId || d.to === userId);
+    return bal !== 0 || myDebts.length > 0;
+  });
 
-  if (appLoading || expensesLoading) {
+  if (appLoading || expensesLoading || settlementsLoading) {
     return <PageSkeleton layout="dashboard" />;
   }
 
@@ -114,27 +120,40 @@ export function DashboardPage() {
 
       {/* ── Groups Overview ──────────────────────────────────── */}
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-text-base">Your Groups</h2>
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Tag color="default" className="rounded-full text-xs">
-              {groups.length} group{groups.length !== 1 ? 's' : ''}
+            <h2 className="text-lg font-bold text-text-base mb-0">Your Groups</h2>
+            <Tag color="default" className="rounded-full text-xs m-0">
+              {displayedGroups.length} of {groups.length}
             </Tag>
+          </div>
+          <div className="flex items-center gap-3">
+            <Segmented
+              options={[
+                { label: 'Hide Settled', value: true },
+                { label: 'Show All', value: false },
+              ]}
+              value={hideSettledGroups}
+              onChange={(val) => setHideSettledGroups(val as boolean)}
+              className="bg-bg-subtle"
+            />
             <button
               type="button"
               onClick={() => setIsCreateGroupOpen(true)}
-              className="flex items-center gap-1 text-xs font-semibold text-primary-500 bg-primary-500/10 px-2.5 py-1 rounded-full border border-primary-500/20 hover:bg-primary-500/20 transition-colors"
+              className="flex items-center gap-1 text-xs font-semibold text-primary-500 bg-primary-500/10 px-3 py-1 rounded-full border border-primary-500/20 hover:bg-primary-500/20 transition-colors"
             >
               + Create Group
             </button>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {groups.map((group) => (
+          {displayedGroups.map((group) => (
             <GroupCard
               key={group.id}
               group={group}
               balance={balances.groupBalances[group.id] ?? 0}
+              userId={userId}
+              groupDebts={balances.groupDebtsMap?.[group.id]}
             />
           ))}
         </div>

@@ -53,9 +53,10 @@ export function useNotifications() {
 
     fetchNotifications();
 
-    // Subscribe to new notifications
-    const subscription = supabase
-      .channel('public:notifications')
+    const channelName = `public-notifications-${user.id}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const subscription = supabase.channel(channelName);
+
+    subscription
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
@@ -72,7 +73,9 @@ export function useNotifications() {
           );
         }
       )
-      .subscribe();
+      .subscribe((_status, err) => {
+        if (err) console.error(`Realtime error [${channelName}]:`, err);
+      });
 
     return () => {
       supabase.removeChannel(subscription);

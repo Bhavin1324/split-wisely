@@ -35,22 +35,21 @@ export function useExpenses(groupId: string | undefined) {
   useEffect(() => {
     fetchExpenses();
 
-    // Listen for manual triggers from the AddExpenseModal
-    window.addEventListener('expenseAdded', fetchExpenses);
-
     if (!groupId) return;
-    const channelId = Math.random().toString(36).substring(2, 9);
-    const channel = supabase
-      .channel(`realtime-expenses-${groupId}-${channelId}`)
+    const channelName = `realtime-expenses-${groupId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase.channel(channelName);
+
+    channel
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
         () => fetchExpenses(),
       )
-      .subscribe();
+      .subscribe((_status, err) => {
+        if (err) console.error(`Realtime error [${channelName}]:`, err);
+      });
 
     return () => {
-      window.removeEventListener('expenseAdded', fetchExpenses);
       supabase.removeChannel(channel);
     };
   }, [groupId, fetchExpenses]);
@@ -106,13 +105,24 @@ export function useAllExpenses(userId: string | undefined) {
   useEffect(() => {
     fetchAllExpenses();
 
-    // Listen for manual triggers from the AddExpenseModal (especially needed since there's no realtime listener here)
-    window.addEventListener('expenseAdded', fetchAllExpenses);
+    if (!userId) return;
+    const channelName = `all-expenses-sync-${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase.channel(channelName);
+
+    channel
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'expenses' },
+        () => fetchAllExpenses()
+      )
+      .subscribe((_status, err) => {
+        if (err) console.error(`Realtime error [${channelName}]:`, err);
+      });
 
     return () => {
-      window.removeEventListener('expenseAdded', fetchAllExpenses);
+      supabase.removeChannel(channel);
     };
-  }, [fetchAllExpenses]);
+  }, [userId, fetchAllExpenses]);
 
   return { data, loading, error, refetch: fetchAllExpenses };
 }

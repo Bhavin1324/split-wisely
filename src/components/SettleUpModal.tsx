@@ -9,7 +9,7 @@ import {
   message,
   Typography,
 } from "antd";
-import { MOCK_CURRENT_USER, MOCK_PROFILES } from "../lib/mockData";
+import { MOCK_CURRENT_USER, MOCK_PROFILES, MOCK_EXPENSES, MOCK_SETTLEMENTS } from "../lib/mockData";
 import {
   formatCents,
   getStoredCurrency,
@@ -19,7 +19,10 @@ import type { Profile } from "../types";
 import { useAppData, DEMO_MODE } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import { useFriends } from "../hooks/supabase/useProfileData";
+import { useAllExpenses } from "../hooks/supabase/useExpensesData";
+import { useAllSettlements } from "../hooks/supabase/useSettlementsData";
 import { createSettlement } from "../hooks/supabase/useMutations";
+import { DebtSimplifier } from "../core/domain/DebtSimplifier";
 import { supabase } from "../lib/supabase";
 
 const { Text } = Typography;
@@ -27,6 +30,7 @@ const { Text } = Typography;
 interface SettleUpModalProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => Promise<void> | void;
   defaultPayeeId?: string;
   defaultPayeeName?: string;
   defaultGroupId?: string;
@@ -34,9 +38,17 @@ interface SettleUpModalProps {
   maxAmountCents?: number;
 }
 
+interface GroupDebtDetail {
+  group: any;
+  debtorId: string;
+  creditorId: string;
+  amountCents: number;
+}
+
 export function SettleUpModal({
   open,
   onClose,
+  onSuccess,
   defaultPayeeId,
   defaultPayeeName,
   defaultGroupId,
@@ -44,7 +56,7 @@ export function SettleUpModal({
   maxAmountCents,
 }: SettleUpModalProps) {
   const { user } = useAuth();
-  const { currentUser, groups } = useAppData();
+  const { currentUser, groups, refetchData } = useAppData();
   const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
 
   const [form] = Form.useForm();
@@ -60,16 +72,69 @@ export function SettleUpModal({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { data: liveFriends } = useFriends(user?.id);
+  const { data: liveExpenses } = useAllExpenses(user?.id);
+  const { data: liveSettlements } = useAllSettlements(user?.id);
+
+  // Compute all open group debts (both directions) in shared groups between payerId and payeeId
+  const allGroupDebts = useMemo(() => {
+    if (!payerId || !payeeId || payerId === payeeId) return [];
+
+    const expenses = DEMO_MODE ? (MOCK_EXPENSES as any) : liveExpenses || [];
+    const settlements = DEMO_MODE ? (MOCK_SETTLEMENTS as any) : liveSettlements || [];
+
+    const results: GroupDebtDetail[] = [];
+
+    groups.forEach((g) => {
+      const gExp = expenses.filter((e: any) => e.group_id === g.id);
+      const gSett = settlements.filter((s: any) => s.group_id === g.id);
+      const pairwiseDebts = DebtSimplifier.calculateIndividualDebts(gExp, gSett, []);
+
+      const debtPayerToPayee = pairwiseDebts.find(
+        (d: any) => d.from === payerId && d.to === payeeId,
+      );
+      const debtPayeeToPayer = pairwiseDebts.find(
+        (d: any) => d.from === payeeId && d.to === payerId,
+      );
+
+      if (debtPayerToPayee && debtPayerToPayee.amount > 0) {
+        results.push({
+          group: g,
+          debtorId: payerId,
+          creditorId: payeeId,
+          amountCents: debtPayerToPayee.amount,
+        });
+      }
+      if (debtPayeeToPayer && debtPayeeToPayer.amount > 0) {
+        results.push({
+          group: g,
+          debtorId: payeeId,
+          creditorId: payerId,
+          amountCents: debtPayeeToPayer.amount,
+        });
+      }
+    });
+
+    return results;
+  }, [payerId, payeeId, groups, liveExpenses, liveSettlements]);
+
   useEffect(() => {
     if (open) {
       if (userId) setPayerId(userId);
       setPayeeId(defaultPayeeId);
-      setSelectedGroupId(defaultGroupId);
       setAmountValue(defaultAmountCents ? defaultAmountCents / 100 : null);
-    }
-  }, [open, userId, defaultPayeeId, defaultGroupId, defaultAmountCents]);
 
-  const { data: liveFriends } = useFriends(user?.id);
+      if (defaultGroupId) {
+        setSelectedGroupId(defaultGroupId);
+      } else if (allGroupDebts.length > 1) {
+        setSelectedGroupId("AUTO_ALL");
+      } else if (allGroupDebts.length === 1) {
+        setSelectedGroupId(allGroupDebts[0].group.id);
+      } else {
+        setSelectedGroupId(undefined);
+      }
+    }
+  }, [open, userId, defaultPayeeId, defaultGroupId, defaultAmountCents, allGroupDebts]);
 
   const availablePayees = useMemo(() => {
     const friendsList = DEMO_MODE ? MOCK_PROFILES : liveFriends || [];
@@ -88,21 +153,13 @@ export function SettleUpModal({
   const upiIntent = useMemo(() => {
     if (!selectedPayeeObj?.upi_id || !amountValue) return null;
 
-    // Ensure amount is formatted strictly to 2 decimal places (e.g., 10.00)
-    // as some strict UPI apps will reject or drop the amount otherwise.
     const formattedAmount = amountValue.toFixed(2);
-
     const upiId = selectedPayeeObj.upi_id.trim();
-    // BHIM BUG WORKAROUND: BHIM fails to decode %20 and will display "John%20Doe". 
-    // Since literal spaces are illegal in URIs, we remove spaces entirely -> "JohnDoe"
     const payeeName = selectedPayeeObj.full_name.replace(/\s+/g, '');
     const note = "Settlement"; 
     const merchantCategoryCode = "0000";
     const initiationMode = "04";
     const selectedCurrency = getStoredCurrency();
-
-    // Generate a stable transaction reference ID tied to this specific amount & payee.
-    // This safely allows idempotent retries if the user clicks "Pay" multiple times.
     const transactionRefId = uuidv4().replace(/-/g, '');
 
     const params = new URLSearchParams({
@@ -122,8 +179,14 @@ export function SettleUpModal({
   }, [selectedPayeeObj, amountValue]);
 
   const handleSave = async (skipClose = false) => {
+    if (isSubmitting) return;
+
     if (!payeeId) {
       messageApi.error("Please select a person to settle with.");
+      return;
+    }
+    if (payerId === payeeId) {
+      messageApi.error("Payer and recipient cannot be the same person.");
       return;
     }
     if (totalCents <= 0) {
@@ -137,6 +200,8 @@ export function SettleUpModal({
       return;
     }
 
+    setIsSubmitting(true);
+
     const payer = DEMO_MODE
       ? (MOCK_PROFILES.find((p) => p.id === payerId)?.full_name ?? payerId)
       : payerId === userId
@@ -147,40 +212,106 @@ export function SettleUpModal({
       ? (MOCK_PROFILES.find((p) => p.id === payeeId)?.full_name ?? payeeId)
       : (availablePayees.find((p) => p.id === payeeId)?.full_name ?? payeeId);
 
-    if (DEMO_MODE) {
-      console.log("[SettleUpModal] Settlement recorded:", {
-        payerId,
-        payeeId,
-        groupId: selectedGroupId,
-        amountCents: totalCents,
-      });
+    const recordSingleSettlement = async (params: {
+      payer_id: string;
+      payee_id: string;
+      group_id: string | null;
+      amount: number;
+      currency_code: string;
+    }) => {
+      if (DEMO_MODE) {
+        MOCK_SETTLEMENTS.push({
+          id: uuidv4(),
+          group_id: params.group_id,
+          payer_id: params.payer_id,
+          payee_id: params.payee_id,
+          amount: params.amount,
+          currency_code: params.currency_code,
+          created_at: new Date().toISOString(),
+        });
+      } else {
+        await createSettlement(params);
+      }
+    };
+
+    try {
+      if (selectedGroupId === "AUTO_ALL" && allGroupDebts.length > 0) {
+        let remainingCents = totalCents;
+        
+        // Step 1: Clear Reciprocal Debts
+        // For any group where the Payee owes the Payer, we automatically insert a reciprocal
+        // settlement. This effectively increases the Payer's "purchasing power" to clear
+        // the debts where they owe the Payee, ensuring True Cross-Group Clearing.
+        for (const item of allGroupDebts) {
+          if (item.debtorId === payeeId && item.creditorId === payerId) {
+            await recordSingleSettlement({
+              payer_id: payeeId,
+              payee_id: payerId,
+              group_id: item.group.id,
+              amount: item.amountCents,
+              currency_code: getStoredCurrency(),
+            });
+            remainingCents += item.amountCents;
+          }
+        }
+
+        // Step 2: Clear Payer Debts
+        // Now use the combined pool (physical cash + reciprocal credits) to pay off
+        // the groups where the Payer owes the Payee.
+        for (const item of allGroupDebts) {
+          if (remainingCents <= 0) break;
+          
+          if (item.debtorId === payerId && item.creditorId === payeeId) {
+            const amountToSettle = Math.min(item.amountCents, remainingCents);
+            await recordSingleSettlement({
+              payer_id: item.debtorId,
+              payee_id: item.creditorId,
+              group_id: item.group.id,
+              amount: amountToSettle,
+              currency_code: getStoredCurrency(),
+            });
+            remainingCents -= amountToSettle;
+          }
+        }
+        
+        // Step 3: Handle Overpayment or Non-Group Debts
+        if (remainingCents > 0) {
+          await recordSingleSettlement({
+            payer_id: payerId,
+            payee_id: payeeId,
+            group_id: null,
+            amount: remainingCents,
+            currency_code: getStoredCurrency(),
+          });
+        }
+      } else {
+        const targetGId = selectedGroupId && selectedGroupId !== "DIRECT" && selectedGroupId !== "AUTO_ALL"
+          ? selectedGroupId
+          : null;
+
+        await recordSingleSettlement({
+          payer_id: payerId,
+          payee_id: payeeId,
+          group_id: targetGId,
+          amount: totalCents,
+          currency_code: getStoredCurrency(),
+        });
+      }
 
       messageApi.success(
         `Recorded payment of ${formatCents(totalCents)} from ${payer} to ${payee}`,
       );
-      onClose();
-    } else {
-      setIsSubmitting(true);
-      try {
-        await createSettlement({
-          payer_id: payerId,
-          payee_id: payeeId,
-          group_id: selectedGroupId ?? null,
-          amount: totalCents,
-          currency_code: getStoredCurrency(),
-        });
-        messageApi.success(
-          `Recorded payment of ${formatCents(totalCents)} from ${payer} to ${payee}`,
-        );
-        window.dispatchEvent(new Event("expenseAdded"));
-        if (!skipClose) {
-          onClose();
-        }
-      } catch (error: any) {
-        messageApi.error(error.message || "Failed to record settlement");
-      } finally {
-        setIsSubmitting(false);
+      await refetchData();
+      if (onSuccess) {
+        await onSuccess();
       }
+      if (!skipClose) {
+        onClose();
+      }
+    } catch (error: any) {
+      messageApi.error(error.message || "Failed to record settlement");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -191,7 +322,7 @@ export function SettleUpModal({
       try {
         await supabase.from("activity_logs").insert({
           user_id: user.id,
-          group_id: selectedGroupId || null,
+          group_id: selectedGroupId === "AUTO_ALL" || selectedGroupId === "DIRECT" ? null : selectedGroupId || null,
           action_type: "UPI_REDIRECT_INITIATED",
           metadata: {
             upi_url: upiIntent,
@@ -260,20 +391,59 @@ export function SettleUpModal({
             />
           </Form.Item>
 
-          <Form.Item label="Group (Optional)" className="mb-3">
+          <Form.Item label="Apply Settlement To" className="mb-2">
             <Select
-              placeholder="None (Direct 1-on-1 settlement)"
+              placeholder="Select group or direct payment"
               allowClear
               value={selectedGroupId}
               onChange={(val) => setSelectedGroupId(val)}
               className="w-full"
               style={{ width: '100%' }}
-              options={groups.map((g) => ({
-                label: g.name,
-                value: g.id,
-              }))}
+              options={[
+                ...(allGroupDebts.length > 1
+                  ? [
+                      {
+                        label: "✨ True Cross-Group Clearing (Clears All Shared Groups)",
+                        value: "AUTO_ALL",
+                      },
+                    ]
+                  : []),
+                ...groups.map((g) => {
+                  const debtItem = allGroupDebts.find((item) => item.group.id === g.id);
+                  let debtLabel = "";
+                  if (debtItem) {
+                    debtLabel = debtItem.debtorId === payerId
+                      ? ` (${formatCents(debtItem.amountCents)} Owed)`
+                      : ` (${formatCents(debtItem.amountCents)} Owed to Friend)`;
+                  }
+                  return {
+                    label: `${g.name}${debtLabel}`,
+                    value: g.id,
+                  };
+                }),
+                {
+                  label: "Direct Payment (Outside any group)",
+                  value: "DIRECT",
+                },
+              ]}
             />
           </Form.Item>
+
+          <div className="text-xs text-text-muted bg-bg-subtle p-2.5 rounded-lg border border-border-base mb-3">
+            {selectedGroupId === "AUTO_ALL" ? (
+              <span className="text-primary-500 font-medium">
+                ✨ <strong>True Cross-Group Clearing:</strong> Automatically creates group-linked settlements across all open groups to bring <strong>every group ledger to ₹0.00</strong>.
+              </span>
+            ) : selectedGroupId && selectedGroupId !== "DIRECT" ? (
+              <span className="text-primary-500 font-medium">
+                📌 <strong>Group Settlement:</strong> This payment will be recorded directly in the <strong>{groups.find((g) => g.id === selectedGroupId)?.name}</strong> ledger.
+              </span>
+            ) : (
+              <span>
+                🌐 <strong>Direct 1-on-1 Settlement:</strong> Applies to your overall balance with {selectedPayeeObj?.full_name ?? defaultPayeeName ?? "this friend"} (outside a specific group ledger).
+              </span>
+            )}
+          </div>
 
           <Form.Item label="Amount" className="mb-3">
             <InputNumber
@@ -325,6 +495,17 @@ export function SettleUpModal({
                   </Text>
                 </>
               )}
+            </div>
+          )}
+
+          {!selectedGroupId && totalCents > 0 && (
+            <div className="p-3 bg-primary-500/10 border border-primary-500/20 rounded-xl text-xs text-primary-500 flex items-start gap-2.5 mt-3">
+              <span className="text-base shrink-0">ℹ️</span>
+              <div>
+                <strong>Direct Settlement Notice:</strong> This payment of{" "}
+                <strong className="underline">{formatCents(totalCents)}</strong> will be recorded directly between you and{" "}
+                <strong>{selectedPayeeObj?.full_name ?? defaultPayeeName ?? "this friend"}</strong>. It will update your global friend balance but will not alter individual group ledgers.
+              </div>
             </div>
           )}
 

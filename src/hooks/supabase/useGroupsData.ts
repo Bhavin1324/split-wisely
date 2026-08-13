@@ -76,15 +76,18 @@ export function useGroupMembers(groupId: string | undefined) {
     fetchMembers();
 
     if (!groupId) return;
-    const channelId = Math.random().toString(36).substring(2, 9);
-    const channel = supabase
-      .channel(`realtime-members-${groupId}-${channelId}`)
+    const channelName = `realtime-members-${groupId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase.channel(channelName);
+
+    channel
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'group_members', filter: `group_id=eq.${groupId}` },
         () => fetchMembers(),
       )
-      .subscribe();
+      .subscribe((_status, err) => {
+        if (err) console.error(`Realtime error [${channelName}]:`, err);
+      });
 
     return () => {
       supabase.removeChannel(channel);

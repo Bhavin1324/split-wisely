@@ -39,6 +39,7 @@ interface AddExpenseModalProps {
   onClose: () => void;
   groupId?: string;
   existingExpense?: Expense;
+  onSuccess?: () => Promise<void> | void;
 }
 
 /** Split mode options for the Segmented control */
@@ -58,8 +59,8 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'Shopping': ['groceries', 'supermarket', 'mall', 'clothes', 'shoes', 'amazon', 'walmart', 'target', 'store'],
 };
 
-export function AddExpenseModal({ open, onClose, groupId, existingExpense }: AddExpenseModalProps) {
-  const { currentUser, groups, categories } = useAppData();
+export function AddExpenseModal({ open, onClose, groupId, existingExpense, onSuccess }: AddExpenseModalProps) {
+  const { currentUser, groups, categories, refetchData } = useAppData();
 
   const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
@@ -223,7 +224,10 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
         })),
       );
       messageApi.success(existingExpense ? 'Expense updated (Demo Mode)!' : 'Expense added successfully (Demo Mode)!');
-      window.dispatchEvent(new Event('expenseAdded'));
+      await refetchData();
+      if (onSuccess) {
+        await onSuccess();
+      }
       resetForm();
       onClose();
     } else {
@@ -266,7 +270,10 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense }: Add
           });
           messageApi.success('Expense added successfully!');
         }
-        window.dispatchEvent(new Event('expenseAdded'));
+        await refetchData();
+        if (onSuccess) {
+          await onSuccess();
+        }
         resetForm();
         onClose();
       } catch (error: any) {

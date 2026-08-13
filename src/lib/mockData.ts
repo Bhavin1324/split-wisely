@@ -143,14 +143,18 @@ export const MOCK_SETTLEMENTS: Settlement[] = [
   },
 ];
 
+export const MOCK_USER_FRIENDS: { user_id: string; friend_id: string; status?: string }[] = [];
+
 /** Look up a profile by ID */
 export function getProfileById(id: string): Profile | undefined {
   return MOCK_PROFILES.find(p => p.id === id);
 }
 
-/** Get friends for a user (all other users in shared groups) */
+/** Get friends for a user (all other users in shared groups plus standalone friends) */
 export function getFriendsForUser(userId: string): Profile[] {
   const friendIds = new Set<string>();
+  
+  // 1. Group co-members
   MOCK_GROUP_MEMBERS.forEach(gm => {
     if (gm.user_id === userId) {
       MOCK_GROUP_MEMBERS
@@ -158,6 +162,13 @@ export function getFriendsForUser(userId: string): Profile[] {
         .forEach(other => friendIds.add(other.user_id));
     }
   });
+
+  // 2. Direct standalone friends
+  MOCK_USER_FRIENDS.forEach(f => {
+    if (f.user_id === userId) friendIds.add(f.friend_id);
+    if (f.friend_id === userId) friendIds.add(f.user_id);
+  });
+
   return MOCK_PROFILES.filter(p => friendIds.has(p.id));
 }
 

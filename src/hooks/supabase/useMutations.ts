@@ -221,11 +221,6 @@ export async function removeMemberFromGroup(groupId: string, userId: string): Pr
   if (error) {
     throw error;
   }
-
-  // 6. Trigger global refresh to update UI instantly
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('expenseAdded'));
-  }
 }
 
 export async function updateGroupSettings(groupId: string, settings: { simplify_debts?: boolean; name?: string; cover_image_url?: string }): Promise<void> {
@@ -324,3 +319,33 @@ export async function deleteSettlement(settlementId: string): Promise<void> {
   const { error } = await supabase.from('settlements').delete().eq('id', settlementId);
   if (error) throw error;
 }
+
+export async function addDirectFriend(userId: string, friendId: string, status: 'PENDING' | 'ACCEPTED' = 'ACCEPTED'): Promise<void> {
+  if (DEMO_MODE) {
+    const { MOCK_USER_FRIENDS } = await import('../../lib/mockData');
+    const exists = MOCK_USER_FRIENDS.some(
+      f => (f.user_id === userId && f.friend_id === friendId) || (f.user_id === friendId && f.friend_id === userId)
+    );
+    if (!exists) {
+      MOCK_USER_FRIENDS.push({ user_id: userId, friend_id: friendId, status });
+    }
+    return;
+  }
+
+  const { error } = await supabase
+    .from('user_friends')
+    .upsert([{ user_id: userId, friend_id: friendId, status }]);
+
+  if (error && !error.message.includes('duplicate')) {
+    throw error;
+  }
+}
+
+export async function inviteDirectFriend(userId: string, friendId: string): Promise<void> {
+  return addDirectFriend(userId, friendId, 'PENDING');
+}
+
+export async function acceptFriendRequest(userId: string, friendId: string): Promise<void> {
+  return addDirectFriend(userId, friendId, 'ACCEPTED');
+}
+

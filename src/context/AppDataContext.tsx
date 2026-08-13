@@ -13,6 +13,7 @@ interface AppDataContextType {
   loading: boolean;
   refetchGroups: () => void;
   refetchProfile: () => void;
+  refetchData: () => Promise<void>;
 }
 
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
@@ -84,6 +85,16 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, fetchProfile]);
 
+  const refetchData = useCallback(async () => {
+    if (user?.id) {
+      await Promise.all([
+        fetchProfile(user.id),
+        fetchGroups(user.id),
+        fetchCategories()
+      ]);
+    }
+  }, [user?.id, fetchProfile, fetchGroups, fetchCategories]);
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -104,6 +115,24 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     fetchData();
   }, [user?.id, fetchProfile, fetchGroups, fetchCategories]);
 
+  useEffect(() => {
+    if (!user?.id || DEMO_MODE) return;
+
+    const channelName = `app-data-sync-${user.id}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase.channel(channelName);
+
+    channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => { refetchData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'settlements' }, () => { refetchData(); })
+      .subscribe((_status, err) => {
+        if (err) console.error(`Realtime error [${channelName}]:`, err);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, refetchData]);
+
   return (
     <AppDataContext.Provider
       value={{
@@ -113,6 +142,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
         loading,
         refetchGroups,
         refetchProfile,
+        refetchData,
       }}
     >
       {children}

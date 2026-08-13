@@ -124,8 +124,10 @@ export function NotificationList({
             dataSource={filteredNotifications}
             renderItem={(item) => (
               <List.Item
-                className={`cursor-pointer px-4 py-3 transition-colors border-b border-gray-50 last:border-b-0 hover:bg-bg-base/80 ${
-                  !item.is_read ? "bg-primary-50/50" : ""
+                className={`cursor-pointer px-4 py-3 transition-colors border-b border-border-base/40 last:border-b-0 ${
+                  !item.is_read
+                    ? "bg-primary-500/10 dark:bg-primary-500/20 border-l-4 border-l-primary-500 font-semibold"
+                    : "hover:bg-bg-subtle/80"
                 }`}
                 onClick={() => handleNotificationClick(item)}
               >
@@ -145,8 +147,7 @@ export function NotificationList({
                   title={
                     <div className="flex justify-between items-start gap-2">
                       <Text
-                        strong
-                        className={`${!item.is_read ? "text-text-base" : "text-gray-700"} text-sm leading-tight`}
+                        className={`${!item.is_read ? "text-text-base font-bold" : "text-text-muted font-medium"} text-sm leading-tight`}
                       >
                         {item.title}
                       </Text>
@@ -158,16 +159,21 @@ export function NotificationList({
                   description={
                     <div className="flex flex-col mt-1">
                       <Text
-                        className={`text-xs leading-relaxed ${!item.is_read ? "text-gray-700 font-medium" : "text-text-muted"}`}
+                        className={`text-xs leading-relaxed ${!item.is_read ? "text-text-base font-semibold" : "text-text-muted"}`}
                       >
                         {item.message}
                       </Text>
-                      <Text
-                        type="secondary"
-                        className="text-[10px] mt-1.5 font-medium tracking-wide"
-                      >
-                        {formatRelativeTime(item.created_at)}
-                      </Text>
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        {!item.is_read && (
+                          <span className="w-2 h-2 rounded-full bg-primary-500 shrink-0 inline-block animate-pulse" />
+                        )}
+                        <Text
+                          type="secondary"
+                          className="text-[10px] font-medium tracking-wide"
+                        >
+                          {formatRelativeTime(item.created_at)}
+                        </Text>
+                      </div>
                     </div>
                   }
                 />

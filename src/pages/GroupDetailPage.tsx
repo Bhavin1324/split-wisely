@@ -56,6 +56,7 @@ export function GroupDetailPage() {
   const {
     groupMembers,
     refetchMembers,
+    refetchAll,
     feedItems,
     displayedDebts,
     userNetBalance,
@@ -143,6 +144,7 @@ export function GroupDetailPage() {
           getProfile={getProfile}
           onSelectExpense={setSelectedExpense}
           onOpenAddExpense={() => setIsAddExpenseOpen(true)}
+          onRefresh={refetchAll}
         />
       )}
 
@@ -170,6 +172,7 @@ export function GroupDetailPage() {
         }}
         groupId={groupId}
         existingExpense={expenseToEdit}
+        onSuccess={refetchAll}
       />
 
       <ExpenseStatementModal
@@ -195,6 +198,7 @@ export function GroupDetailPage() {
           setSettleUpTargetName(undefined);
           setSettleUpMaxAmount(undefined);
         }}
+        onSuccess={refetchAll}
         defaultPayeeId={settleUpTarget ?? undefined}
         defaultPayeeName={settleUpTargetName}
         defaultAmountCents={settleUpMaxAmount}

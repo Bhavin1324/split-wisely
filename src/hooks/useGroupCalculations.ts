@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { DebtSimplifier } from '../core/domain/DebtSimplifier';
 import { getProfileById, MOCK_GROUP_MEMBERS, MOCK_EXPENSES, MOCK_SETTLEMENTS } from '../lib/mockData';
 import { useGroupMembers } from './supabase/useGroupsData';
@@ -9,8 +9,16 @@ import type { Profile, Group } from '../types';
 
 export function useGroupCalculations(groupId: string | undefined, userId: string, group: Group | undefined) {
   const { data: liveMembers, loading: membersLoading, refetch: refetchMembers } = useGroupMembers(groupId);
-  const { data: liveExpenses, loading: expensesLoading } = useExpenses(groupId);
-  const { data: liveSettlements, loading: settlementsLoading } = useSettlements(groupId);
+  const { data: liveExpenses, loading: expensesLoading, refetch: refetchExpenses } = useExpenses(groupId);
+  const { data: liveSettlements, loading: settlementsLoading, refetch: refetchSettlements } = useSettlements(groupId);
+
+  const refetchAll = useCallback(async () => {
+    await Promise.all([
+      refetchMembers(),
+      refetchExpenses(),
+      refetchSettlements(),
+    ]);
+  }, [refetchMembers, refetchExpenses, refetchSettlements]);
 
   const loading = membersLoading || expensesLoading || settlementsLoading;
 
@@ -48,9 +56,9 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
     return items.sort((a, b) => b.date - a.date);
   }, [groupExpenses, groupSettlements]);
 
-  const displayedDebts = useMemo(() => {
-    if (!groupId) return [];
-    const args = [
+  const calculationArgs = useMemo(() => {
+    if (!groupId) return null;
+    return [
       groupExpenses.map((e) => ({
         payer_id: e.payer_id,
         base_currency_amount: e.base_currency_amount,
@@ -66,11 +74,20 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
       })),
       groupMembers.map((m) => ({ user_id: m.user_id })),
     ] as const;
-    
-    return group?.simplify_debts !== false
-      ? DebtSimplifier.simplifyDebts(...args)
-      : DebtSimplifier.calculateIndividualDebts(...args);
-  }, [groupId, groupExpenses, groupSettlements, groupMembers, group?.simplify_debts]);
+  }, [groupId, groupExpenses, groupSettlements, groupMembers]);
+
+  const simplifiedDebts = useMemo(() => {
+    if (!calculationArgs) return [];
+    return DebtSimplifier.simplifyDebts(...calculationArgs);
+  }, [calculationArgs]);
+
+  const rawDebts = useMemo(() => {
+    if (!calculationArgs) return [];
+    return DebtSimplifier.calculateIndividualDebts(...calculationArgs);
+  }, [calculationArgs]);
+
+  const isSimplified = group?.simplify_debts !== false;
+  const displayedDebts = isSimplified ? simplifiedDebts : rawDebts;
 
   const { userNetBalance, userOwes, userIsOwed } = useMemo(() => {
     let balance = 0;
@@ -166,8 +183,14 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
   return {
     groupMembers,
     refetchMembers,
+    refetchExpenses,
+    refetchSettlements,
+    refetchAll,
     feedItems,
     displayedDebts,
+    simplifiedDebts,
+    rawDebts,
+    isSimplified,
     userNetBalance,
     userOwes,
     userIsOwed,

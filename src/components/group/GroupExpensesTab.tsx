@@ -4,7 +4,7 @@ import { getCategoryIcon } from "../../utils/icons";
 import { formatDate } from "../../utils/date";
 import { formatCents } from "../../utils/currency";
 import { deleteSettlement } from "../../hooks/supabase/useMutations";
-import { DEMO_MODE } from "../../context/AppDataContext";
+import { DEMO_MODE, useAppData } from "../../context/AppDataContext";
 import type { Expense } from "../../types";
 
 export function GroupExpensesTab({
@@ -13,14 +13,17 @@ export function GroupExpensesTab({
   getProfile,
   onSelectExpense,
   onOpenAddExpense,
+  onRefresh,
 }: {
   feedItems: any[];
   userId: string;
   getProfile: (id: string) => any;
   onSelectExpense: (expense: Expense) => void;
   onOpenAddExpense: () => void;
+  onRefresh?: () => Promise<void> | void;
 }) {
   const { modal, message } = App.useApp();
+  const { refetchData } = useAppData();
 
   return (
     <div className="space-y-3">
@@ -118,7 +121,10 @@ export function GroupExpensesTab({
                         try {
                           await deleteSettlement(settlement.id);
                           message.success("Payment deleted");
-                          window.dispatchEvent(new Event("expenseAdded")); // Trigger refetch
+                          await refetchData();
+                          if (onRefresh) {
+                            await onRefresh();
+                          }
                         } catch (error: any) {
                           message.error(
                             error.message || "Failed to delete payment",

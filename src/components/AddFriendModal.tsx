@@ -4,9 +4,9 @@ import { UserPlus, Search, CheckCircle2 } from 'lucide-react';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { getStoredCurrency } from '../utils/currency';
-import { addMemberToGroup, createGroupInvitation, createAppInvitation } from '../hooks/supabase/useMutations';
+import { addMemberToGroup, createGroupInvitation, createAppInvitation, addDirectFriend } from '../hooks/supabase/useMutations';
 import { searchProfiles } from '../hooks/supabase/useProfileData';
-import { MOCK_PROFILES, MOCK_GROUP_MEMBERS } from '../lib/mockData';
+import { MOCK_PROFILES, MOCK_GROUP_MEMBERS, MOCK_USER_FRIENDS } from '../lib/mockData';
 import type { Profile } from '../types';
 
 interface AddFriendModalProps {
@@ -76,19 +76,19 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
     try {
       if (DEMO_MODE) {
         const targetGroup = values.groupId || defaultGroupId;
-        if (targetGroup) {
-          const profileToAdd = matchedProfile || {
-            id: `user-${Date.now()}`,
-            full_name: values.emailOrName.includes('@') ? values.emailOrName.split('@')[0] : values.emailOrName,
-            avatar_url: null,
-            default_currency: getStoredCurrency(),
-            created_at: new Date().toISOString(),
-          };
-          
-          if (!MOCK_PROFILES.some((p) => p.id === profileToAdd.id)) {
-            MOCK_PROFILES.push(profileToAdd);
-          }
+        const profileToAdd = matchedProfile || {
+          id: `user-${Date.now()}`,
+          full_name: values.emailOrName.includes('@') ? values.emailOrName.split('@')[0] : values.emailOrName,
+          avatar_url: null,
+          default_currency: getStoredCurrency(),
+          created_at: new Date().toISOString(),
+        };
+        
+        if (!MOCK_PROFILES.some((p) => p.id === profileToAdd.id)) {
+          MOCK_PROFILES.push(profileToAdd);
+        }
 
+        if (targetGroup) {
           const existingMember = MOCK_GROUP_MEMBERS.find(
             (gm) => gm.group_id === targetGroup && gm.user_id === profileToAdd.id,
           );
@@ -101,6 +101,9 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
               profile: profileToAdd,
             });
           }
+        } else {
+          // Direct friend in demo mode
+          MOCK_USER_FRIENDS.push({ user_id: currentUserId, friend_id: profileToAdd.id });
         }
         messageApi.success(`Invited ${matchedProfile?.full_name || values.emailOrName} successfully!`);
         refetchGroups();
@@ -117,6 +120,7 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
           messageApi.success(`Added ${matches[0].full_name} to the group!`);
         } else if (matches.length > 0 && !targetGroup) {
           // Added as a general friend (not in a specific group yet)
+          await addDirectFriend(currentUserId, matches[0].id);
           messageApi.success(`Added ${matches[0].full_name} as a friend!`);
         } else {
           // No user found. Before inviting, we must ensure the input is a valid email address.

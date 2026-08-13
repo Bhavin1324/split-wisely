@@ -1,5 +1,5 @@
-import { Button, Dropdown, Switch, App } from "antd";
-import { Users, ArrowRight, Settings, CheckCircle2, Plus, UserPlus, LogOut, Trash2 } from "lucide-react";
+import { Button, Dropdown, Switch, App, Tag, Tooltip } from "antd";
+import { Users, ArrowRight, Settings, CheckCircle2, Plus, UserPlus, LogOut, Trash2, Info } from "lucide-react";
 import type { MenuProps } from "antd";
 import { formatCents } from "../../utils/currency";
 import { leaveGroup, deleteGroup, updateGroupSettings } from "../../hooks/supabase/useMutations";
@@ -159,7 +159,7 @@ export function GroupHeader({
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-base mb-0.5 line-clamp-1">
                 {group.name}
               </h1>
-              <div className="mb-1.5">
+              <div className="mb-1.5 flex items-center gap-1.5">
                 {userNetBalance === 0 ? (
                   <span className="text-sm font-medium text-text-muted flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5" /> All settled up
@@ -173,6 +173,9 @@ export function GroupHeader({
                     You owe <span className="font-financial font-bold">{formatCents(Math.abs(userNetBalance))}</span> overall
                   </span>
                 )}
+                <Tooltip title="Note: Overall 1-on-1 balance with group members may include direct settlements recorded outside this group.">
+                  <Info className="h-3.5 w-3.5 text-text-muted hover:text-primary-500 cursor-pointer transition-colors shrink-0" />
+                </Tooltip>
               </div>
               <Button
                 type="primary"
@@ -203,8 +206,19 @@ export function GroupHeader({
 
         {/* Middle Row: Status */}
         <div className="bg-bg-subtle rounded-xl p-3 sm:p-4 border border-border-base">
-          <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2">
-            Your Status
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] text-text-muted font-semibold uppercase tracking-wider">
+              Your Status
+            </div>
+            {group?.simplify_debts !== false ? (
+              <Tag className="rounded-full text-[10px] font-semibold border-none px-2 py-0.5 m-0 bg-primary-500/10 text-primary-500">
+                Simplified View
+              </Tag>
+            ) : (
+              <Tag className="rounded-full text-[10px] font-semibold border-none px-2 py-0.5 m-0 bg-bg-surface text-text-muted">
+                Direct Balances View
+              </Tag>
+            )}
           </div>
           {myDebts.length === 0 ? (
             <div className="text-sm text-emerald-600 flex items-center gap-1.5 font-medium">

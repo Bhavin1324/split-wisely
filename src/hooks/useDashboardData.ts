@@ -3,16 +3,17 @@ import { DebtSimplifier } from '../core/domain/DebtSimplifier';
 import { getMonthYearKey } from '../utils/date';
 import { DEMO_MODE } from '../context/AppDataContext';
 import { MOCK_SETTLEMENTS, MOCK_GROUP_MEMBERS } from '../lib/mockData';
-import type { Expense, Group } from '../types';
+import type { Expense, Group, SimplifiedTransaction, Settlement } from '../types';
 
 
-export function useDashboardData(userId: string, groups: Group[], allExpenses: Expense[]) {
+export function useDashboardData(userId: string, groups: Group[], allExpenses: Expense[], allSettlements: Settlement[]) {
   const balances = useMemo(() => {
     let totalOwed = 0;
     let totalOwing = 0;
     const groupBalances: Record<string, number> = {};
+    const groupDebtsMap: Record<string, SimplifiedTransaction[]> = {};
 
-    const settlements = DEMO_MODE ? MOCK_SETTLEMENTS : [];
+    const settlements = DEMO_MODE ? MOCK_SETTLEMENTS : allSettlements;
     const groupMembers = DEMO_MODE ? MOCK_GROUP_MEMBERS : [];
 
     groups.forEach((group) => {
@@ -31,22 +32,39 @@ export function useDashboardData(userId: string, groups: Group[], allExpenses: E
             ),
           ).map((id) => ({ user_id: id }));
 
-      const debts = DebtSimplifier.simplifyDebts(
-        groupExpenses.map((e) => ({
-          payer_id: e.payer_id,
-          base_currency_amount: e.base_currency_amount,
-          splits: (e.splits ?? []).map((s) => ({
-            user_id: s.user_id,
-            amount_owed: s.amount_owed,
-          })),
-        })),
-        groupSettlements.map((s) => ({
-          payer_id: s.payer_id,
-          payee_id: s.payee_id,
-          amount: s.amount,
-        })),
-        memberIds,
-      );
+      const debts = group?.simplify_debts !== false
+        ? DebtSimplifier.simplifyDebts(
+            groupExpenses.map((e) => ({
+              payer_id: e.payer_id,
+              base_currency_amount: e.base_currency_amount,
+              splits: (e.splits ?? []).map((s) => ({
+                user_id: s.user_id,
+                amount_owed: s.amount_owed,
+              })),
+            })),
+            groupSettlements.map((s) => ({
+              payer_id: s.payer_id,
+              payee_id: s.payee_id,
+              amount: s.amount,
+            })),
+            memberIds,
+          )
+        : DebtSimplifier.calculateIndividualDebts(
+            groupExpenses.map((e) => ({
+              payer_id: e.payer_id,
+              base_currency_amount: e.base_currency_amount,
+              splits: (e.splits ?? []).map((s) => ({
+                user_id: s.user_id,
+                amount_owed: s.amount_owed,
+              })),
+            })),
+            groupSettlements.map((s) => ({
+              payer_id: s.payer_id,
+              payee_id: s.payee_id,
+              amount: s.amount,
+            })),
+            memberIds,
+          );
 
       let groupOwed = 0;
       let groupOwing = 0;
@@ -63,6 +81,7 @@ export function useDashboardData(userId: string, groups: Group[], allExpenses: E
       });
 
       groupBalances[group.id] = groupOwed - groupOwing;
+      groupDebtsMap[group.id] = debts;
     });
 
     return {
@@ -70,6 +89,7 @@ export function useDashboardData(userId: string, groups: Group[], allExpenses: E
       youOwe: totalOwing,
       youAreOwed: totalOwed,
       groupBalances,
+      groupDebtsMap,
     };
   }, [userId, groups, allExpenses]);
 

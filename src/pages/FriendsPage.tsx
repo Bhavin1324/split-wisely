@@ -1,65 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Card, Button } from 'antd';
+import { Avatar, Card, Button, Segmented, Switch } from 'antd';
 import { UserPlus } from 'lucide-react';
-import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUP_MEMBERS, getFriendsForUser } from '../lib/mockData';
+import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUPS, MOCK_GROUP_MEMBERS, getFriendsForUser } from '../lib/mockData';
 import { formatCents, getBalanceColorClass } from '../utils/currency';
-import type { Profile, Expense, Settlement, GroupMember } from '../types';
+import type { Profile } from '../types';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useFriends } from '../hooks/supabase/useProfileData';
 import { useAllExpenses } from '../hooks/supabase/useExpensesData';
+import { useAllSettlements } from '../hooks/supabase/useSettlementsData';
 import { AddFriendModal } from '../components/AddFriendModal';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
-
-/**
- * Computes the net balance between the current user and a friend.
- * Positive = friend owes current user, negative = current user owes friend.
- */
-function computeFriendBalance(
-  currentUserId: string,
-  friendId: string,
-  expenses: Expense[],
-  settlements: Settlement[],
-  groupMembers: GroupMember[]
-): number {
-  let balance = 0;
-
-  const currentUserGroups = new Set(
-    groupMembers
-      .filter((gm) => gm.user_id === currentUserId)
-      .map((gm) => gm.group_id),
-  );
-  const sharedGroupIds = new Set(
-    groupMembers
-      .filter((gm) => gm.user_id === friendId && currentUserGroups.has(gm.group_id))
-      .map((gm) => gm.group_id),
-  );
-
-  for (const expense of expenses) {
-    if (!expense.group_id || !sharedGroupIds.has(expense.group_id)) continue;
-    if (!expense.splits) continue;
-
-    const friendSplit = expense.splits.find((s) => s.user_id === friendId);
-    const currentUserSplit = expense.splits.find((s) => s.user_id === currentUserId);
-
-    if (expense.payer_id === currentUserId && friendSplit) {
-      balance += friendSplit.amount_owed;
-    } else if (expense.payer_id === friendId && currentUserSplit) {
-      balance -= currentUserSplit.amount_owed;
-    }
-  }
-
-  for (const settlement of settlements) {
-    if (settlement.payer_id === friendId && settlement.payee_id === currentUserId) {
-      balance -= settlement.amount;
-    } else if (settlement.payer_id === currentUserId && settlement.payee_id === friendId) {
-      balance += settlement.amount;
-    }
-  }
-
-  return balance;
-}
+import { computeFriendNetBalance } from '../utils/friendCalculations';
 
 function getInitials(name: string): string {
   return name
@@ -91,46 +44,48 @@ function getBalanceLabel(balance: number, friendName: string): string {
 
 export function FriendsPage() {
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'outstanding' | 'you_owe' | 'owes_you'>('all');
+  const [showSettled, setShowSettled] = useState(false);
+
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentUser } = useAppData();
+  const { currentUser, groups: contextGroups } = useAppData();
   
   const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
   const { loading: appLoading } = useAppData();
   const { data: liveFriends, loading: friendsLoading } = useFriends(user?.id);
   const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
+  const { data: liveSettlements } = useAllSettlements(user?.id);
 
   const friends = DEMO_MODE ? getFriendsForUser(MOCK_CURRENT_USER.id) : (liveFriends || []);
 
   const friendsWithBalances: { profile: Profile; balance: number }[] = friends.map((friend) => {
-    let balance = 0;
-    if (DEMO_MODE) {
-      balance = computeFriendBalance(
-        userId, 
-        friend.id, 
-        MOCK_EXPENSES as any, 
-        MOCK_SETTLEMENTS as any, 
-        MOCK_GROUP_MEMBERS as any
-      );
-    } else {
-      // In live mode, compute from live expenses
-      balance = computeFriendBalance(
-        userId,
-        friend.id,
-        (liveExpenses || []) as any,
-        [] as any,
-        [] as any
-      );
-    }
+    const { totalNetBalance } = computeFriendNetBalance({
+      userId,
+      friendId: friend.id,
+      groups: DEMO_MODE ? MOCK_GROUPS : (contextGroups || []),
+      allExpenses: DEMO_MODE ? (MOCK_EXPENSES as any) : (liveExpenses || []),
+      allSettlements: DEMO_MODE ? (MOCK_SETTLEMENTS as any) : (liveSettlements || []),
+      allGroupMembers: DEMO_MODE ? (MOCK_GROUP_MEMBERS as any) : [],
+    });
+
     return {
       profile: friend,
-      balance,
+      balance: totalNetBalance,
     };
   });
 
   friendsWithBalances.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
   const totalBalance = friendsWithBalances.reduce((sum, f) => sum + f.balance, 0);
+
+  const filteredFriends = friendsWithBalances.filter(({ balance }) => {
+    if (activeFilter === 'outstanding') return balance !== 0;
+    if (activeFilter === 'you_owe') return balance < 0;
+    if (activeFilter === 'owes_you') return balance > 0;
+    if (!showSettled && balance === 0) return false;
+    return true;
+  });
 
   if (appLoading || friendsLoading || expensesLoading) {
     return <PageSkeleton layout="list" />;
@@ -166,14 +121,39 @@ export function FriendsPage() {
         </Button>
       </div>
 
+      {/* Filter Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-base pb-3">
+        <div className="overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+          <Segmented
+            options={[
+              { label: 'All', value: 'all' },
+              { label: 'Outstanding', value: 'outstanding' },
+              { label: 'You Owe', value: 'you_owe' },
+              { label: 'Owes You', value: 'owes_you' },
+            ]}
+            value={activeFilter}
+            onChange={(val) => setActiveFilter(val as any)}
+            className="bg-bg-subtle p-1 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-2 self-end sm:self-center">
+          <span className="text-xs text-text-muted font-medium">Show Settled Friends</span>
+          <Switch
+            size="small"
+            checked={showSettled}
+            onChange={setShowSettled}
+          />
+        </div>
+      </div>
+
       {/* Friends list */}
       <div className="grid gap-3">
-        {friendsWithBalances.map(({ profile, balance }) => (
+        {filteredFriends.map(({ profile, balance }) => (
           <Card
             key={profile.id}
             size="small"
             onClick={() => navigate(`/friends/${profile.id}`)}
-            className="hover:shadow-md transition-shadow cursor-pointer rounded-xl border-border-base"
+            className="hover:shadow-md transition-shadow cursor-pointer rounded-xl border-border-base bg-bg-surface"
           >
             <div className="flex items-center gap-4">
               <Avatar
@@ -203,24 +183,30 @@ export function FriendsPage() {
           </Card>
         ))}
 
-        {friends.length === 0 && (
-          <Card className="rounded-2xl border-dashed border-2 border-border-base">
+        {filteredFriends.length === 0 && (
+          <Card className="rounded-2xl border-dashed border-2 border-border-base bg-bg-surface">
             <div className="text-center py-12 text-text-muted">
               <div className="mx-auto w-12 h-12 bg-bg-base rounded-full flex items-center justify-center mb-4">
                 <UserPlus className="w-6 h-6 text-gray-300" />
               </div>
-              <p className="text-lg font-medium text-text-base">No friends yet</p>
-              <p className="text-sm mt-1 mb-6">
-                Add friends by creating a group together or inviting them directly
+              <p className="text-lg font-medium text-text-base">
+                {friends.length === 0 ? "No friends yet" : "No friends match this filter"}
               </p>
-              <Button
-                type="primary"
-                icon={<UserPlus className="w-4 h-4" />}
-                onClick={() => setIsAddFriendOpen(true)}
-                className="bg-primary-500 hover:bg-primary-600 rounded-xl font-semibold border-none text-white shadow-sm"
-              >
-                Add Friend
-              </Button>
+              <p className="text-sm mt-1 mb-6">
+                {friends.length === 0
+                  ? "Add friends by creating a group together or inviting them directly"
+                  : "Try clearing filters or enabling 'Show Settled Friends'"}
+              </p>
+              {friends.length === 0 && (
+                <Button
+                  type="primary"
+                  icon={<UserPlus className="w-4 h-4" />}
+                  onClick={() => setIsAddFriendOpen(true)}
+                  className="bg-primary-500 hover:bg-primary-600 rounded-xl font-semibold border-none text-white shadow-sm"
+                >
+                  Add Friend
+                </Button>
+              )}
             </div>
           </Card>
         )}

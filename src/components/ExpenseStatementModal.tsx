@@ -23,7 +23,7 @@ export function ExpenseStatementModal({
   onClose,
   onEdit,
 }: ExpenseStatementModalProps) {
-  const { loading } = useAppData();
+  const { loading, refetchData } = useAppData();
   const [messageApi, contextHolder] = message.useMessage();
 
   if (!expense || loading) return null;
@@ -35,7 +35,7 @@ export function ExpenseStatementModal({
     try {
       await deleteExpense(expense.id);
       messageApi.success('Expense deleted successfully.');
-      window.dispatchEvent(new Event('expenseAdded')); // Trigger refetch
+      await refetchData();
       onClose();
     } catch (err: any) {
       messageApi.error(err.message || 'Failed to delete expense.');
