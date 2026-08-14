@@ -98,7 +98,7 @@ export function MobileBottomNav({
                 e.preventDefault();
                 setIsQuickMenuOpen(true);
               }}
-              className={`relative -top-0.5 w-12 h-12 rounded-full bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-600)] shadow-lg shadow-[var(--color-primary-500)]/30 flex items-center justify-center text-text-main transition-transform duration-200 active:scale-95 [-webkit-tap-highlight-color:transparent] ${
+              className={`relative -top-0.5 w-12 h-12 rounded-full bg-gradient-to-r from-[var(--color-primary-500)] to-[var(--color-primary-600)] shadow-lg shadow-[var(--color-primary-500)]/30 flex items-center justify-center text-nav-plus-icon transition-transform duration-200 active:scale-95 [-webkit-tap-highlight-color:transparent] ${
                 isQuickMenuOpen ? "rotate-45" : "rotate-0"
               }`}
               aria-label="Add Transaction or Expense"

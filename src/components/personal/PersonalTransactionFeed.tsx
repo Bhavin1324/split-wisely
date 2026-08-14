@@ -116,7 +116,13 @@ export function PersonalTransactionFeed({
                 {items.map((tx) => {
                   const Icon = CATEGORY_ICON_MAP[tx.category] || Tag;
                   const isIncome = tx.type === "INCOME";
-
+                  const match = tx.description.match(
+                    /^\[(UPI|CARD|CASH|BANK)\]\s*(.*)$/i,
+                  );
+                  const paymentMethod = match
+                    ? (match[1].toLowerCase() as string)
+                    : null;
+                  const paymentDescription = match ? match[2] : null;
                   return (
                     <div
                       key={tx.id}
@@ -136,14 +142,18 @@ export function PersonalTransactionFeed({
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="font-semibold text-text-base text-sm truncate group-hover:text-primary-500 transition-colors">
-                            {tx.description || tx.category}
+                            {paymentDescription || tx.category}
                           </div>
-                          <div className="text-xs text-text-muted flex items-center gap-2 mt-0.5">
-                            <span className="bg-bg-subtle border border-border-base px-2 py-0.5 rounded-md text-[11px] font-medium text-text-muted">
+                          <div className="text-xs text-text-muted flex items-center gap-1 mt-0.5">
+                            {paymentMethod && (
+                              <span className="bg-bg-subtle border border-border-base px-2 py-0.5 rounded-md text-xs font-medium text-text-muted uppercase">
+                                {paymentMethod}
+                              </span>
+                            )}
+                            <span>•</span>
+                            <span className="bg-bg-subtle border border-border-base px-2 py-0.5 rounded-md text-xs font-medium text-text-muted">
                               {tx.category}
                             </span>
-                            <span>•</span>
-                            <span>{dayjs(tx.transaction_date).format("h:mm A")}</span>
                           </div>
                         </div>
                       </div>
@@ -193,7 +203,6 @@ export function PersonalTransactionFeed({
             </div>
           ))}
         </div>
-
       ) : (
         <div className="bg-bg-surface border border-border-base rounded-2xl p-8 text-center space-y-3">
           <Empty description="No personal transactions found for this month" />

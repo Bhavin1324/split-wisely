@@ -65,6 +65,7 @@
   --color-nav-text-muted: var(--nav-text-muted);
   --color-nav-icon-bg: var(--nav-icon-bg);
   --color-nav-icon-hover: var(--nav-icon-hover);
+  --color-nav-plus-icon: var(--color-primary-50);
 }
 
 /* Light Scheme (Default) */
