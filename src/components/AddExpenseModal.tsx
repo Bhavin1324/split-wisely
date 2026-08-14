@@ -490,6 +490,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense, onSuc
               Split method
             </Text>
             <Segmented
+              className='bg-bg-subtle p-1 self-start rounded-xl border border-border-base'
               block
               value={splitMode}
               onChange={(val) => setSplitMode(val as SplitMode)}

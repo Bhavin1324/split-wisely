@@ -135,7 +135,7 @@ export function DashboardPage() {
               ]}
               value={hideSettledGroups}
               onChange={(val) => setHideSettledGroups(val as boolean)}
-              className="bg-bg-subtle"
+              className="bg-bg-subtle p-1 self-start rounded-xl border border-border-base"
             />
             <button
               type="button"

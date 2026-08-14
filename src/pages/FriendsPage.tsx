@@ -133,7 +133,7 @@ export function FriendsPage() {
             ]}
             value={activeFilter}
             onChange={(val) => setActiveFilter(val as any)}
-            className="bg-bg-subtle p-1 text-xs"
+            className="bg-bg-subtle p-1 text-xs self-start rounded-xl border border-border-base"
           />
         </div>
         <div className="flex items-center gap-2 self-end sm:self-center">

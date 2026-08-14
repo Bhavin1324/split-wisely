@@ -149,6 +149,7 @@ export function SpendingPage() {
                 value={timeframe} 
                 onChange={(v) => setTimeframe(v as 'Monthly' | 'Weekly')} 
                 size="small"
+                className='bg-bg-subtle p-1 self-start rounded-xl border border-border-base'
               />
             </div>
           } 

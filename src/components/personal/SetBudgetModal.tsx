@@ -45,7 +45,7 @@ export function SetBudgetModal({
     setSubmitting(true);
     try {
       await onSave(null);
-      message.success("Budget cleared");
+      message.success("Budget removed successfully");
       onClose();
     } catch (e: any) {
       message.error(e.message || "Failed to clear budget");

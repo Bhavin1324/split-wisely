@@ -101,7 +101,7 @@ export function NotificationList({
               { label: "All", value: "all" },
               { label: "Unread", value: "unread" },
             ]}
-            className="bg-bg-subtle/70 p-1"
+            className="bg-bg-subtle p-1 self-start rounded-xl border border-border-base"
           />
       </div>
 

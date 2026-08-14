@@ -127,7 +127,7 @@ export function GroupDetailPage() {
             ]}
             value={activeTab}
             onChange={(val) => setActiveTab(val as "expenses" | "balances" | "activity")}
-            className="bg-bg-subtle p-1"
+            className="bg-bg-subtle p-1 self-start rounded-xl border border-border-base"
           />
         </div>
 

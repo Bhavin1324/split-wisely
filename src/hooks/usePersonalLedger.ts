@@ -308,22 +308,29 @@ export function usePersonalLedger(monthYear: string) {
 
   // Action: Set Monthly Budget
   const setMonthlyBudget = async (amountCents: number | null) => {
-    const updatedBudget: PersonalBudget = {
-      id: budget?.id || uuidv4(),
-      user_id: userId,
-      month_year: monthYear,
-      budget_amount: amountCents,
-      created_at: budget?.created_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    const updatedBudget: PersonalBudget | null =
+      amountCents !== null
+        ? {
+            id: budget?.id || uuidv4(),
+            user_id: userId,
+            month_year: monthYear,
+            budget_amount: amountCents,
+            created_at: budget?.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+        : null;
 
     setBudget(updatedBudget);
 
     if (DEMO_MODE) {
       const existingIdx = MOCK_PERSONAL_BUDGETS.findIndex((b) => b.month_year === monthYear);
       if (existingIdx !== -1) {
-        MOCK_PERSONAL_BUDGETS[existingIdx].budget_amount = amountCents;
-      } else {
+        if (amountCents === null) {
+          MOCK_PERSONAL_BUDGETS.splice(existingIdx, 1);
+        } else {
+          MOCK_PERSONAL_BUDGETS[existingIdx].budget_amount = amountCents;
+        }
+      } else if (updatedBudget) {
         MOCK_PERSONAL_BUDGETS.push(updatedBudget);
       }
       return;
@@ -340,11 +347,13 @@ export function usePersonalLedger(monthYear: string) {
         { onConflict: 'user_id,month_year' }
       );
       if (error) {
-        console.warn('Supabase budget upsert fallback:', error.message);
+        console.error('Supabase budget upsert error:', error.message);
+        throw error;
       }
       await fetchLedgerData();
     } catch (e) {
       console.error('Set budget failed:', e);
+      throw e;
     }
   };
 
