@@ -23,7 +23,7 @@
   --color-bg-base: var(--bg-base);
   --color-bg-surface: var(--bg-surface);
   --color-bg-subtle: var(--bg-subtle);
-  --color-bg-surface-hover: var(--bg-subtle);
+  --color-bg-surface-hover: var(--bg-surface-hover);
   
   --color-text-base: var(--text-base);
   --color-text-main: var(--text-base);
@@ -31,7 +31,7 @@
   --color-text-inverse: var(--text-inverse);
   
   --color-border-base: var(--border-base);
-  --color-border-subtle: var(--border-base);
+  --color-border-subtle: var(--border-subtle);
   
   --color-success-bg: var(--success-bg);
   --color-success-text: var(--success-text);
@@ -68,17 +68,22 @@
   --color-nav-plus-icon: var(--color-primary-50);
 }
 
-/* Light Scheme (Default) */
+/* Light Scheme (Calibrated 3-Tier Hierarchy) */
 :root, [data-scheme="light"] {
-  --bg-base: #f9fafb;
-  --bg-surface: #ffffff;
-  --bg-subtle: #f3f4f6;
+  /* Surface Hierarchy */
+  --bg-base: #f1f5f9;          /* Cool off-white canvas (Slate-100) */
+  --bg-surface: #ffffff;       /* Pure white elevated cards */
+  --bg-subtle: #e2e8f0;        /* Sunken tracks, segmented base (Slate-200) */
+  --bg-surface-hover: #f8fafc; /* Subtle card hover (Slate-50) */
   
-  --text-base: #111827;
-  --text-muted: #6b7280;
+  /* Typography */
+  --text-base: #0f172a;        /* Deep slate-900 */
+  --text-muted: #64748b;       /* Muted slate-500 */
   --text-inverse: #ffffff;
   
-  --border-base: #e5e7eb;
+  /* Structural Borders */
+  --border-subtle: #e2e8f0;    /* Card & section borders (Slate-200) */
+  --border-base: #cbd5e1;      /* Input & segmented borders (Slate-300) */
   
   --success-bg: #ecfdf5;
   --success-text: #059669;
@@ -180,17 +185,19 @@
   --primary-hex: #14b8a6;
 }
 
-/* Dark Scheme */
+/* Dark Scheme (Calibrated Deep Contrast) */
 [data-scheme="dark"] {
-  --bg-base: #0f172a;
-  --bg-surface: #1e293b;
-  --bg-subtle: #334155;
+  --bg-base: #090d16;
+  --bg-surface: #131b2e;
+  --bg-subtle: #0d1322;
+  --bg-surface-hover: #1c2742;
   
   --text-base: #f8fafc;
   --text-muted: #94a3b8;
   --text-inverse: #ffffff;
   
-  --border-base: #475569;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-base: rgba(255, 255, 255, 0.14);
   
   --success-bg: #064e3b;
   --success-text: #34d399;
@@ -309,7 +316,59 @@
   overflow: hidden;
 }
 
-/* Segmented control */
-.ant-segmented {
-  border-radius: 10px !important;
+/* =========================================================
+   Ant Design Segmented: Solid Elevated Pill Overrides
+   ========================================================= */
+
+/* 1. Sunken Outer Container Track */
+.ant-app .ant-segmented {
+  background-color: var(--color-bg-base) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 3px !important;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 2. Base Tab Item (Consistent Weight Prevents Text Jumps) */
+.ant-app .ant-segmented .ant-segmented-item {
+  color: var(--color-text-base) !important;
+  border-radius: 0.5rem; /* rounded-lg */
+  font-weight: 600 !important;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+  background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  /* border : 0.05rem solid transparent !important; */
+}
+
+/* 3. Inactive Hover State (Isolated strictly to unselected items) */
+.ant-app .ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected):not(:active) {
+  /* color: var(--color-text-main) !important; */
+  background-color: var(--color-bg-surface-hover) !important;
+  /* border : 0.05rem solid transparent !important; */
+}
+
+/* 4. Sliding Active Thumb: SOLID Elevated Background + Primary Border */
+.ant-app .ant-segmented .ant-segmented-thumb {
+  background-color: var(--color-bg-surface-hover) !important;
+  /* border: 0.05rem solid var(--color-primary-500) !important; */
+  border-radius: 0.5rem !important; /* rounded-lg */
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  will-change: transform;
+}
+
+/* 5. Selected Item Label (Transparent wrapper letting thumb background shine through) */
+.ant-app .ant-segmented .ant-segmented-item-selected,
+.ant-app .ant-segmented .ant-segmented-item-selected:hover,
+.ant-app .ant-segmented .ant-segmented-item-selected:active {
+  background-color: var(--color-bg-surface-hover) !important;
+  /* border: 0.05rem solid var(--color-primary-500) !important; */
+}
+
+.ant-app .ant-segmented .ant-segmented-item-selected .ant-segmented-item-label,
+.ant-app .ant-segmented .ant-segmented-item-selected:hover .ant-segmented-item-label,
+.ant-app .ant-segmented .ant-segmented-item-selected:active .ant-segmented-item-label {
+  color: var(--color-primary-500) !important;
+  font-weight: 700 !important;
+  transition: color 0.2s ease !important;
+  
 }
