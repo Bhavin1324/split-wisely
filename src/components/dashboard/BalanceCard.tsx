@@ -21,7 +21,7 @@ export function BalanceCard({
   return (
     <div
       className={`
-        relative overflow-hidden rounded-2xl border border-white/60 bg-bg-surface
+        relative overflow-hidden rounded-2xl border border-border-base bg-bg-surface
         p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
       `}
     >

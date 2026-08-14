@@ -1,21 +1,19 @@
 import { Button } from "antd";
-import { ChevronLeft, ChevronRight, Target, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import dayjs from "dayjs";
 
 interface PersonalHeaderProps {
   monthYear: string; // "YYYY-MM"
   onMonthChange: (newMonthYear: string) => void;
-  onOpenSetBudget: () => void;
   onOpenAddTransaction: () => void;
-  hasBudget: boolean;
+  onOpenSetBudget?: () => void;
+  hasBudget?: boolean;
 }
 
 export function PersonalHeader({
   monthYear,
   onMonthChange,
-  onOpenSetBudget,
   onOpenAddTransaction,
-  hasBudget,
 }: PersonalHeaderProps) {
   const dateObj = dayjs(`${monthYear}-01`);
 
@@ -30,54 +28,49 @@ export function PersonalHeader({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border-base">
-      {/* Title & Month Selector */}
-      <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-base m-0">
-          Personal Ledger
-        </h1>
-        <div className="flex items-center gap-1 bg-bg-subtle border border-border-base rounded-xl px-2 py-1">
+    <div className="flex items-center justify-between gap-3 pb-3 border-b border-border-subtle">
+      {/* Title */}
+      <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-main m-0">
+        Personal Ledger
+      </h1>
+
+      {/* Right Controls: Month Selector + Desktop CTA */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 bg-bg-surface border border-border-subtle rounded-xl px-2 py-1">
           <button
             type="button"
             onClick={handlePrevMonth}
-            className="p-1 text-text-muted hover:text-text-base transition-colors rounded-lg hover:bg-border-base"
+            className="p-1 text-text-muted hover:text-text-main transition-colors rounded-lg hover:bg-bg-surface-hover cursor-pointer"
             title="Previous Month"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-xs sm:text-sm font-semibold text-text-base px-2 min-w-[100px] text-center">
+          <span className="text-xs sm:text-sm font-semibold text-text-main px-1.5 sm:px-2 min-w-[90px] sm:min-w-[110px] text-center whitespace-nowrap">
             {dateObj.format("MMMM YYYY")}
           </span>
           <button
             type="button"
             onClick={handleNextMonth}
-            className="p-1 text-text-muted hover:text-text-base transition-colors rounded-lg hover:bg-border-base"
+            className="p-1 text-text-muted hover:text-text-main transition-colors rounded-lg hover:bg-bg-surface-hover cursor-pointer"
             title="Next Month"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
-      </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-2 self-end sm:self-auto">
-        <Button
-          icon={<Target className="w-4 h-4" />}
-          onClick={onOpenSetBudget}
-          className="rounded-xl border-border-base text-text-base font-medium flex items-center"
-        >
-          {hasBudget ? "Edit Budget" : "Set Target Budget"}
-        </Button>
-        {/* Secondary + Add Transaction button hidden on mobile to avoid duplication with floating dock FAB */}
-        <Button
-          type="primary"
-          icon={<Plus className="w-4 h-4" />}
-          onClick={onOpenAddTransaction}
-          className="hidden md:inline-flex rounded-xl font-semibold bg-primary-500 hover:bg-primary-600 border-none items-center"
-        >
-          Add Transaction
-        </Button>
+        {/* Desktop-only Add Transaction button (Mobile uses floating dock FAB) */}
+        <div className="hidden md:block">
+          <Button
+            type="primary"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={onOpenAddTransaction}
+            className="rounded-xl font-semibold bg-primary-500 hover:bg-primary-600 border-none inline-flex items-center"
+          >
+            Add Transaction
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
+

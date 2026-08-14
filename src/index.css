@@ -185,35 +185,39 @@
   --primary-hex: #14b8a6;
 }
 
-/* Dark Scheme (Calibrated Deep Contrast) */
+/* Dark Scheme (High-Separation Elevation Hierarchy) */
 [data-scheme="dark"] {
-  --bg-base: #090d16;
-  --bg-surface: #131b2e;
-  --bg-subtle: #0d1322;
-  --bg-surface-hover: #1c2742;
+  /* High-Contrast Elevation Hierarchy */
+  --bg-subtle: #0a0d12;        /* Inset tracks & search inputs (~6% lightness) */
+  --bg-base: #0f131a;          /* Deep slate root canvas (~9% lightness) */
+  --bg-surface: #1a202c;       /* Elevated cards, modals, drawers (~16% lightness) */
+  --bg-surface-hover: #252d3d; /* Hover overlays, active pill thumb (~22% lightness) */
   
-  --text-base: #f8fafc;
-  --text-muted: #94a3b8;
+  /* High-Legibility Typography */
+  --text-base: #f8fafc;        /* Pure crisp slate-50 */
+  --text-muted: #94a3b8;       /* Balanced slate-400 */
   --text-inverse: #ffffff;
   
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-base: rgba(255, 255, 255, 0.14);
-  
-  --success-bg: #064e3b;
-  --success-text: #34d399;
-  --success-border: #065f46;
-  
-  --error-bg: #881337;
-  --error-text: #fb7185;
-  --error-border: #9f1239;
+  /* Tactile Structural Borders */
+  --border-subtle: rgba(255, 255, 255, 0.12); /* Card & drawer borders */
+  --border-base: rgba(255, 255, 255, 0.20);   /* Form inputs & segmented borders */
 
-  /* Navigation Layer (Translucent Glass in Dark Mode) */
-  --nav-bg: rgba(15, 23, 42, 0.65);
-  --nav-border: var(--border-base);
+  /* Semantic Alerts */
+  --success-bg: rgba(16, 185, 129, 0.16);
+  --success-text: #10b981;
+  --success-border: rgba(16, 185, 129, 0.32);
+  
+  --error-bg: rgba(244, 63, 94, 0.16);
+  --error-text: #f43f5e;
+  --error-border: rgba(244, 63, 94, 0.32);
+
+  /* Navigation Layer (Clean Translucent Glass) */
+  --nav-bg: rgba(15, 19, 26, 0.85);
+  --nav-border: var(--border-subtle);
   --nav-text: var(--text-base);
   --nav-text-muted: var(--text-muted);
-  --nav-icon-bg: var(--bg-subtle);
-  --nav-icon-hover: var(--bg-surface);
+  --nav-icon-bg: rgba(255, 255, 255, 0.08);
+  --nav-icon-hover: rgba(255, 255, 255, 0.15);
 }
 
 /* Base layer */

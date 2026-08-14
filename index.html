@@ -8,6 +8,19 @@
     <link rel="apple-touch-icon" href="/pwa-icon.jpg">
     <meta name="description" content="Split expenses fairly with friends and groups. Track balances, simplify debts, and settle up effortlessly." />
     <title>SplitWisely — Smart Expense Splitting</title>
+    <script>
+      (function() {
+        var scheme = localStorage.getItem('splitwisely_scheme');
+        if (!scheme) {
+          scheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-scheme', scheme);
+        var theme = localStorage.getItem('splitwisely_theme');
+        if (theme && theme !== 'green') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

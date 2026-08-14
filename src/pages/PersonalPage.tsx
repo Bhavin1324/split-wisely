@@ -59,9 +59,7 @@ export function PersonalPage() {
       <PersonalHeader
         monthYear={monthYear}
         onMonthChange={setMonthYear}
-        onOpenSetBudget={() => setIsBudgetModalOpen(true)}
         onOpenAddTransaction={handleOpenAdd}
-        hasBudget={budget?.budget_amount !== null && budget?.budget_amount !== undefined}
       />
 
       {/* ── Personal Hero Summary & Cash Flow Card ── */}

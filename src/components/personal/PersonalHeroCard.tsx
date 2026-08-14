@@ -1,6 +1,6 @@
 import { formatCents } from "../../utils/currency";
 import type { PersonalLedgerSummary } from "../../hooks/usePersonalLedger";
-import { ArrowDownLeft, ArrowUpRight, Wallet, Target, Sparkles } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Wallet, Target, Sparkles, Pencil } from "lucide-react";
 import { Button } from "antd";
 
 interface PersonalHeroCardProps {
@@ -47,36 +47,61 @@ export function PersonalHeroCard({ summary, onOpenSetBudget }: PersonalHeroCardP
       ? "text-emerald-500"
       : closingBalance < 0
       ? "text-rose-500"
-      : "text-text-base";
+      : "text-text-main";
 
   return (
-    <div className="bg-bg-surface border border-border-base rounded-2xl p-5 shadow-sm space-y-6">
+    <div className="bg-bg-surface border border-border-subtle rounded-2xl p-5 shadow-sm space-y-6">
       {/* ── TOP SECTION: Budget Gauge & Safe Spending ── */}
       {isBudgetSet ? (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="text-xs uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
-                <Target className="w-3.5 h-3.5 text-primary-500" />
-                Monthly Spending Budget
+            <div className="flex items-start justify-between sm:justify-start gap-4">
+              <div>
+                <div className="text-xs uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-primary-500" />
+                  Monthly Spending Budget
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-text-main mt-0.5 tracking-tight font-financial">
+                  {formatCents(totalExpense)}{" "}
+                  <span className="text-sm font-normal text-text-muted">
+                    / {formatCents(budgetAmount)} ({percentageSpent}%)
+                  </span>
+                </div>
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-text-base mt-0.5 tracking-tight font-financial">
-                {formatCents(totalExpense)}{" "}
-                <span className="text-sm font-normal text-text-muted">
-                  / {formatCents(budgetAmount)} ({percentageSpent}%)
-                </span>
-              </div>
+
+              {/* Mobile Contextual Edit Pill */}
+              <button
+                type="button"
+                onClick={onOpenSetBudget}
+                className="text-xs px-2.5 py-1 rounded-lg border border-border-subtle bg-bg-surface-hover text-text-muted hover:text-text-main transition-colors flex items-center gap-1.5 cursor-pointer font-medium sm:hidden"
+                title="Edit Target Budget"
+              >
+                <Pencil className="w-3 h-3" />
+                Edit
+              </button>
             </div>
 
-            {safeDailyLimit !== null && (
-              <div className={`px-3 py-1.5 rounded-xl border text-xs font-semibold font-financial ${badgeBgClass} ${textColorClass} self-start sm:self-auto shrink-0`}>
-                Safe to spend: {formatCents(safeDailyLimit)} / day ({daysRemaining} days left)
-              </div>
-            )}
+            <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+              {safeDailyLimit !== null && (
+                <div className={`px-3 py-1.5 rounded-xl border text-xs font-semibold font-financial ${badgeBgClass} ${textColorClass}`}>
+                  Safe to spend: {formatCents(safeDailyLimit)} / day ({daysRemaining} days left)
+                </div>
+              )}
+              {/* Desktop Contextual Edit Pill */}
+              <button
+                type="button"
+                onClick={onOpenSetBudget}
+                className="hidden sm:inline-flex text-xs px-2.5 py-1 rounded-lg border border-border-subtle bg-bg-surface-hover text-text-muted hover:text-text-main transition-colors items-center gap-1.5 cursor-pointer font-medium"
+                title="Edit Target Budget"
+              >
+                <Pencil className="w-3 h-3" />
+                Edit
+              </button>
+            </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full bg-bg-subtle h-3 rounded-full overflow-hidden border border-border-base">
+          <div className="w-full bg-bg-subtle h-3 rounded-full overflow-hidden border border-border-subtle">
             <div
               className={`h-full transition-all duration-500 rounded-full ${progressColorClass}`}
               style={{ width: `${Math.min(100, Math.max(0, percentageSpent))}%` }}
@@ -90,27 +115,19 @@ export function PersonalHeroCard({ summary, onOpenSetBudget }: PersonalHeroCardP
               </span>
             ) : remainingBudget !== null ? (
               <span className="text-text-muted">
-                Remaining Budget: <strong className="text-text-base font-financial">{formatCents(remainingBudget)}</strong>
+                Remaining Budget: <strong className="text-text-main font-financial">{formatCents(remainingBudget)}</strong>
               </span>
             ) : null}
-
-            <button
-              type="button"
-              onClick={onOpenSetBudget}
-              className="text-primary-500 hover:underline font-medium text-xs ml-auto"
-            >
-              Edit Budget
-            </button>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-bg-subtle/50 p-4 rounded-xl border border-border-base">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-bg-subtle/50 p-4 rounded-xl border border-border-subtle">
           <div className="space-y-1">
             <div className="text-xs font-semibold text-text-muted flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               Pure Cash Flow Mode
             </div>
-            <div className="text-sm text-text-base">
+            <div className="text-sm text-text-main">
               Set a monthly spending limit to unlock daily safe spending budgets and progress tracking.
             </div>
           </div>
