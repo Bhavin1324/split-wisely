@@ -81,13 +81,6 @@ export function ThemeConfigWrapper({ children }: { children: ReactNode }) {
           colorPrimary: primaryHex,
           colorInfo: primaryHex,
         },
-        components: {
-          Tag: {
-            colorPrimary: primaryHex,
-            colorBgContainer: 'var(--color-bg-surface)',
-            colorBorder: 'var(--color-border-base)',
-          },
-        },
       }}
     >
       <AntdApp>
