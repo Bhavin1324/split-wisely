@@ -179,6 +179,8 @@ export function GroupDetailPage() {
         open={!!selectedExpense}
         expense={selectedExpense}
         onClose={() => setSelectedExpense(null)}
+        onSuccess={refetchAll}
+        onDelete={refetchAll}
         onEdit={(expense) => {
           setExpenseToEdit(expense);
           setIsAddExpenseOpen(true);

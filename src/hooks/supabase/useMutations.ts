@@ -1,6 +1,7 @@
 import { DEMO_MODE } from '../../context/AppDataContext';
 import { supabase } from '../../lib/supabase';
-
+import { MOCK_EXPENSES, getProfileById } from '../../lib/mockData';
+import type { Expense } from '../../types';
 
 export async function createExpenseWithSplits(params: { 
   group_id: string | null; 
@@ -15,6 +16,36 @@ export async function createExpenseWithSplits(params: {
   expense_date?: string;
   splits: { user_id: string; amount_owed: number }[] 
 }): Promise<string> {
+  if (DEMO_MODE) {
+    const newId = `exp-${Date.now()}`;
+    const newExpense: Expense = {
+      id: newId,
+      group_id: params.group_id,
+      category_id: params.category_id,
+      description: params.description,
+      total_amount: params.total_amount,
+      base_currency_amount: params.total_amount,
+      currency_code: params.currency_code,
+      exchange_rate: params.exchange_rate,
+      payer_id: params.payer_id,
+      created_by: params.created_by,
+      receipt_image_url: params.receipt_image_url,
+      expense_date: params.expense_date ?? new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      payer: getProfileById(params.payer_id)!,
+      splits: params.splits.map((s) => ({
+        id: `split-${Math.random()}`,
+        expense_id: newId,
+        user_id: s.user_id,
+        amount_owed: s.amount_owed,
+        user: getProfileById(s.user_id)!,
+      })),
+    };
+    MOCK_EXPENSES.unshift(newExpense);
+    return newId;
+  }
+
   const { data, error } = await supabase.rpc('create_expense_with_splits', {
     p_group_id: params.group_id,
     p_category_id: params.category_id,
@@ -61,6 +92,34 @@ export async function updateExpenseWithSplits(params: {
   expense_date: string;
   splits: { user_id: string; amount_owed: number }[];
 }): Promise<void> {
+  if (DEMO_MODE) {
+    const idx = MOCK_EXPENSES.findIndex((e) => e.id === params.expense_id);
+    if (idx !== -1) {
+      MOCK_EXPENSES[idx] = {
+        ...MOCK_EXPENSES[idx],
+        description: params.description,
+        total_amount: params.total_amount,
+        base_currency_amount: params.total_amount,
+        currency_code: params.currency_code,
+        exchange_rate: params.exchange_rate,
+        payer_id: params.payer_id,
+        category_id: params.category_id,
+        receipt_image_url: params.receipt_image_url,
+        expense_date: params.expense_date,
+        updated_at: new Date().toISOString(),
+        payer: getProfileById(params.payer_id)!,
+        splits: params.splits.map((s) => ({
+          id: `split-${Math.random()}`,
+          expense_id: params.expense_id,
+          user_id: s.user_id,
+          amount_owed: s.amount_owed,
+          user: getProfileById(s.user_id)!,
+        })),
+      };
+    }
+    return;
+  }
+
   const { error } = await supabase.rpc('update_expense_with_splits', {
     p_expense_id: params.expense_id,
     p_group_id: params.group_id,
@@ -79,6 +138,14 @@ export async function updateExpenseWithSplits(params: {
 }
 
 export async function deleteExpense(expenseId: string): Promise<void> {
+  if (DEMO_MODE) {
+    const idx = MOCK_EXPENSES.findIndex((e) => e.id === expenseId);
+    if (idx !== -1) {
+      MOCK_EXPENSES.splice(idx, 1);
+    }
+    return;
+  }
+
   const { error } = await supabase.rpc('delete_expense', { p_expense_id: expenseId });
   if (error) throw error;
 }

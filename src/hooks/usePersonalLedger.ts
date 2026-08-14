@@ -26,8 +26,6 @@ export function usePersonalLedger(monthYear: string) {
   const [loading, setLoading] = useState<boolean>(true);
 
   const fetchLedgerData = useCallback(async () => {
-    setLoading(true);
-
     if (DEMO_MODE) {
       const userTx = MOCK_PERSONAL_TRANSACTIONS.filter((t) => t.user_id === userId || userId === 'user-1');
       const userB = MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === monthYear) ?? null;
@@ -53,17 +51,17 @@ export function usePersonalLedger(monthYear: string) {
       ]);
 
       if (txRes.error) {
-        console.warn('Falling back to local transactions state:', txRes.error.message);
+        console.warn('Personal transactions fetch fallback:', txRes.error.message);
         setTransactions([...MOCK_PERSONAL_TRANSACTIONS]);
       } else {
-        setTransactions(txRes.data as PersonalTransaction[] || []);
+        setTransactions((txRes.data as PersonalTransaction[]) || []);
       }
 
       if (budgetRes.error && budgetRes.error.code !== 'PGRST116') {
-        console.warn('Falling back to local budget state:', budgetRes.error.message);
+        console.warn('Personal budget fetch fallback:', budgetRes.error.message);
         setBudget(MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === monthYear) || null);
       } else {
-        setBudget(budgetRes.data as PersonalBudget || null);
+        setBudget((budgetRes.data as PersonalBudget) || null);
       }
     } catch (e) {
       console.error('Error fetching personal ledger:', e);
@@ -74,16 +72,40 @@ export function usePersonalLedger(monthYear: string) {
     }
   }, [userId, monthYear]);
 
+  // Initial Fetch and Realtime Subscription
   useEffect(() => {
     fetchLedgerData();
-  }, [fetchLedgerData]);
+
+    if (DEMO_MODE || !userId || userId === 'user-1') return;
+
+    const channelName = `realtime-personal-ledger-${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase.channel(channelName);
+
+    channel
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'personal_transactions', filter: `user_id=eq.${userId}` },
+        () => fetchLedgerData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'personal_budgets', filter: `user_id=eq.${userId}` },
+        () => fetchLedgerData()
+      )
+      .subscribe((_status, err) => {
+        if (err) console.error(`Realtime personal ledger error [${channelName}]:`, err);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, fetchLedgerData]);
 
   // Math Calculations for month M
   const summary: PersonalLedgerSummary = useMemo(() => {
     const [targetYearStr, targetMonthStr] = monthYear.split('-');
     const targetYear = parseInt(targetYearStr, 10);
-    const targetMonth = parseInt(targetMonthStr, 10); // 1-12
-
+    const targetMonth = parseInt(targetMonthStr, 10);
     const monthStartIso = `${monthYear}-01T00:00:00.000Z`;
 
     // 1. Opening Balance (Sum of prior months < M)
@@ -96,10 +118,7 @@ export function usePersonalLedger(monthYear: string) {
     });
 
     // 2. Month M transactions
-    const monthTransactions = transactions.filter((tx) => {
-      return tx.transaction_date.startsWith(monthYear);
-    });
-
+    const monthTransactions = transactions.filter((tx) => tx.transaction_date.startsWith(monthYear));
     let totalIncome = 0;
     let totalExpense = 0;
 
@@ -108,23 +127,19 @@ export function usePersonalLedger(monthYear: string) {
       if (tx.type === 'EXPENSE') totalExpense += tx.amount;
     });
 
-    // 3. Closing Balance
+    // 3. Closing Balance & Budgets
     const closingBalance = openingBalance + totalIncome - totalExpense;
-
-    // 4. Budget & Safe Daily Limit
     const budgetAmount = budget?.budget_amount ?? null;
     const remainingBudget = budgetAmount !== null ? budgetAmount - totalExpense : null;
 
-    // Days Remaining Calculation
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentMonth = now.getMonth() + 1;
     const totalDaysInMonth = new Date(targetYear, targetMonth, 0).getDate();
 
     let daysRemaining = 0;
     if (targetYear === currentYear && targetMonth === currentMonth) {
-      const today = now.getDate();
-      daysRemaining = Math.max(1, totalDaysInMonth - today + 1);
+      daysRemaining = Math.max(1, totalDaysInMonth - now.getDate() + 1);
     } else if (targetYear < currentYear || (targetYear === currentYear && targetMonth < currentMonth)) {
       daysRemaining = 0;
     } else {
@@ -174,54 +189,59 @@ export function usePersonalLedger(monthYear: string) {
       created_at: new Date().toISOString(),
     };
 
+    // Immediate local optimistic update
+    setTransactions((prev) => [newTx, ...prev]);
+
     if (DEMO_MODE) {
       MOCK_PERSONAL_TRANSACTIONS.unshift(newTx);
-      setTransactions((prev) => [newTx, ...prev]);
       return;
     }
 
     try {
-      const { error } = await supabase.from('personal_transactions').insert({
-        user_id: userId,
-        type: data.type,
-        amount: data.amount,
-        category: data.category,
-        description: data.description || '',
-        transaction_date: data.transaction_date || new Date().toISOString(),
-      });
+      const { data: inserted, error } = await supabase
+        .from('personal_transactions')
+        .insert({
+          user_id: userId,
+          type: data.type,
+          amount: data.amount,
+          category: data.category,
+          description: data.description || '',
+          transaction_date: data.transaction_date || new Date().toISOString(),
+        })
+        .select()
+        .single();
+
       if (error) {
-        console.warn('Supabase insert fallback:', error.message);
-        MOCK_PERSONAL_TRANSACTIONS.unshift(newTx);
-        setTransactions((prev) => [newTx, ...prev]);
-      } else {
-        await fetchLedgerData();
+        console.warn('Supabase insert error, keeping fallback:', error.message);
+      } else if (inserted) {
+        const insertedTx = inserted as PersonalTransaction;
+        setTransactions((prev) => [insertedTx, ...prev.filter((t) => t.id !== newTx.id && t.id !== insertedTx.id)]);
       }
+      await fetchLedgerData();
     } catch (e) {
       console.error('Add transaction failed:', e);
-      MOCK_PERSONAL_TRANSACTIONS.unshift(newTx);
-      setTransactions((prev) => [newTx, ...prev]);
     }
   };
 
   // Action: Delete Transaction
   const deleteTransaction = async (id: string) => {
+    // Immediate local optimistic update
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+
     if (DEMO_MODE) {
       const idx = MOCK_PERSONAL_TRANSACTIONS.findIndex((t) => t.id === id);
       if (idx !== -1) MOCK_PERSONAL_TRANSACTIONS.splice(idx, 1);
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
       return;
     }
 
     try {
       const { error } = await supabase.from('personal_transactions').delete().eq('id', id);
       if (error) {
-        setTransactions((prev) => prev.filter((t) => t.id !== id));
-      } else {
-        await fetchLedgerData();
+        console.warn('Supabase delete error:', error.message);
       }
+      await fetchLedgerData();
     } catch (e) {
       console.error('Delete transaction failed:', e);
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
     }
   };
 
@@ -236,22 +256,21 @@ export function usePersonalLedger(monthYear: string) {
       transaction_date: string;
     }
   ) => {
+    // Immediate local optimistic update
+    setTransactions((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...data } : t))
+    );
+
     if (DEMO_MODE) {
       const idx = MOCK_PERSONAL_TRANSACTIONS.findIndex((t) => t.id === id);
       if (idx !== -1) {
-        MOCK_PERSONAL_TRANSACTIONS[idx] = {
-          ...MOCK_PERSONAL_TRANSACTIONS[idx],
-          ...data,
-        };
+        MOCK_PERSONAL_TRANSACTIONS[idx] = { ...MOCK_PERSONAL_TRANSACTIONS[idx], ...data };
       }
-      setTransactions((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...data } : t))
-      );
       return;
     }
 
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('personal_transactions')
         .update({
           type: data.type,
@@ -260,21 +279,20 @@ export function usePersonalLedger(monthYear: string) {
           description: data.description || '',
           transaction_date: data.transaction_date,
         })
-        .eq('id', id);
+        .eq('id', id)
+        .select()
+        .single();
 
       if (error) {
         console.warn('Supabase update fallback:', error.message);
+      } else if (updated) {
         setTransactions((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, ...data } : t))
+          prev.map((t) => (t.id === id ? (updated as PersonalTransaction) : t))
         );
-      } else {
-        await fetchLedgerData();
       }
+      await fetchLedgerData();
     } catch (e) {
       console.error('Update transaction failed:', e);
-      setTransactions((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...data } : t))
-      );
     }
   };
 
@@ -289,6 +307,8 @@ export function usePersonalLedger(monthYear: string) {
       updated_at: new Date().toISOString(),
     };
 
+    setBudget(updatedBudget);
+
     if (DEMO_MODE) {
       const existingIdx = MOCK_PERSONAL_BUDGETS.findIndex((b) => b.month_year === monthYear);
       if (existingIdx !== -1) {
@@ -296,7 +316,6 @@ export function usePersonalLedger(monthYear: string) {
       } else {
         MOCK_PERSONAL_BUDGETS.push(updatedBudget);
       }
-      setBudget(updatedBudget);
       return;
     }
 
@@ -312,13 +331,10 @@ export function usePersonalLedger(monthYear: string) {
       );
       if (error) {
         console.warn('Supabase budget upsert fallback:', error.message);
-        setBudget(updatedBudget);
-      } else {
-        await fetchLedgerData();
       }
+      await fetchLedgerData();
     } catch (e) {
       console.error('Set budget failed:', e);
-      setBudget(updatedBudget);
     }
   };
 
@@ -334,4 +350,3 @@ export function usePersonalLedger(monthYear: string) {
     refetch: fetchLedgerData,
   };
 }
-

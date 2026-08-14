@@ -1,0 +1,46 @@
+# SplitWisely Coding Rules & Conventions
+
+## Tech Stack
+- React 18 (Vite)
+- TypeScript
+- Tailwind CSS
+- Ant Design (AntD)
+- Supabase (Backend/Auth)
+- Lucide React (Icons)
+
+## Project Structure
+- `src/components/`: Reusable UI components. Subfolders for feature-specific modules (e.g., `group/`).
+- `src/context/`: Global React contexts (Theme, AppData, Auth).
+- `src/hooks/`: Custom hooks, specifically `supabase/` for DB interactions.
+- `src/pages/`: Top-level route components.
+- `src/layouts/`: Global layouts like `AppLayout.tsx`.
+
+## Coding Conventions
+1. **Centralized Theming**: NO hardcoded hex or Tailwind color names (`amber`, `orange`, `rose`, `emerald`, `slate`, `zinc`). Always use semantic tokens (`bg-bg-surface`, `text-text-main`, `text-text-muted`, `border-border-subtle`, `var(--color-primary-500)`, `var(--color-danger-500)`, `var(--color-success-500)`).
+2. **Financial Typography**: Always apply `.font-financial` to monetary figures, balance cards, and amount fields for tabular alignment.
+3. **Currency Integer Rule**: Store all currency amounts in database as integer cents (`BIGINT`). Never store raw floats.
+4. **Component Modularity**: Keep components under 300 lines. Use orchestrator patterns for complex pages (e.g., `GroupDetailPage.tsx` orchestrating `GroupHeader`, `GroupExpensesTab`, etc.).
+5. **State Management**: Use `App.useApp()` for AntD modals/messages to inherit context correctly rather than standard imports.
+
+## Build Commands
+- Run locally: `npm run dev`
+- Build production: `npm run build` (This runs `tsc -b && vite build`)
+
+## Technical Decisions
+- **Dark Mode**: Managed via `<html data-scheme="dark">`. Overrides AntD tokens via Tailwind utilities in `index.css` rather than modifying AntD ConfigProvider dynamically.
+- **PWA**: Configured in `vite.config.ts`. Mobile views utilize `Drawer` components and bottom navigation for native feel.
+- **UPI**: BHIM parser strictness is handled natively by `encodeUpiParam` to ensure URI deep links don't break.
+- **Settlement Integrity (AUTO_ALL)**: Never create `group_id = NULL` settlement records. Multi-group global netting (`AUTO_ALL`) must discover all active group debts and insert distinct group-linked `createSettlement` records to ensure no group ledger is orphaned.
+
+## UI/UX & Design System Guidelines
+1. **Styling Standards**:
+   - Favor Vanilla CSS for global structure and Tailwind for utility-based spacing/layout.
+   - Do NOT use hard-coded hex colors or arbitrary values (e.g. `bg-[#1a1a1a]`). Always map to our global CSS semantic tokens (`var(--color-bg-base)`, etc).
+2. **Component Conventions**:
+   - Prioritize Ant Design primitives, but overwrite their aesthetics using the `.ant-app` CSS overrides to ensure they match our brand identity perfectly across light and dark modes.
+   - Never nest more than two cards deep. Keep interfaces flat and hierarchical.
+3. **Typography & Aesthetics**:
+   - Rely heavily on structural whitespace rather than visible borders. 
+   - No Dashboard overuse, Bento box abuse, or purple-on-dark motifs. 
+   - Ensure dynamic responsiveness using Tailwind's `sm:`, `md:`, and `lg:` prefixes rather than fixed pixel widths. 
+   - Prioritize high-legibility typographic scales with strict attention to kerning and line-heights.

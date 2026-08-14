@@ -84,7 +84,7 @@ const PAYMENT_METHODS = [
   { id: "BANK" as const, label: "Bank", icon: Building2 },
 ];
 
-const QUICK_AMOUNTS = [50, 100, 500, 1000];
+const QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
 
 export function AddPersonalTransactionDrawer({
   open,
@@ -195,9 +195,6 @@ export function AddPersonalTransactionDrawer({
         }
         message.success(`Updated ${type.toLowerCase()} of ${getCurrencySymbol()}${amountValue.toFixed(2)}`);
       } else {
-        if (onSubmit) {
-          await onSubmit(dto);
-        }
         if (onAddTransaction) {
           await onAddTransaction({
             type,
@@ -206,17 +203,21 @@ export function AddPersonalTransactionDrawer({
             description: values.description ? `[${paymentMethod}] ${values.description}` : `[${paymentMethod}]`,
             transaction_date: dateIso,
           });
+        } else if (onSubmit) {
+          await onSubmit(dto);
         }
         message.success(`Recorded ${type.toLowerCase()} of ${getCurrencySymbol()}${amountValue.toFixed(2)}`);
       }
 
       onClose();
+      form.resetFields();
     } catch (e: any) {
       if (e.message) message.error(e.message);
     } finally {
       setSubmitting(false);
     }
   };
+
 
   return (
     <Drawer

@@ -1,0 +1,13 @@
+# Project Rules for SplitWisely
+
+## Code Quality & Architecture Rules
+1. **No Band-Aid Fixes:** Do not wrap lifecycle or subscription errors in `try/catch` or superficial `if` statements without fixing the underlying hook dependency or unmount cleanup.
+2. **Strict Resource Cleanup:** Every Supabase Realtime channel subscription, event listener, or timer inside a React `useEffect` MUST have an explicit, matching cleanup function (`removeChannel`, `removeEventListener`).
+3. **No Duplicate Subscriptions:** Ensure child modal components do not instantiate duplicate Realtime channels if a parent custom hook already manages state updates.
+4. **Mandatory Build Verification:** Always verify that edits compile with zero TypeScript errors (`tsc -b && vite build`) before finishing a task.
+
+## React State & Supabase Realtime Invariants
+1. **No Raw DOM Events**: Never use `window.dispatchEvent` or `window.addEventListener` for internal React state synchronization. All UI invalidation must happen via clean React Context methods (e.g., `refetchData()` in `AppDataContext`) tied to Realtime listeners.
+2. **Realtime Channel Lifecycle Formula**: To prevent `cannot add listener to subscribed channel` errors on component re-renders:
+   - **Unique Naming**: Realtime subscriptions must use unique instance identifiers (e.g., `const name = \`channel-\${Date.now()}-\${Math.random().toString(36).substring(2,7)}\``).
+   - **Chaining Order**: ALL `.on('postgres_changes', ...)` listeners MUST be chained onto the channel object **BEFORE** `.subscribe()` is invoked.

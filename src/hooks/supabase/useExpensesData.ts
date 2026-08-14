@@ -45,6 +45,11 @@ export function useExpenses(groupId: string | undefined) {
         { event: '*', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
         () => fetchExpenses(),
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'expense_splits' },
+        () => fetchExpenses(),
+      )
       .subscribe((_status, err) => {
         if (err) console.error(`Realtime error [${channelName}]:`, err);
       });
@@ -113,6 +118,11 @@ export function useAllExpenses(userId: string | undefined) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'expenses' },
+        () => fetchAllExpenses()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'expense_splits' },
         () => fetchAllExpenses()
       )
       .subscribe((_status, err) => {
