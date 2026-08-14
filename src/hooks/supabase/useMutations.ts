@@ -1,7 +1,7 @@
 import { DEMO_MODE } from '../../context/AppDataContext';
 import { supabase } from '../../lib/supabase';
-import { MOCK_EXPENSES, getProfileById } from '../../lib/mockData';
-import type { Expense } from '../../types';
+import { MOCK_EXPENSES, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
+import type { Expense, GroupActivityItem } from '../../types';
 
 export async function createExpenseWithSplits(params: { 
   group_id: string | null; 
@@ -18,6 +18,7 @@ export async function createExpenseWithSplits(params: {
 }): Promise<string> {
   if (DEMO_MODE) {
     const newId = `exp-${Date.now()}`;
+    const payer = getProfileById(params.payer_id)!;
     const newExpense: Expense = {
       id: newId,
       group_id: params.group_id,
@@ -33,7 +34,7 @@ export async function createExpenseWithSplits(params: {
       expense_date: params.expense_date ?? new Date().toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      payer: getProfileById(params.payer_id)!,
+      payer,
       splits: params.splits.map((s) => ({
         id: `split-${Math.random()}`,
         expense_id: newId,
@@ -43,6 +44,26 @@ export async function createExpenseWithSplits(params: {
       })),
     };
     MOCK_EXPENSES.unshift(newExpense);
+
+    if (params.group_id) {
+      const activity: GroupActivityItem = {
+        id: `act-${Date.now()}`,
+        group_id: params.group_id,
+        actor_id: params.created_by,
+        action_type: 'EXPENSE_CREATED',
+        description: `${payer.full_name} added expense "${params.description}"`,
+        metadata: {
+          expense_id: newId,
+          amount: params.total_amount,
+          description: params.description,
+          payer_id: params.payer_id,
+          payer_name: payer.full_name,
+        },
+        created_at: new Date().toISOString(),
+        actor: payer,
+      };
+      MOCK_GROUP_ACTIVITIES.unshift(activity);
+    }
     return newId;
   }
 
@@ -94,6 +115,7 @@ export async function updateExpenseWithSplits(params: {
 }): Promise<void> {
   if (DEMO_MODE) {
     const idx = MOCK_EXPENSES.findIndex((e) => e.id === params.expense_id);
+    const payer = getProfileById(params.payer_id)!;
     if (idx !== -1) {
       MOCK_EXPENSES[idx] = {
         ...MOCK_EXPENSES[idx],
@@ -107,7 +129,7 @@ export async function updateExpenseWithSplits(params: {
         receipt_image_url: params.receipt_image_url,
         expense_date: params.expense_date,
         updated_at: new Date().toISOString(),
-        payer: getProfileById(params.payer_id)!,
+        payer,
         splits: params.splits.map((s) => ({
           id: `split-${Math.random()}`,
           expense_id: params.expense_id,
@@ -116,6 +138,25 @@ export async function updateExpenseWithSplits(params: {
           user: getProfileById(s.user_id)!,
         })),
       };
+
+      if (params.group_id) {
+        const activity: GroupActivityItem = {
+          id: `act-${Date.now()}`,
+          group_id: params.group_id,
+          actor_id: params.payer_id,
+          action_type: 'EXPENSE_UPDATED',
+          description: `${payer.full_name} updated expense "${params.description}"`,
+          metadata: {
+            expense_id: params.expense_id,
+            amount: params.total_amount,
+            description: params.description,
+            payer_id: params.payer_id,
+          },
+          created_at: new Date().toISOString(),
+          actor: payer,
+        };
+        MOCK_GROUP_ACTIVITIES.unshift(activity);
+      }
     }
     return;
   }
@@ -141,7 +182,25 @@ export async function deleteExpense(expenseId: string): Promise<void> {
   if (DEMO_MODE) {
     const idx = MOCK_EXPENSES.findIndex((e) => e.id === expenseId);
     if (idx !== -1) {
+      const exp = MOCK_EXPENSES[idx];
       MOCK_EXPENSES.splice(idx, 1);
+      if (exp.group_id) {
+        const activity: GroupActivityItem = {
+          id: `act-${Date.now()}`,
+          group_id: exp.group_id,
+          actor_id: exp.payer_id,
+          action_type: 'EXPENSE_DELETED',
+          description: `Expense "${exp.description}" was deleted`,
+          metadata: {
+            expense_id: exp.id,
+            amount: exp.total_amount,
+            description: exp.description,
+          },
+          created_at: new Date().toISOString(),
+          actor: exp.payer,
+        };
+        MOCK_GROUP_ACTIVITIES.unshift(activity);
+      }
     }
     return;
   }
@@ -157,6 +216,30 @@ export async function createSettlement(params: {
   amount: number; 
   currency_code: string 
 }): Promise<void> {
+  if (DEMO_MODE) {
+    if (params.group_id) {
+      const payer = getProfileById(params.payer_id);
+      const payee = getProfileById(params.payee_id);
+      const activity: GroupActivityItem = {
+        id: `act-${Date.now()}`,
+        group_id: params.group_id,
+        actor_id: params.payer_id,
+        action_type: 'SETTLEMENT_RECORDED',
+        description: `${payer?.full_name || 'Someone'} paid ${payee?.full_name || 'someone'}`,
+        metadata: {
+          amount: params.amount,
+          payer_id: params.payer_id,
+          payee_id: params.payee_id,
+          payer_name: payer?.full_name,
+          payee_name: payee?.full_name,
+        },
+        created_at: new Date().toISOString(),
+        actor: payer,
+      };
+      MOCK_GROUP_ACTIVITIES.unshift(activity);
+    }
+    return;
+  }
   const { error } = await supabase
     .from('settlements')
     .insert([{

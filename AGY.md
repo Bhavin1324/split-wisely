@@ -54,3 +54,5 @@
 - **UPI Deep Link Strictness**: The BHIM UPI parser is exceptionally strict. It is **mandatory** to use the `encodeUpiParam` wrapper to strip all non-alphanumeric characters (like URL-encoded spaces `%20` or `+`) from Payee Name (`pn`) and Transaction Note (`tn`) before generating `upi://pay` links.
 - **Data Persistence (Soft Clears)**: Non-critical items (like seen notifications) must be hidden via a "Soft Clear" local mechanism (using `localStorage` state like `clearedUntil`) rather than executing permanent `DELETE` queries on the database. 
 - **Modal Context**: Always wrap interactive triggers using `App.useApp()` from Ant Design to ensure dynamically generated modals inherit the correct DOM context for theming.
+- **PostgREST Foreign Key Relations**: Columns intended for `profiles` joins must have foreign keys referencing `public.profiles(id)` with explicit constraint naming, followed by `NOTIFY pgrst, 'reload schema';` in migrations to avoid `PGRST200` errors.
+

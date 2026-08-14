@@ -210,7 +210,7 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
 
           {/* Matched Profile Preview */}
           {matchedProfile && (
-            <div className="p-3 bg-primary-50/60 rounded-xl border border-primary-200/60 flex items-center justify-between">
+            <div className="p-3 bg-bg-base rounded-xl border border-primary-200/60 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar size={36} style={{ backgroundColor: 'var(--color-primary-500)' }}>
                   {getInitials(matchedProfile.full_name)}

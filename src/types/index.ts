@@ -77,7 +77,43 @@ export interface Settlement {
   payee?: Profile;
 }
 
-// Activity Log type
+// Activity Log types
+export type GroupActivityActionType = 
+  | 'EXPENSE_CREATED' 
+  | 'EXPENSE_UPDATED' 
+  | 'EXPENSE_DELETED' 
+  | 'SETTLEMENT_RECORDED' 
+  | 'MEMBER_ADDED' 
+  | 'MEMBER_REMOVED' 
+  | 'GROUP_UPDATED';
+
+export interface GroupActivityMetadata {
+  amount?: number; // Integer cents
+  title?: string;
+  description?: string;
+  payer_id?: string;
+  payee_id?: string;
+  payer_name?: string;
+  payee_name?: string;
+  actor_name?: string;
+  user_id?: string;
+  user_name?: string;
+  expense_id?: string;
+  settlement_id?: string;
+  [key: string]: any;
+}
+
+export interface GroupActivityItem {
+  id: string;
+  group_id: string;
+  actor_id: string | null;
+  action_type: GroupActivityActionType;
+  description: string;
+  metadata: GroupActivityMetadata;
+  created_at: string;
+  actor?: Profile;
+}
+
 export interface ActivityLog {
   id: string;
   group_id: string;

@@ -11,3 +11,15 @@
 2. **Realtime Channel Lifecycle Formula**: To prevent `cannot add listener to subscribed channel` errors on component re-renders:
    - **Unique Naming**: Realtime subscriptions must use unique instance identifiers (e.g., `const name = \`channel-\${Date.now()}-\${Math.random().toString(36).substring(2,7)}\``).
    - **Chaining Order**: ALL `.on('postgres_changes', ...)` listeners MUST be chained onto the channel object **BEFORE** `.subscribe()` is invoked.
+## Reactive State Synchronization
+1. **Instant Updates**: When performing mutations (Insert/Update/Delete) via Supabase or API, the local UI state must update instantaneously without requiring a manual browser reload. Return the mutated entity and explicitly update the local state arrays.
+
+## Database Triggers & Immutable Audit Logs
+1. **Immutability & Integrity**: When building audit trails or activity logs (e.g., group_activities), enforce immutability using RLS (allow INSERT, forbid UPDATE/DELETE). Use ON DELETE CASCADE for child records bounded to a parent entity.
+2. **Trigger Delete Logic**: In Postgres triggers handling DELETE events, remember that NEW is null. Use COALESCE(NEW.foreign_key, OLD.foreign_key) to safely reference IDs.
+
+## Supabase Schema & PostgREST Relational Invariants
+1. **Public Schema Foreign Keys**: User reference columns (like `actor_id`, `created_by`, `user_id`) that require profile join queries on the client must reference `public.profiles(id)` rather than `auth.users(id)`.
+2. **Explicit Foreign Key Selects**: In Supabase select queries joining relations, explicitly specify the foreign key constraint name when joining (e.g. `actor:profiles!table_actor_id_fkey(...)`) to prevent ambiguity and ensure reliable schema resolution.
+3. **Schema Cache Reload**: Any migration adding or modifying foreign key constraints or views must include `NOTIFY pgrst, 'reload schema';` at the end to reload PostgREST's schema cache.
+

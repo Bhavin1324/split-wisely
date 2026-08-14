@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Segmented, Empty, Button, App } from "antd";
-import { Receipt, DollarSign } from "lucide-react";
+import { Receipt, DollarSign, Activity } from "lucide-react";
 
 import { MOCK_CURRENT_USER } from "../lib/mockData";
 import { AddExpenseModal } from "../components/AddExpenseModal";
@@ -19,6 +19,7 @@ import type { Expense } from "../types";
 import { GroupHeader } from "../components/group/GroupHeader";
 import { GroupExpensesTab } from "../components/group/GroupExpensesTab";
 import { GroupBalancesTab } from "../components/group/GroupBalancesTab";
+import { GroupActivityTab } from "../components/group/GroupActivityTab";
 import { GroupMembersDrawer } from "../components/group/GroupMembersDrawer";
 import { GroupLedgerModal } from "../components/group/GroupLedgerModal";
 import { removeMemberFromGroup } from "../hooks/supabase/useMutations";
@@ -29,7 +30,7 @@ export function GroupDetailPage() {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<"expenses" | "balances">("expenses");
+  const [activeTab, setActiveTab] = useState<"expenses" | "balances" | "activity">("expenses");
   
   // Modals state
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
@@ -122,17 +123,18 @@ export function GroupDetailPage() {
             options={[
               { label: "Expenses", value: "expenses", icon: <Receipt className="h-4 w-4 inline mr-1" /> },
               { label: "Settlements", value: "balances", icon: <DollarSign className="h-4 w-4 inline mr-1" /> },
+              { label: "Activity", value: "activity", icon: <Activity className="h-4 w-4 inline mr-1" /> },
             ]}
             value={activeTab}
-            onChange={(val) => setActiveTab(val as "expenses" | "balances")}
+            onChange={(val) => setActiveTab(val as "expenses" | "balances" | "activity")}
             className="bg-bg-subtle p-1"
           />
         </div>
 
         <div className="text-sm text-text-muted font-medium">
-          {activeTab === "expenses"
-            ? `${feedItems.length} activities`
-            : `${displayedDebts.length} pending debts`}
+          {activeTab === "expenses" && `${feedItems.length} activities`}
+          {activeTab === "balances" && `${displayedDebts.length} pending debts`}
+          {activeTab === "activity" && "Audit Trail & Events"}
         </div>
       </div>
 
@@ -160,6 +162,15 @@ export function GroupDetailPage() {
             setSettleUpMaxAmount(amount);
           }}
           onOpenLedger={() => setIsLedgerOpen(true)}
+        />
+      )}
+
+      {/* ── TAB 3: Activity Log & Audit Trail ── */}
+      {activeTab === "activity" && (
+        <GroupActivityTab 
+          groupId={groupId}
+          userId={userId}
+          getProfile={getProfile}
         />
       )}
 

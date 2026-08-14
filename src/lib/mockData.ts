@@ -261,3 +261,66 @@ export const MOCK_PERSONAL_TRANSACTIONS: import('../types').PersonalTransaction[
   },
 ];
 
+export const MOCK_GROUP_ACTIVITIES: import('../types').GroupActivityItem[] = [
+  {
+    id: 'act-1',
+    group_id: 'group-1',
+    actor_id: 'user-1',
+    action_type: 'EXPENSE_CREATED',
+    description: 'Alex Johnson added expense "Dinner at Ocean Drive"',
+    metadata: {
+      amount: 18500,
+      description: 'Dinner at Ocean Drive',
+      payer_id: 'user-1',
+      payer_name: 'Alex Johnson',
+    },
+    created_at: '2024-06-02T19:30:00Z',
+    actor: MOCK_PROFILES[0],
+  },
+  {
+    id: 'act-2',
+    group_id: 'group-1',
+    actor_id: 'user-2',
+    action_type: 'EXPENSE_CREATED',
+    description: 'Sarah Chen added expense "Beach Umbrellas & Snacks"',
+    metadata: {
+      amount: 6000,
+      description: 'Beach Umbrellas & Snacks',
+      payer_id: 'user-2',
+      payer_name: 'Sarah Chen',
+    },
+    created_at: '2024-06-03T14:15:00Z',
+    actor: MOCK_PROFILES[1],
+  },
+  {
+    id: 'act-3',
+    group_id: 'group-1',
+    actor_id: 'user-3',
+    action_type: 'SETTLEMENT_RECORDED',
+    description: 'Mike Roberts paid Alex Johnson',
+    metadata: {
+      amount: 4500,
+      payer_id: 'user-3',
+      payee_id: 'user-1',
+      payer_name: 'Mike Roberts',
+      payee_name: 'Alex Johnson',
+    },
+    created_at: '2024-06-04T10:00:00Z',
+    actor: MOCK_PROFILES[2],
+  },
+  {
+    id: 'act-4',
+    group_id: 'group-1',
+    actor_id: 'user-4',
+    action_type: 'MEMBER_ADDED',
+    description: 'Emma Wilson joined the group',
+    metadata: {
+      user_id: 'user-4',
+      user_name: 'Emma Wilson',
+    },
+    created_at: '2024-06-01T10:00:00Z',
+    actor: MOCK_PROFILES[3],
+  },
+];
+
+

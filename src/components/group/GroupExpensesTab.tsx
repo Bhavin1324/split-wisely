@@ -159,7 +159,7 @@ export function GroupExpensesTab({
                   </div>
                 </div>
 
-                <div className="mr-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-error-text bg-error-bg p-1.5 rounded-full">
+                <div className="mr-4 group-hover:opacity-100 transition-opacity flex items-center text-error-text bg-error-bg p-1.5 rounded-full">
                   <Trash2 className="h-4 w-4" />
                 </div>
               </div>

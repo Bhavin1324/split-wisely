@@ -22,6 +22,7 @@ This document serves as an exhaustive, file-by-file historical record of all arc
 ### B. Group Orchestration & Ledger Engine
 - **`src/pages/GroupDetailPage.tsx`**: 
   - Executed a massive refactor, condensing a 900+ line file into a 150-line orchestrator that imports modular sub-components. Passed required context down via clean props. Removed obsolete unused props (`myDebts`, `getProfile`).
+  - Integrated `GroupActivityTab.tsx` as an append-only audit trail to show a historical timeline of group events, while keeping the orchestrator file well under the 300-line limit.
 - **`src/hooks/useGroupCalculations.ts`**: 
   - Rebuilt the core debt engine. It now actively structures historical data into `expensesItemized` and `paymentsItemized` arrays, ensuring mathematical transparency.
 - **`src/components/group/GroupHeader.tsx`**: 
@@ -30,6 +31,8 @@ This document serves as an exhaustive, file-by-file historical record of all arc
 - **`src/components/group/GroupLedgerModal.tsx`**: Created to solve the "Trust" factor. Provides users a step-by-step mathematical breakdown ("How are these calculated?") to prove the debt engine's accuracy.
 - **`src/components/group/GroupExpensesTab.tsx` & `GroupBalancesTab.tsx`**: Segregated feed data from settlement views.
 - **`src/components/group/GroupMembersDrawer.tsx`**: Centralized add/remove member controls securely off-screen.
+- **`src/components/group/GroupActivityTab.tsx`**: Added a UI feed mapping DB logs to relative date bucketing, semantic icons, and monospaced financial formatting.
+- **`supabase/migrations/20260814000000_group_activities.sql`**: Created audit table for group events, secured by append-only RLS (`INSERT` only), and populated via strict Postgres triggers on `expenses`, `settlements`, and `group_members`. Configured `ON DELETE CASCADE` so logs are bounded to the group lifecycle.
 
 ### C. Backend Interactions & Notifications
 - **`src/hooks/supabase/useNotifications.ts`**: 
