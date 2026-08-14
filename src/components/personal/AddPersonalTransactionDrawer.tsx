@@ -84,7 +84,7 @@ const PAYMENT_METHODS = [
   { id: "BANK" as const, label: "Bank", icon: Building2 },
 ];
 
-const QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
+const QUICK_AMOUNTS = [50, 100, 500, 1000];
 
 export function AddPersonalTransactionDrawer({
   open,
