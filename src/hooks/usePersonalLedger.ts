@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import dayjs from 'dayjs';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { DEMO_MODE } from '../context/AppDataContext';
@@ -16,6 +17,14 @@ export interface PersonalLedgerSummary {
   safeDailyLimit: number | null; // in cents per day
   daysRemaining: number;
 }
+
+const getTxMonth = (dateStr: string): string => {
+  if (!dateStr) return '';
+  if (dateStr.length >= 7 && dateStr[4] === '-') {
+    return dateStr.substring(0, 7);
+  }
+  return dayjs(dateStr).format('YYYY-MM');
+};
 
 export function usePersonalLedger(monthYear: string) {
   const { user } = useAuth();
@@ -106,19 +115,19 @@ export function usePersonalLedger(monthYear: string) {
     const [targetYearStr, targetMonthStr] = monthYear.split('-');
     const targetYear = parseInt(targetYearStr, 10);
     const targetMonth = parseInt(targetMonthStr, 10);
-    const monthStartIso = `${monthYear}-01T00:00:00.000Z`;
 
     // 1. Opening Balance (Sum of prior months < M)
     let openingBalance = 0;
     transactions.forEach((tx) => {
-      if (tx.transaction_date < monthStartIso) {
+      const txMonth = getTxMonth(tx.transaction_date);
+      if (txMonth && txMonth < monthYear) {
         if (tx.type === 'INCOME') openingBalance += tx.amount;
         if (tx.type === 'EXPENSE') openingBalance -= tx.amount;
       }
     });
 
     // 2. Month M transactions
-    const monthTransactions = transactions.filter((tx) => tx.transaction_date.startsWith(monthYear));
+    const monthTransactions = transactions.filter((tx) => getTxMonth(tx.transaction_date) === monthYear);
     let totalIncome = 0;
     let totalExpense = 0;
 
@@ -166,7 +175,7 @@ export function usePersonalLedger(monthYear: string) {
   // Current Month Transactions (Sorted newest first)
   const currentMonthTransactions = useMemo(() => {
     return transactions
-      .filter((t) => t.transaction_date.startsWith(monthYear))
+      .filter((t) => getTxMonth(t.transaction_date) === monthYear)
       .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
   }, [transactions, monthYear]);
 
@@ -178,6 +187,7 @@ export function usePersonalLedger(monthYear: string) {
     description: string;
     transaction_date: string;
   }) => {
+    const txDate = data.transaction_date || new Date().toISOString();
     const newTx: PersonalTransaction = {
       id: uuidv4(),
       user_id: userId,
@@ -185,7 +195,7 @@ export function usePersonalLedger(monthYear: string) {
       amount: data.amount,
       category: data.category,
       description: data.description || '',
-      transaction_date: data.transaction_date || new Date().toISOString(),
+      transaction_date: txDate,
       created_at: new Date().toISOString(),
     };
 
@@ -206,7 +216,7 @@ export function usePersonalLedger(monthYear: string) {
           amount: data.amount,
           category: data.category,
           description: data.description || '',
-          transaction_date: data.transaction_date || new Date().toISOString(),
+          transaction_date: txDate,
         })
         .select()
         .single();

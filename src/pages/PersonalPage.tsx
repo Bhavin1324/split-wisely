@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { usePersonalLedger } from "../hooks/usePersonalLedger";
 import { PersonalHeader } from "../components/personal/PersonalHeader";
@@ -10,6 +11,7 @@ import { PageSkeleton } from "../components/ui/PageSkeleton";
 import type { PersonalTransaction } from "../types";
 
 export function PersonalPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [monthYear, setMonthYear] = useState<string>(dayjs().format("YYYY-MM"));
   const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
@@ -25,6 +27,17 @@ export function PersonalPage() {
     deleteTransaction,
     setMonthlyBudget,
   } = usePersonalLedger(monthYear);
+
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action === "add" || action === "new") {
+      setSelectedTransactionToEdit(null);
+      setIsAddDrawerOpen(true);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("action");
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   if (loading && transactions.length === 0) {
     return <PageSkeleton layout="dashboard" />;

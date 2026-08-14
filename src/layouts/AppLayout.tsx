@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Avatar, Button, Tooltip, Popover, Drawer } from "antd";
-import dayjs from "dayjs";
 import {
   LayoutDashboard,
   Users,
@@ -22,8 +21,6 @@ import { AddFriendModal } from "../components/AddFriendModal";
 import { NotificationList } from "../components/ui/NotificationList";
 import { MobileBottomNav } from "../components/navigation/MobileBottomNav";
 import { SidebarDrawer } from "../components/navigation/SidebarDrawer";
-import { AddPersonalTransactionDrawer } from "../components/personal/AddPersonalTransactionDrawer";
-import { usePersonalLedger } from "../hooks/usePersonalLedger";
 import { useNotifications } from "../hooks/supabase/useNotifications";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
@@ -47,7 +44,6 @@ export function AppLayout() {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isPersonalDrawerOpen, setIsPersonalDrawerOpen] = useState(false);
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false);
   const [mobileNotificationPopoverOpen, setMobileNotificationPopoverOpen] =
     useState(false);
@@ -56,9 +52,6 @@ export function AppLayout() {
   const { currentUser: contextUser, groups: contextGroups } = useAppData();
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearSeen } =
     useNotifications();
-  const { addTransaction: addPersonalTransaction } = usePersonalLedger(
-    dayjs().format("YYYY-MM")
-  );
 
 
   // Provide a safe fallback during initial load to prevent crashes.
@@ -313,7 +306,7 @@ export function AppLayout() {
       {/* ── Mobile Bottom Nav ── */}
       <MobileBottomNav
         onOpenGroupExpense={() => setIsExpenseModalOpen(true)}
-        onOpenPersonalExpense={() => setIsPersonalDrawerOpen(true)}
+        onOpenPersonalExpense={() => navigate("/personal?action=new")}
       />
 
       {/* ── Mobile Groups & Navigation Drawer ── */}
@@ -344,11 +337,6 @@ export function AppLayout() {
       <AddFriendModal
         open={isAddFriendOpen}
         onClose={() => setIsAddFriendOpen(false)}
-      />
-      <AddPersonalTransactionDrawer
-        open={isPersonalDrawerOpen}
-        onClose={() => setIsPersonalDrawerOpen(false)}
-        onAddTransaction={addPersonalTransaction}
       />
     </div>
   );
