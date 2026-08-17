@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from "uuid";
 import {
   Modal,
   Form,
-  InputNumber,
   Select,
   Button,
   message,
@@ -13,7 +12,6 @@ import { MOCK_CURRENT_USER, MOCK_PROFILES, MOCK_EXPENSES, MOCK_SETTLEMENTS } fro
 import {
   formatCents,
   getStoredCurrency,
-  getCurrencySymbol,
 } from "../utils/currency";
 import type { Profile } from "../types";
 import { useAppData, DEMO_MODE } from "../context/AppDataContext";
@@ -24,6 +22,7 @@ import { useAllSettlements } from "../hooks/supabase/useSettlementsData";
 import { createSettlement } from "../hooks/supabase/useMutations";
 import { DebtSimplifier } from "../core/domain/DebtSimplifier";
 import { supabase } from "../lib/supabase";
+import { HeroAmountInput } from "./ui/HeroAmountInput";
 
 const { Text } = Typography;
 
@@ -445,19 +444,15 @@ export function SettleUpModal({
             )}
           </div>
 
-          <Form.Item label="Amount" className="mb-3">
-            <InputNumber
-              prefix={getCurrencySymbol()}
-              placeholder="0.00"
-              min={0}
-              step={0.01}
-              precision={2}
-              className="w-full text-lg"
-              style={{ width: '100%' }}
+          <div className="mb-3">
+            <HeroAmountInput
               value={amountValue}
               onChange={(val) => setAmountValue(val)}
+              label="SETTLEMENT AMOUNT"
+              badgeVariant="success"
+              placeholder="0.00"
             />
-          </Form.Item>
+          </div>
 
           {totalCents > 0 && (
             <div

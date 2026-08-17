@@ -116,6 +116,7 @@ export function GroupHeader({
   const settingsMenu: MenuProps["items"] = [
     {
       key: "simplify",
+      className: 'h-12',
       label: (
         <div
           className="flex items-center justify-between min-w-[160px]"
@@ -123,7 +124,7 @@ export function GroupHeader({
         >
           <span>Simplify Debts</span>
           <Switch
-            size="small"
+            size="default"
             checked={group?.simplify_debts !== false}
             onChange={handleToggleSimplify}
           />
@@ -133,12 +134,14 @@ export function GroupHeader({
     { type: "divider" },
     {
       key: "leave",
+      className: 'h-12',
       icon: <LogOut className="h-4 w-4" />,
       label: "Leave Group",
       onClick: handleLeaveGroup,
     },
     {
       key: "delete",
+      className: 'h-12',
       danger: true,
       icon: <Trash2 className="h-4 w-4" />,
       label: "Delete Group",

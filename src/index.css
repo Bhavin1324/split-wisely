@@ -322,10 +322,14 @@
 
 /* =========================================================
    Ant Design Segmented: Solid Elevated Pill Overrides
+   (Applies globally across Pages, Modals, Drawers, & Portals)
    ========================================================= */
 
 /* 1. Sunken Outer Container Track */
-.ant-app .ant-segmented {
+.ant-app .ant-segmented,
+.ant-modal-root .ant-segmented,
+.ant-drawer .ant-segmented,
+.ant-segmented {
   background-color: var(--color-bg-base) !important;
   border: 1px solid var(--color-border-subtle) !important;
   border-radius: 0.75rem; /* rounded-xl */
@@ -335,7 +339,10 @@
 }
 
 /* 2. Base Tab Item (Consistent Weight Prevents Text Jumps) */
-.ant-app .ant-segmented .ant-segmented-item {
+.ant-app .ant-segmented .ant-segmented-item,
+.ant-modal-root .ant-segmented .ant-segmented-item,
+.ant-drawer .ant-segmented .ant-segmented-item,
+.ant-segmented .ant-segmented-item {
   color: var(--color-text-base) !important;
   border-radius: 0.5rem; /* rounded-lg */
   font-weight: 600 !important;
@@ -345,14 +352,20 @@
 }
 
 /* 3. Inactive Hover State (Isolated strictly to unselected items) */
-.ant-app .ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected):not(:active) {
+.ant-app .ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected):not(:active),
+.ant-modal-root .ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected):not(:active),
+.ant-drawer .ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected):not(:active),
+.ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected):not(:active) {
   /* color: var(--color-text-main) !important; */
   background-color: var(--color-bg-surface-hover) !important;
   /* border : 0.05rem solid transparent !important; */
 }
 
 /* 4. Sliding Active Thumb: SOLID Elevated Background + Primary Border */
-.ant-app .ant-segmented .ant-segmented-thumb {
+.ant-app .ant-segmented .ant-segmented-thumb,
+.ant-modal-root .ant-segmented .ant-segmented-thumb,
+.ant-drawer .ant-segmented .ant-segmented-thumb,
+.ant-segmented .ant-segmented-thumb {
   background-color: var(--color-bg-surface-hover) !important;
   /* border: 0.05rem solid var(--color-primary-500) !important; */
   border-radius: 0.5rem !important; /* rounded-lg */
@@ -363,16 +376,129 @@
 /* 5. Selected Item Label (Transparent wrapper letting thumb background shine through) */
 .ant-app .ant-segmented .ant-segmented-item-selected,
 .ant-app .ant-segmented .ant-segmented-item-selected:hover,
-.ant-app .ant-segmented .ant-segmented-item-selected:active {
+.ant-app .ant-segmented .ant-segmented-item-selected:active,
+.ant-modal-root .ant-segmented .ant-segmented-item-selected,
+.ant-modal-root .ant-segmented .ant-segmented-item-selected:hover,
+.ant-modal-root .ant-segmented .ant-segmented-item-selected:active,
+.ant-drawer .ant-segmented .ant-segmented-item-selected,
+.ant-drawer .ant-segmented .ant-segmented-item-selected:hover,
+.ant-drawer .ant-segmented .ant-segmented-item-selected:active,
+.ant-segmented .ant-segmented-item-selected,
+.ant-segmented .ant-segmented-item-selected:hover,
+.ant-segmented .ant-segmented-item-selected:active {
   background-color: var(--color-bg-surface-hover) !important;
   /* border: 0.05rem solid var(--color-primary-500) !important; */
 }
 
 .ant-app .ant-segmented .ant-segmented-item-selected .ant-segmented-item-label,
 .ant-app .ant-segmented .ant-segmented-item-selected:hover .ant-segmented-item-label,
-.ant-app .ant-segmented .ant-segmented-item-selected:active .ant-segmented-item-label {
+.ant-app .ant-segmented .ant-segmented-item-selected:active .ant-segmented-item-label,
+.ant-modal-root .ant-segmented .ant-segmented-item-selected .ant-segmented-item-label,
+.ant-modal-root .ant-segmented .ant-segmented-item-selected:hover .ant-segmented-item-label,
+.ant-modal-root .ant-segmented .ant-segmented-item-selected:active .ant-segmented-item-label,
+.ant-drawer .ant-segmented .ant-segmented-item-selected .ant-segmented-item-label,
+.ant-drawer .ant-segmented .ant-segmented-item-selected:hover .ant-segmented-item-label,
+.ant-drawer .ant-segmented .ant-segmented-item-selected:active .ant-segmented-item-label,
+.ant-segmented .ant-segmented-item-selected .ant-segmented-item-label,
+.ant-segmented .ant-segmented-item-selected:hover .ant-segmented-item-label,
+.ant-segmented .ant-segmented-item-selected:active .ant-segmented-item-label {
   color: var(--color-primary-500) !important;
   font-weight: 700 !important;
   transition: color 0.2s ease !important;
-  
 }
+
+/* =========================================================
+   Mobile Expense Bottom Sheet & Hero Input Custom Overrides
+   ========================================================= */
+
+.hero-amount-input input {
+  text-align: center !important;
+  font-size: 2.25rem !important; /* 36px */
+  line-height: 2.5rem !important;
+  font-weight: 800 !important;
+  color: var(--color-text-main) !important;
+  background: transparent !important;
+  font-family: inherit !important;
+  font-feature-settings: "tnum" on, "lnum" on !important;
+}
+
+.hero-amount-input.ant-input-number {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.hero-amount-input .ant-input-number-input-wrap {
+  height: 100% !important;
+}
+
+.mobile-expense-bottom-sheet .ant-drawer-content {
+  border-top-left-radius: 1.5rem !important;
+  border-top-right-radius: 1.5rem !important;
+  overflow: hidden !important;
+  background-color: var(--color-bg-surface) !important;
+  border-top: 1px solid var(--color-border-subtle) !important;
+}
+
+.mobile-expense-bottom-sheet .ant-drawer-header {
+  display: none !important;
+}
+
+.mobile-expense-bottom-sheet .ant-drawer-body {
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background-color: var(--color-bg-surface) !important;
+}
+
+@keyframes sheet-slide-up {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes sheet-slide-down {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes backdrop-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-sheet-slide-up {
+  animation: sheet-slide-up 220ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.animate-sheet-slide-down {
+  animation: sheet-slide-down 220ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.animate-backdrop-fade-in {
+  animation: backdrop-fade-in 200ms ease-out forwards;
+}
+
+.animate-backdrop-fade-out {
+  animation: backdrop-fade-out 200ms ease-out forwards;
+}
