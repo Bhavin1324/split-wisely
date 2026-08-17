@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+/// <reference types="vitest/config" />
+import { defineConfig } from 'vitest/config'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -34,6 +35,11 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     cors: true,
+  },
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['src/**/__tests__/**/*.test.ts'],
   },
 })
 

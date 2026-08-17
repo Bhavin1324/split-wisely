@@ -1,38 +1,64 @@
 import { useState, useEffect } from "react";
-import { Modal, Form, InputNumber, Button, App } from "antd";
+import { Modal, Form, InputNumber, Button, Switch, App } from "antd";
 import { getCurrencySymbol, formatCents } from "../../utils/currency";
 
 interface SetBudgetModalProps {
   open: boolean;
   onClose: () => void;
   currentBudgetCents: number | null;
-  onSave: (amountCents: number | null) => Promise<void> | void;
+  currentOpeningBalanceCents?: number | null;
+  currentDynamicBudgetEnabled?: boolean;
+  onSave: (
+    amountCents: number | null,
+    openingBalanceCents: number | null,
+    isManual: boolean,
+    dynamicBudgetEnabled: boolean
+  ) => Promise<void> | void;
 }
 
 export function SetBudgetModal({
   open,
   onClose,
   currentBudgetCents,
+  currentOpeningBalanceCents,
+  currentDynamicBudgetEnabled = false,
   onSave,
 }: SetBudgetModalProps) {
   const { message } = App.useApp();
   const [amountValue, setAmountValue] = useState<number | null>(
     currentBudgetCents ? currentBudgetCents / 100 : null
   );
+  const [openingBalanceValue, setOpeningBalanceValue] = useState<number | null>(
+    currentOpeningBalanceCents !== null && currentOpeningBalanceCents !== undefined
+      ? currentOpeningBalanceCents / 100
+      : null
+  );
+  const [dynamicBudget, setDynamicBudget] = useState<boolean>(currentDynamicBudgetEnabled);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
       setAmountValue(currentBudgetCents ? currentBudgetCents / 100 : null);
+      setOpeningBalanceValue(
+        currentOpeningBalanceCents !== null && currentOpeningBalanceCents !== undefined
+          ? currentOpeningBalanceCents / 100
+          : null
+      );
+      setDynamicBudget(currentDynamicBudgetEnabled);
     }
-  }, [open, currentBudgetCents]);
+  }, [open, currentBudgetCents, currentOpeningBalanceCents, currentDynamicBudgetEnabled]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
       const cents = amountValue && amountValue > 0 ? Math.round(amountValue * 100) : null;
-      await onSave(cents);
-      message.success(cents ? `Monthly budget set to ${formatCents(cents)}` : "Monthly budget cleared");
+      const openingBalanceCents =
+        openingBalanceValue !== null && !isNaN(openingBalanceValue)
+          ? Math.round(openingBalanceValue * 100)
+          : null;
+      const isManual = openingBalanceCents !== null;
+      await onSave(cents, openingBalanceCents, isManual, dynamicBudget);
+      message.success(cents ? `Monthly budget set to ${formatCents(cents)}` : "Monthly budget updated");
       onClose();
     } catch (e: any) {
       message.error(e.message || "Failed to update budget");
@@ -44,7 +70,12 @@ export function SetBudgetModal({
   const handleClear = async () => {
     setSubmitting(true);
     try {
-      await onSave(null);
+      const openingBalanceCents =
+        openingBalanceValue !== null && !isNaN(openingBalanceValue)
+          ? Math.round(openingBalanceValue * 100)
+          : null;
+      const isManual = openingBalanceCents !== null;
+      await onSave(null, openingBalanceCents, isManual, false);
       message.success("Budget removed successfully");
       onClose();
     } catch (e: any) {
@@ -66,6 +97,7 @@ export function SetBudgetModal({
       <Form layout="vertical" className="space-y-4 pt-3">
         <Form.Item label="Target Spending Budget for this Month">
           <InputNumber
+            size="large"
             controls={false}
             prefix={<span className="font-financial">{getCurrencySymbol()}</span>}
             placeholder="e.g. 50000"
@@ -79,21 +111,49 @@ export function SetBudgetModal({
           />
         </Form.Item>
 
+        <Form.Item label="Opening Balance (start of month)">
+          <InputNumber
+            size="large"
+            controls={false}
+            prefix={<span className="font-financial">{getCurrencySymbol()}</span>}
+            placeholder="e.g. 18685.59"
+            min={0}
+            precision={2}
+            style={{ width: "100%" }}
+            className="w-full text-lg font-financial"
+            value={openingBalanceValue}
+            onChange={(val) => setOpeningBalanceValue(val)}
+          />
+          <p className="text-xs text-text-muted mt-1">
+            Set your starting balance for the month. Once set, historical computation is bypassed.
+          </p>
+        </Form.Item>
+
+        <div className="flex items-center justify-between p-3 rounded-xl bg-bg-subtle/70 border border-border-subtle">
+          <div className="space-y-0.5 pr-3">
+            <div className="text-xs font-semibold text-text-main">Dynamic Budgeting</div>
+            <div className="text-[11px] text-text-muted">
+              Offset income and refunds directly against spending budget
+            </div>
+          </div>
+          <Switch checked={dynamicBudget} onChange={setDynamicBudget} size="default" />
+        </div>
+
         <p className="text-xs text-text-muted">
           Setting a target budget will calculate your daily safe spending limit and progress bar for the selected month.
         </p>
 
         <div className="flex justify-end gap-2 pt-4 border-t border-border-base">
           {currentBudgetCents !== null && (
-            <Button danger onClick={handleClear} loading={submitting}>
-              Remove Budget
+            <Button size="large" danger onClick={handleClear} loading={submitting}>
+              Remove
             </Button>
           )}
-          <Button onClick={onClose} disabled={submitting}>
+          <Button size="large" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button type="primary" onClick={handleSubmit} loading={submitting}>
-            Save Budget
+          <Button size="large" type="primary" onClick={handleSubmit} loading={submitting}>
+            Save
           </Button>
         </div>
       </Form>

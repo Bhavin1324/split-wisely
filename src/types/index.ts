@@ -157,12 +157,15 @@ export interface FriendWithBalance {
 export type TransactionType = 'INCOME' | 'EXPENSE';
 
 export interface PersonalBudget {
-  id: string;
+  id?: string;
   user_id: string;
   month_year: string; // "YYYY-MM"
   budget_amount: number | null; // cents
-  created_at: string;
-  updated_at: string;
+  opening_balance: number | null; // cents
+  is_opening_manual?: boolean;
+  dynamic_budget_enabled?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface PersonalTransaction {

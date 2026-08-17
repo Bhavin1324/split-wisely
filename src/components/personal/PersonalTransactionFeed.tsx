@@ -134,8 +134,8 @@ export function PersonalTransactionFeed({
                         <div
                           className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
                             isIncome
-                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
-                              : "bg-rose-500/10 border-rose-500/20 text-rose-500"
+                              ? "bg-[var(--color-success-bg)] border-[var(--color-success-border)] text-[var(--color-success-500)]"
+                              : "bg-[var(--color-danger-bg)] border-[var(--color-danger-border)] text-[var(--color-danger-500)]"
                           }`}
                         >
                           <Icon className="w-5 h-5" />
@@ -163,13 +163,13 @@ export function PersonalTransactionFeed({
                         <div className="text-right">
                           <div
                             className={`font-extrabold text-sm sm:text-base flex items-center justify-end gap-1 font-financial ${
-                              isIncome ? "text-emerald-500" : "text-rose-500"
+                              isIncome ? "text-[var(--color-success-500)]" : "text-[var(--color-danger-500)]"
                             }`}
                           >
                             {isIncome ? (
-                              <ArrowDownLeft className="w-4 h-4 text-emerald-500" />
+                              <ArrowDownLeft className="w-4 h-4 text-[var(--color-success-500)]" />
                             ) : (
-                              <ArrowUpRight className="w-4 h-4 text-rose-500" />
+                              <ArrowUpRight className="w-4 h-4 text-[var(--color-danger-500)]" />
                             )}
                             <span>
                               {isIncome ? "+" : "-"}

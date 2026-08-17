@@ -7,45 +7,39 @@ import { MOCK_PERSONAL_TRANSACTIONS, MOCK_PERSONAL_BUDGETS } from '../lib/mockDa
 import type { PersonalTransaction, PersonalBudget, TransactionType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
-export interface PersonalLedgerSummary {
-  openingBalance: number; // in cents
-  totalIncome: number;    // in cents
-  totalExpense: number;   // in cents
-  closingBalance: number; // in cents
-  budgetAmount: number | null; // in cents
-  remainingBudget: number | null; // in cents
-  safeDailyLimit: number | null; // in cents per day
-  daysRemaining: number;
-}
+import {
+  calculateLedgerSummary,
+  getTxMonth,
+  type PersonalLedgerSummary,
+} from '../utils/personalLedgerCalculations';
 
-const getTxMonth = (dateStr: string): string => {
-  if (!dateStr) return '';
-  if (dateStr.length >= 7 && dateStr[4] === '-') {
-    return dateStr.substring(0, 7);
-  }
-  return dayjs(dateStr).format('YYYY-MM');
-};
+export type { PersonalLedgerSummary };
+export { getTxMonth };
 
 export function usePersonalLedger(monthYear: string) {
   const { user } = useAuth();
   const userId = user?.id ?? 'user-1';
+  const prevMonthYear = dayjs(`${monthYear}-01`).subtract(1, 'month').format('YYYY-MM');
 
   const [transactions, setTransactions] = useState<PersonalTransaction[]>([]);
   const [budget, setBudget] = useState<PersonalBudget | null>(null);
+  const [previousBudget, setPreviousBudget] = useState<PersonalBudget | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   const fetchLedgerData = useCallback(async () => {
     if (DEMO_MODE) {
       const userTx = MOCK_PERSONAL_TRANSACTIONS.filter((t) => t.user_id === userId || userId === 'user-1');
       const userB = MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === monthYear) ?? null;
+      const prevB = MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === prevMonthYear) ?? null;
       setTransactions([...userTx]);
       setBudget(userB ? { ...userB } : null);
+      setPreviousBudget(prevB ? { ...prevB } : null);
       setLoading(false);
       return;
     }
 
     try {
-      const [txRes, budgetRes] = await Promise.all([
+      const [txRes, budgetRes, prevBudgetRes] = await Promise.all([
         supabase
           .from('personal_transactions')
           .select('*')
@@ -56,6 +50,12 @@ export function usePersonalLedger(monthYear: string) {
           .select('*')
           .eq('user_id', userId)
           .eq('month_year', monthYear)
+          .maybeSingle(),
+        supabase
+          .from('personal_budgets')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('month_year', prevMonthYear)
           .maybeSingle(),
       ]);
 
@@ -72,14 +72,21 @@ export function usePersonalLedger(monthYear: string) {
       } else {
         setBudget((budgetRes.data as PersonalBudget) || null);
       }
+
+      if (prevBudgetRes.error && prevBudgetRes.error.code !== 'PGRST116') {
+        setPreviousBudget(MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === prevMonthYear) || null);
+      } else {
+        setPreviousBudget((prevBudgetRes.data as PersonalBudget) || null);
+      }
     } catch (e) {
       console.error('Error fetching personal ledger:', e);
       setTransactions([...MOCK_PERSONAL_TRANSACTIONS]);
       setBudget(MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === monthYear) || null);
+      setPreviousBudget(MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === prevMonthYear) || null);
     } finally {
       setLoading(false);
     }
-  }, [userId, monthYear]);
+  }, [userId, monthYear, prevMonthYear]);
 
   // Initial Fetch and Realtime Subscription
   useEffect(() => {
@@ -112,65 +119,8 @@ export function usePersonalLedger(monthYear: string) {
 
   // Math Calculations for month M
   const summary: PersonalLedgerSummary = useMemo(() => {
-    const [targetYearStr, targetMonthStr] = monthYear.split('-');
-    const targetYear = parseInt(targetYearStr, 10);
-    const targetMonth = parseInt(targetMonthStr, 10);
-
-    // 1. Opening Balance (Sum of prior months < M)
-    let openingBalance = 0;
-    transactions.forEach((tx) => {
-      const txMonth = getTxMonth(tx.transaction_date);
-      if (txMonth && txMonth < monthYear) {
-        if (tx.type === 'INCOME') openingBalance += tx.amount;
-        if (tx.type === 'EXPENSE') openingBalance -= tx.amount;
-      }
-    });
-
-    // 2. Month M transactions
-    const monthTransactions = transactions.filter((tx) => getTxMonth(tx.transaction_date) === monthYear);
-    let totalIncome = 0;
-    let totalExpense = 0;
-
-    monthTransactions.forEach((tx) => {
-      if (tx.type === 'INCOME') totalIncome += tx.amount;
-      if (tx.type === 'EXPENSE') totalExpense += tx.amount;
-    });
-
-    // 3. Closing Balance & Budgets
-    const closingBalance = openingBalance + totalIncome - totalExpense;
-    const budgetAmount = budget?.budget_amount ?? null;
-    const remainingBudget = budgetAmount !== null ? budgetAmount - totalExpense : null;
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    const totalDaysInMonth = new Date(targetYear, targetMonth, 0).getDate();
-
-    let daysRemaining = 0;
-    if (targetYear === currentYear && targetMonth === currentMonth) {
-      daysRemaining = Math.max(1, totalDaysInMonth - now.getDate() + 1);
-    } else if (targetYear < currentYear || (targetYear === currentYear && targetMonth < currentMonth)) {
-      daysRemaining = 0;
-    } else {
-      daysRemaining = totalDaysInMonth;
-    }
-
-    let safeDailyLimit: number | null = null;
-    if (remainingBudget !== null && daysRemaining > 0) {
-      safeDailyLimit = Math.max(0, Math.floor(remainingBudget / daysRemaining));
-    }
-
-    return {
-      openingBalance,
-      totalIncome,
-      totalExpense,
-      closingBalance,
-      budgetAmount,
-      remainingBudget,
-      safeDailyLimit,
-      daysRemaining,
-    };
-  }, [transactions, budget, monthYear]);
+    return calculateLedgerSummary({ transactions, budget, previousBudget, monthYear });
+  }, [transactions, budget, previousBudget, monthYear]);
 
   // Current Month Transactions (Sorted newest first)
   const currentMonthTransactions = useMemo(() => {
@@ -307,28 +257,39 @@ export function usePersonalLedger(monthYear: string) {
   };
 
   // Action: Set Monthly Budget
-  const setMonthlyBudget = async (amountCents: number | null) => {
-    const updatedBudget: PersonalBudget | null =
-      amountCents !== null
-        ? {
-            id: budget?.id || uuidv4(),
-            user_id: userId,
-            month_year: monthYear,
-            budget_amount: amountCents,
-            created_at: budget?.created_at || new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-        : null;
+  const setMonthlyBudget = async (
+    amountCents: number | null,
+    openingBalanceCents: number | null = null,
+    isManual: boolean = false,
+    dynamicBudgetEnabled: boolean = false
+  ) => {
+    const hasData = amountCents !== null || isManual || dynamicBudgetEnabled;
+    const updatedBudget: PersonalBudget | null = hasData
+      ? {
+          id: budget?.id || uuidv4(),
+          user_id: userId,
+          month_year: monthYear,
+          budget_amount: amountCents,
+          opening_balance: isManual ? openingBalanceCents : null,
+          is_opening_manual: isManual,
+          dynamic_budget_enabled: dynamicBudgetEnabled,
+          created_at: budget?.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+      : null;
 
     setBudget(updatedBudget);
 
     if (DEMO_MODE) {
       const existingIdx = MOCK_PERSONAL_BUDGETS.findIndex((b) => b.month_year === monthYear);
       if (existingIdx !== -1) {
-        if (amountCents === null) {
+        if (!hasData) {
           MOCK_PERSONAL_BUDGETS.splice(existingIdx, 1);
         } else {
           MOCK_PERSONAL_BUDGETS[existingIdx].budget_amount = amountCents;
+          MOCK_PERSONAL_BUDGETS[existingIdx].opening_balance = isManual ? openingBalanceCents : null;
+          MOCK_PERSONAL_BUDGETS[existingIdx].is_opening_manual = isManual;
+          MOCK_PERSONAL_BUDGETS[existingIdx].dynamic_budget_enabled = dynamicBudgetEnabled;
         }
       } else if (updatedBudget) {
         MOCK_PERSONAL_BUDGETS.push(updatedBudget);
@@ -337,18 +298,29 @@ export function usePersonalLedger(monthYear: string) {
     }
 
     try {
-      const { error } = await supabase.from('personal_budgets').upsert(
-        {
-          user_id: userId,
-          month_year: monthYear,
-          budget_amount: amountCents,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,month_year' }
-      );
-      if (error) {
-        console.error('Supabase budget upsert error:', error.message);
-        throw error;
+      if (updatedBudget) {
+        const { error } = await supabase.from('personal_budgets').upsert(
+          {
+            user_id: userId,
+            month_year: monthYear,
+            budget_amount: amountCents,
+            opening_balance: isManual ? openingBalanceCents : null,
+            is_opening_manual: isManual,
+            dynamic_budget_enabled: dynamicBudgetEnabled,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,month_year' }
+        );
+        if (error) {
+          console.error('Supabase budget upsert error:', error.message);
+          throw error;
+        }
+      } else if (budget?.id) {
+        const { error } = await supabase.from('personal_budgets').delete().eq('id', budget.id);
+        if (error) {
+          console.error('Supabase budget delete error:', error.message);
+          throw error;
+        }
       }
       await fetchLedgerData();
     } catch (e) {

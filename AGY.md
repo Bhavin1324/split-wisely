@@ -24,7 +24,11 @@
     - Surfaces: `bg-bg-base`, `bg-bg-surface`, `bg-bg-surface-hover` / `bg-bg-subtle`
     - Typography: `text-text-main` / `text-text-base`, `text-text-muted`
     - Borders: `border-border-subtle` / `border-border-base`
-    - Accents: `var(--color-primary-500)`, `var(--color-danger-500)`, `var(--color-success-500)`
+    - Accents: `var(--color-primary-500)`, `var(--color-danger-500)`, `var(--color-success-500)`, `var(--color-warning-500)`
+  - **Semantic Tokens Only**: Never use generic color palettes like `emerald-500`, `rose-500`, or `amber-500`. 
+    - For positive/success: use `var(--color-success-*)`
+    - For negative/danger: use `var(--color-danger-*)`
+    - For warning/caution: use `var(--color-warning-*)`
 - **Financial Monospaced Typography**:
   - All monetary values, financial balances, daily safe limits, and amount inputs in accounting/ledger modules MUST use `.font-financial` (`font-family: var(--font-mono); font-variant-numeric: tabular-nums;`).
 - **Number Input Cleanliness**:
@@ -41,6 +45,11 @@
   - Settings offload: `Settings` must never reside on the mobile bottom bar; place it in `SidebarDrawer.tsx`.
   - Sidebar Drawer: Explicit width `300px`, `placement="left"`, vertical flex layout with Header, scrollable Body, and fixed User Profile Footer (`pb-6`).
   - Scroll Clearance: Mobile page wrappers must include `pb-32 md:pb-6` padding to prevent floating dock occlusion.
+- **Mobile Bottom Sheet Pattern**:
+  - All mobile full-sheet overlays MUST use `createPortal(..., document.body)` to escape ancestor CSS `transform`, `overflow`, or `perspective` stacking traps.
+  - Wire gesture drag-to-dismiss via `useBottomSheetDismiss` hook (`src/hooks/useBottomSheetDismiss.ts`). 
+  - Use universal `PointerEvent` API (`onPointerDown`, `onPointerMove`, `onPointerUp`, `onPointerCancel`) with `target.setPointerCapture(e.pointerId)`. NEVER use `TouchEvent` alone since it silently fails on desktop DevTools, mouse, and stylus.
+  - Desktop equivalent (>= 640px) must render as a centered `<Modal>`.
 
 ## 4. Key Commands
 - **Install Dependencies**: `npm install`
@@ -55,4 +64,6 @@
 - **Data Persistence (Soft Clears)**: Non-critical items (like seen notifications) must be hidden via a "Soft Clear" local mechanism (using `localStorage` state like `clearedUntil`) rather than executing permanent `DELETE` queries on the database. 
 - **Modal Context**: Always wrap interactive triggers using `App.useApp()` from Ant Design to ensure dynamically generated modals inherit the correct DOM context for theming.
 - **PostgREST Foreign Key Relations**: Columns intended for `profiles` joins must have foreign keys referencing `public.profiles(id)` with explicit constraint naming, followed by `NOTIFY pgrst, 'reload schema';` in migrations to avoid `PGRST200` errors.
+- **CONTEXT.md Updates**: Do NOT automatically propose or execute updates to `CONTEXT.md` after completing features. Only update it if the user explicitly requests it.
+- **Historical Ledger Queries**: Do NOT derive opening balances or historical metrics by fetching unbounded transaction histories to the client. Always rely on snapshotted ledger boundaries (e.g., an explicit `opening_balance` database column) to prevent O(n) performance degradation and memory bloat.
 

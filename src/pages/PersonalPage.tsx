@@ -92,6 +92,8 @@ export function PersonalPage() {
         open={isBudgetModalOpen}
         onClose={() => setIsBudgetModalOpen(false)}
         currentBudgetCents={budget?.budget_amount ?? null}
+        currentOpeningBalanceCents={budget?.opening_balance ?? undefined}
+        currentDynamicBudgetEnabled={budget?.dynamic_budget_enabled ?? false}
         onSave={setMonthlyBudget}
       />
     </div>

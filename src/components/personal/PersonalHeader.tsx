@@ -6,8 +6,6 @@ interface PersonalHeaderProps {
   monthYear: string; // "YYYY-MM"
   onMonthChange: (newMonthYear: string) => void;
   onOpenAddTransaction: () => void;
-  onOpenSetBudget?: () => void;
-  hasBudget?: boolean;
 }
 
 export function PersonalHeader({

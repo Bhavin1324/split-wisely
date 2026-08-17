@@ -203,6 +203,9 @@ export const MOCK_PERSONAL_BUDGETS: import('../types').PersonalBudget[] = [
     user_id: 'user-1',
     month_year: '2026-08',
     budget_amount: 5000000, // 50,000 INR (in cents/paisa)
+    opening_balance: 1868559, // 18,685.59 INR
+    is_opening_manual: true,
+    dynamic_budget_enabled: false,
     created_at: '2026-08-01T00:00:00Z',
     updated_at: '2026-08-01T00:00:00Z',
   },

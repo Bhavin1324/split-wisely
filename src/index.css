@@ -44,6 +44,10 @@
   --color-danger-500: var(--error-text);
   --color-danger-bg: var(--error-bg);
   --color-danger-border: var(--error-border);
+  
+  --color-warning-500: var(--warning-text);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
 
 
   /* Dynamic Primary Color Palette */
@@ -92,6 +96,10 @@
   --error-bg: #fff1f2;
   --error-text: #e11d48;
   --error-border: #fecdd3;
+
+  --warning-bg: #fffbeb;
+  --warning-text: #d97706;
+  --warning-border: #fde68a;
 
   /* Default Green (emerald) */
   --primary-50: #ecfdf5;
@@ -210,6 +218,10 @@
   --error-bg: rgba(244, 63, 94, 0.16);
   --error-text: #f43f5e;
   --error-border: rgba(244, 63, 94, 0.32);
+
+  --warning-bg: rgba(217, 119, 6, 0.16);
+  --warning-text: #f59e0b;
+  --warning-border: rgba(217, 119, 6, 0.32);
 
   /* Navigation Layer (Clean Translucent Glass) */
   --nav-bg: rgba(15, 19, 26, 0.85);
