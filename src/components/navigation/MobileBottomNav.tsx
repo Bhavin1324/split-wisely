@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 interface MobileBottomNavProps {
-  onOpenGroupExpense: () => void;
+  onOpenGroupExpense: (groupId?: string) => void;
   onOpenPersonalExpense: () => void;
 }
 
@@ -22,11 +22,18 @@ export function MobileBottomNav({
   const location = useLocation();
   const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
 
+  // 1. Detect Personal Route
   const isPersonalPage = location.pathname.startsWith("/personal");
+
+  // 2. Detect and Extract Active Group ID (handles /group/:id or /groups/:id)
+  const groupMatch = location.pathname.match(/^\/groups?\/([^/?#]+)/);
+  const activeGroupId = groupMatch ? groupMatch[1] : null;
 
   const handleFabClick = () => {
     if (isPersonalPage) {
       onOpenPersonalExpense();
+    } else if (activeGroupId) {
+      onOpenGroupExpense(activeGroupId);
     } else {
       setIsQuickMenuOpen(true);
     }

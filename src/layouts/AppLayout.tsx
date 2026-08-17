@@ -41,6 +41,7 @@ const NAV_ITEMS = [
  */
 export function AppLayout() {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [selectedExpenseGroupId, setSelectedExpenseGroupId] = useState<string | null>(null);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -49,7 +50,7 @@ export function AppLayout() {
     useState(false);
   const navigate = useNavigate();
   const { signOut } = useAuth();
-  const { currentUser: contextUser, groups: contextGroups } = useAppData();
+  const { currentUser: contextUser, groups: contextGroups, refetchData } = useAppData();
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearSeen } =
     useNotifications();
 
@@ -305,7 +306,10 @@ export function AppLayout() {
 
       {/* ── Mobile Bottom Nav ── */}
       <MobileBottomNav
-        onOpenGroupExpense={() => setIsExpenseModalOpen(true)}
+        onOpenGroupExpense={(groupId?: string) => {
+          setSelectedExpenseGroupId(groupId || null);
+          setIsExpenseModalOpen(true);
+        }}
         onOpenPersonalExpense={() => navigate("/personal?action=new")}
       />
 
@@ -327,7 +331,12 @@ export function AppLayout() {
       {/* ── Modals & Drawers ── */}
       <AddExpenseModal
         open={isExpenseModalOpen}
-        onClose={() => setIsExpenseModalOpen(false)}
+        groupId={selectedExpenseGroupId || undefined}
+        onClose={() => {
+          setIsExpenseModalOpen(false);
+          setSelectedExpenseGroupId(null);
+        }}
+        onSuccess={refetchData}
       />
       <CreateGroupModal
         open={isCreateGroupOpen}

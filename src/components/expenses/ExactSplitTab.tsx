@@ -18,30 +18,44 @@ export function ExactSplitTab({
   setExactAmounts,
 }: ExactSplitTabProps) {
   return (
-    <div className="space-y-3">
-      {members.map((m) => (
-        <div key={m.user_id} className="flex items-center gap-2 sm:gap-3">
-          <span className="flex-1 min-w-0 truncate text-sm font-medium">{memberName(m.user_id)}</span>
-          <InputNumber
-            prefix={getCurrencySymbol()}
-            min={0}
-            step={0.01}
-            precision={2}
-            className="w-[120px] shrink-0"
-            placeholder="0.00"
-            value={exactAmounts[m.user_id]}
-            onChange={(val) =>
-              setExactAmounts((prev) => ({ ...prev, [m.user_id]: val }))
-            }
-          />
-        </div>
-      ))}
+    <div className="space-y-1">
+      <div className="divide-y divide-border-subtle/50">
+        {members.map((m) => (
+          <div
+            key={m.user_id}
+            className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
+          >
+            <div className="min-w-0 flex-1">
+              <span className="truncate text-sm font-medium text-text-main block">
+                {memberName(m.user_id)}
+              </span>
+            </div>
+            <div className="shrink-0">
+              <InputNumber
+                size="large"
+                prefix={getCurrencySymbol()}
+                min={0}
+                step={0.01}
+                precision={2}
+                stringMode={false}
+                placeholder="0.00"
+                inputMode="decimal"
+                className="w-28 sm:w-36 shrink-0 rounded-xl font-financial text-sm font-semibold"
+                value={exactAmounts[m.user_id]}
+                onChange={(val) =>
+                  setExactAmounts((prev) => ({ ...prev, [m.user_id]: val }))
+                }
+              />
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div
-        className={`mt-2 rounded-md px-3 py-2 text-sm font-medium ${
+        className={`mt-2.5 rounded-xl px-3 py-2 text-xs font-semibold font-financial border ${
           exactRemaining === 0
-            ? 'bg-success-bg text-success-text border-success-border'
-            : 'bg-error-bg text-error-text border-error-border'
+            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+            : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
         }`}
       >
         {exactRemaining === 0
