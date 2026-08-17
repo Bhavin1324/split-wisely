@@ -1,0 +1,104 @@
+import { Card, Tag } from 'antd';
+import { ArrowUpRight, ArrowDownRight, AlertTriangle, CheckCircle, TrendingUp } from 'lucide-react';
+import type { AnalyticsSummary } from '../../hooks/useAnalyticsData';
+import { formatCents } from '../../utils/currency';
+
+interface Props {
+  summary: AnalyticsSummary;
+}
+
+export function AnalyticsHeroKPIs({ summary }: Props) {
+  const { hybrid, totalDeltaPercent, burnRate } = summary;
+
+  const isUp = totalDeltaPercent !== null && totalDeltaPercent > 0;
+  const isDown = totalDeltaPercent !== null && totalDeltaPercent < 0;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* 1. Total Net Cost */}
+      <Card className="rounded-2xl border-border-base shadow-sm h-full flex flex-col justify-between">
+        <div className="text-xs text-text-muted font-medium uppercase tracking-wider mb-2">Total Net Cost</div>
+        <div className="text-3xl font-bold font-financial text-text-base">
+          {formatCents(hybrid.totalTrueCostCents)}
+        </div>
+        <div className="mt-2 flex items-center gap-1.5">
+          {totalDeltaPercent !== null ? (
+            <Tag
+              color="borderless"
+              className={`rounded-full m-0 px-2 flex items-center gap-1 ${
+                isDown 
+                  ? 'bg-[var(--color-success-bg)] text-[var(--color-success-600)]' 
+                  : isUp 
+                    ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger-600)]'
+                    : 'bg-bg-subtle text-text-muted'
+              }`}
+            >
+              {isDown && <ArrowDownRight className="w-3 h-3" />}
+              {isUp && <ArrowUpRight className="w-3 h-3" />}
+              <span className="font-semibold text-xs font-financial">{Math.abs(totalDeltaPercent)}%</span>
+            </Tag>
+          ) : (
+            <span className="text-xs text-text-muted">No prior data</span>
+          )}
+          {totalDeltaPercent !== null && <span className="text-xs text-text-muted">vs last period</span>}
+        </div>
+      </Card>
+
+      {/* 2. Projected Run-Rate */}
+      <Card className="rounded-2xl border-border-base shadow-sm h-full flex flex-col justify-between">
+        <div className="text-xs text-text-muted font-medium uppercase tracking-wider mb-2">Projected Run-Rate</div>
+        <div className="text-3xl font-bold font-financial text-primary-600">
+          {formatCents(burnRate.projectedPeriodTotalCents)}
+        </div>
+        <div className="mt-2 flex items-center gap-1.5">
+          {burnRate.status === 'on-track' && (
+            <Tag color="borderless" className="rounded-full bg-[var(--color-success-bg)] text-[var(--color-success-600)] m-0 flex items-center gap-1 px-2">
+              <CheckCircle className="w-3 h-3" /> <span className="font-semibold">On Track</span>
+            </Tag>
+          )}
+          {burnRate.status === 'warning' && (
+            <Tag color="borderless" className="rounded-full bg-[var(--color-warning-bg)] text-[var(--color-warning-600)] m-0 flex items-center gap-1 px-2">
+              <AlertTriangle className="w-3 h-3" /> <span className="font-semibold">Nearing Cap</span>
+            </Tag>
+          )}
+          {burnRate.status === 'overspend' && (
+            <Tag color="borderless" className="rounded-full bg-[var(--color-danger-bg)] text-[var(--color-danger-600)] m-0 flex items-center gap-1 px-2">
+              <TrendingUp className="w-3 h-3" /> <span className="font-semibold">Overspend by <span className="font-financial">{formatCents(Math.abs(burnRate.budgetVarianceCents || 0))}</span></span>
+            </Tag>
+          )}
+          {burnRate.status === 'no-budget' && (
+            <Tag color="borderless" className="rounded-full bg-bg-subtle text-text-muted m-0 flex items-center gap-1 px-2">
+              <span className="font-semibold cursor-pointer hover:text-text-main">+ Set Budget</span>
+            </Tag>
+          )}
+        </div>
+        {summary.safeDailySpendCents !== null && (
+          <div className="mt-3 bg-[var(--color-success-bg)] text-[var(--color-success-600)] border border-[var(--color-success-border)] rounded-lg px-2.5 py-1.5 text-xs font-semibold inline-flex items-center self-start font-financial">
+            Safe to spend: {formatCents(summary.safeDailySpendCents)} / day
+          </div>
+        )}
+      </Card>
+
+      {/* 3. Cash Outlay vs Net Cost */}
+      <Card className="rounded-2xl border-border-base shadow-sm h-full flex flex-col justify-between">
+        <div className="text-xs text-text-muted font-medium uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>Cash Outlay</span>
+          <span className="text-text-muted font-normal lowercase tracking-normal bg-bg-subtle px-1.5 rounded-md">actual paid</span>
+        </div>
+        <div className="text-3xl font-bold font-financial text-text-base">
+          {formatCents(hybrid.totalOutlayCents)}
+        </div>
+        <div className="mt-2">
+          {hybrid.reimbursementPendingCents > 0 ? (
+            <div className="text-xs flex items-center gap-1 text-[var(--color-success-600)] bg-[var(--color-success-bg)] px-2 py-0.5 rounded-full inline-flex font-medium">
+              <ArrowDownRight className="w-3 h-3" />
+              Expecting <span className="font-financial font-bold">{formatCents(hybrid.reimbursementPendingCents)}</span> back
+            </div>
+          ) : (
+            <div className="text-xs text-text-muted">Outlay matches net cost</div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}

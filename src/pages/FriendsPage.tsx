@@ -139,7 +139,7 @@ export function FriendsPage() {
         <div className="flex items-center gap-2 self-end sm:self-center">
           <span className="text-xs text-text-muted font-medium">Show Settled Friends</span>
           <Switch
-            size="small"
+            size="default"
             checked={showSettled}
             onChange={setShowSettled}
           />

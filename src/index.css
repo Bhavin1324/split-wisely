@@ -419,6 +419,73 @@
   transition: color 0.2s ease !important;
 }
 
+/* ==========================================================================
+   Ant Design Tag & Status Pill Global Overrides
+   ========================================================================== */
+.ant-tag {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+  font-size: 0.75rem !important; /* 12px */
+  font-weight: 600 !important;
+  line-height: 1rem !important;
+  padding: 0.2rem 0.55rem !important;
+  border-radius: 0.5rem !important; /* rounded-lg */
+  margin: 0 !important;
+  transition: all 150ms ease !important;
+}
+
+/* Default / Neutral Tag */
+.ant-tag,
+.ant-tag-default {
+  background-color: var(--color-bg-subtle, rgba(255, 255, 255, 0.05)) !important;
+  color: var(--color-text-muted, #94a3b8) !important;
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08)) !important;
+}
+
+/* Success / Inflow / Settled Tag */
+.ant-tag-success,
+.ant-tag-green {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  color: var(--color-success-500, #10b981) !important;
+  border: 1px solid rgba(16, 185, 129, 0.25) !important;
+}
+
+/* Danger / Outflow / Debt Tag */
+.ant-tag-error,
+.ant-tag-red {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: var(--color-danger-500, #ef4444) !important;
+  border: 1px solid rgba(239, 68, 68, 0.25) !important;
+}
+
+/* Warning / Pending Tag */
+.ant-tag-warning,
+.ant-tag-gold,
+.ant-tag-orange {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  color: var(--color-warning-500, #f59e0b) !important;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+}
+
+/* Primary / Brand / Group Tag */
+.ant-tag-processing,
+.ant-tag-blue {
+  background-color: rgba(249, 115, 22, 0.12) !important;
+  color: var(--color-primary-500, #f97316) !important;
+  border: 1px solid rgba(249, 115, 22, 0.25) !important;
+}
+
+/* Closable icon hover adjustment */
+.ant-tag .ant-tag-close-icon {
+  color: currentColor !important;
+  opacity: 0.6;
+  margin-inline-start: 4px !important;
+}
+.ant-tag .ant-tag-close-icon:hover {
+  opacity: 1;
+}
+
 /* =========================================================
    Mobile Expense Bottom Sheet & Hero Input Custom Overrides
    ========================================================= */

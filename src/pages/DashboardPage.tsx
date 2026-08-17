@@ -5,6 +5,7 @@ import {
   TrendingUp,
   TrendingDown,
   Receipt,
+  Plus,
 } from 'lucide-react';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
@@ -44,7 +45,6 @@ export function DashboardPage() {
   const allExpenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses || []);
 
   const { balances, expensesByMonth } = useDashboardData(userId, groups, allExpenses, liveSettlements || []);
-  console.log("Groups, ", groups)
   const displayedGroups = groups.filter((g) => {
     if (!hideSettledGroups) return true;
     const bal = balances.groupBalances[g.id] ?? 0;
@@ -58,7 +58,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6 lg:px-8 pb-32 md:pb-8">
       {/* ── Page header ──────────────────────────────────────── */}
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight text-text-base">
@@ -123,11 +123,11 @@ export function DashboardPage() {
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-text-base mb-0">Your Groups</h2>
-            <Tag color="default" className="rounded-full text-xs m-0">
+            <Tag className="rounded-full">
               {displayedGroups.length} of {groups.length}
             </Tag>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3">
             <Segmented
               options={[
                 { label: 'Hide Settled', value: true },
@@ -140,9 +140,10 @@ export function DashboardPage() {
             <button
               type="button"
               onClick={() => setIsCreateGroupOpen(true)}
-              className="flex items-center gap-1 text-xs font-semibold text-primary-500 bg-primary-500/10 px-3 py-1 rounded-full border border-primary-500/20 hover:bg-primary-500/20 transition-colors"
+              className="group inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-400 bg-primary-500/10 hover:bg-primary-500/20 active:bg-primary-500/25 border border-primary-500/30 hover:border-primary-500/50 rounded-xl transition-all duration-150 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary-500/40 shadow-sm cursor-pointer"
             >
-              + Create Group
+              <Plus className="w-3.5 h-3.5 text-primary-400 transition-transform duration-150 group-hover:scale-110" />
+              <span>Create Group</span>
             </button>
           </div>
         </div>

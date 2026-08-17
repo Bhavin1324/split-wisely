@@ -16,6 +16,7 @@
   - Employ the Orchestrator Pattern: Complex pages (like `GroupDetailPage.tsx`) must delegate all UI rendering to imported sub-components.
 - **Error Handling**: Use React Error Boundaries globally. Avoid silent failures; surface errors gracefully using Ant Design's `App.useApp().message` API.
 - **TypeScript**: Enforce strict typings. Minimize the use of `any`.
+- **Hybrid Data Pipelines**: For full-stack intelligence and cross-ledger metrics, mathematically combine and normalize Personal Tracked transactions with explicit Group Split liabilities (`ExpenseSplit.amount_owed`) into unified interfaces. Prevent data silos by treating net group shares and standalone personal transactions identically downstream.
 
 ## 3. UI/UX & Design System Guidelines
 - **Centralized Theming**: 
@@ -39,6 +40,10 @@
   - Rely on structural whitespace (padding/margins) rather than visible borders.
   - Keep interfaces flat. Never nest more than two cards deep. 
   - Forbidden tropes: Do not overuse Dashboards, Bento boxes, or apply purple-on-dark motifs.
+- **Interactive Call-To-Actions (CTAs)**:
+  - Avoid styling actionable buttons like informational tags/badges (e.g., flat `py-1 rounded-full bg-primary/10` without hover states).
+  - Ensure all primary buttons provide distinct tactile micro-interactions (`active:scale-[0.97]`), clear hover transitions (`transition-all duration-150`), and accessibility rings (`focus:ring-2 focus:outline-none`).
+  - Avoid raw text characters for icons (e.g., `+` or `<`); strictly import and use SVG icons from `lucide-react`.
 - **Responsiveness**: Rely on Tailwind's `sm:`, `md:`, and `lg:` breakpoints. Use `<Drawer placement="top">` for mobile overlays instead of cramped `<Popover>` or `<Dropdown>` menus to avoid spatial clipping.
 - **Mobile Navigation Architecture**:
   - Bottom dock (`< 768px`): Strict 5-slot balanced grid `[ Dashboard | Friends | Central FAB | Personal | Analytics ]`.

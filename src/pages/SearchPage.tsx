@@ -130,12 +130,12 @@ export function SearchPage() {
       </Card>
 
       {/* Results Header */}
-      <div className="flex items-center justify-between text-sm text-text-muted">
+      <div className="flex items-center justify-between text-sm text-text-muted mt-2">
         <span>Found {filteredExpenses.length} matching expenses</span>
         {(searchTerm || selectedCategory || selectedGroup) && (
-          <Tag color="blue" className="rounded-full">
+          <div className="rounded-full text-primary-500 bg-bg-surface px-2 py-1">
             Filtered view
-          </Tag>
+          </div>
         )}
       </div>
 
@@ -167,11 +167,11 @@ export function SearchPage() {
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold text-text-base truncate">{expense.description}</div>
                     <div className="text-xs text-text-muted mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="truncate">Paid by <strong className="text-gray-700">{payerName}</strong></span>
-                      {group && <span className="text-gray-300">•</span>}
+                      <span className="truncate">Paid by <strong className="text-text-main">{payerName}</strong></span>
+                      {group && <span className="text-text-muted">•</span>}
                       {group && <span className="truncate">{group.name}</span>}
-                      {category && <Tag className="rounded-full text-[10px] m-0 border-border-base">{category.name}</Tag>}
-                      <span className="text-gray-300">•</span>
+                      {category && <Tag>{category.name}</Tag>}
+                      <span className="text-text-muted">•</span>
                       <span className="whitespace-nowrap">{formatDate(expense.expense_date ?? expense.created_at)}</span>
                     </div>
                   </div>

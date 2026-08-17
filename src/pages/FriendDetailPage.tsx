@@ -244,8 +244,8 @@ export function FriendDetailPage() {
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
-                    <span className="text-sm sm:text-base font-medium text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-5 w-5 text-[var(--color-success-500)] shrink-0" />
+                    <span className="text-sm sm:text-base font-medium text-[var(--color-success-500)]">
                       All settled up!
                     </span>
                   </>
@@ -341,7 +341,7 @@ export function FriendDetailPage() {
                     className="flex items-center justify-between p-4 bg-bg-surface rounded-xl border border-border-base shadow-sm hover:shadow-md transition-all"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-success-bg)] text-[var(--color-success-500)]">
                         <Handshake className="h-5 w-5" strokeWidth={1.8} />
                       </div>
                       <div>
@@ -351,7 +351,8 @@ export function FriendDetailPage() {
                           </span>
                           {groupObj ? (
                             <Tag
-                              className="cursor-pointer border-none bg-primary-500/10 text-primary-500 font-semibold rounded-full text-[10px] px-2 py-0.5 m-0"
+                              className="cursor-pointer"
+                              color="blue"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(`/groups/${groupObj.id}`);
@@ -360,7 +361,7 @@ export function FriendDetailPage() {
                               {groupObj.name}
                             </Tag>
                           ) : (
-                            <Tag color="green" className="rounded-full text-[10px] font-semibold border-none px-2 py-0.5 m-0">
+                            <Tag color="green">
                               Direct Settlement
                             </Tag>
                           )}
@@ -372,7 +373,7 @@ export function FriendDetailPage() {
                     </div>
 
                     <div className="text-right">
-                      <div className="text-base font-bold font-financial text-emerald-600 dark:text-emerald-400">
+                      <div className="text-base font-bold font-financial text-[var(--color-success-500)]">
                         {formatCents(settlement.amount)}
                       </div>
                       <div className="text-xs font-medium text-text-muted mt-0.5">
@@ -409,7 +410,8 @@ export function FriendDetailPage() {
                         <span>{expense.description}</span>
                         {groupObj ? (
                           <Tag
-                            className="cursor-pointer border-none bg-primary-500/10 text-primary-500 font-semibold rounded-full text-[10px] px-2 py-0.5 m-0"
+                            className="cursor-pointer"
+                            color="blue"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/groups/${groupObj.id}`);
@@ -418,7 +420,7 @@ export function FriendDetailPage() {
                             {groupObj.name}
                           </Tag>
                         ) : (
-                          <Tag className="rounded-full text-[10px] font-semibold border-none px-2 py-0.5 m-0 bg-bg-subtle text-text-muted">
+                          <Tag>
                             Direct Expense
                           </Tag>
                         )}
