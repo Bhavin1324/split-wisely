@@ -65,31 +65,44 @@ export function GroupCard({
       onClick={() => navigate(`/groups/${group.id}`)}
       className="
         group relative flex flex-col justify-between overflow-hidden rounded-2xl
-        border border-border-base bg-bg-surface p-5 text-left shadow-sm
+        border border-border-base bg-bg-surface text-left shadow-sm
         transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer
       "
     >
-      {/* Header */}
-      <div>
-        <div className="flex items-start justify-between">
-          <h3 className="text-base font-bold text-text-base leading-snug pr-4">
-            {group.name}
-          </h3>
-          <ChevronRight
-            className="
-              h-4 w-4 flex-shrink-0 text-gray-300
-              transition-transform duration-200 group-hover:translate-x-0.5
-              group-hover:text-text-muted
-            "
+      {/* Optional Cover Banner Header */}
+      {group.cover_image_url && (
+        <div className="relative h-20 w-full overflow-hidden bg-bg-subtle">
+          <img
+            src={group.cover_image_url}
+            alt={group.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg-surface via-transparent to-black/30" />
         </div>
-        <div className="mt-1 flex items-center gap-1.5 text-xs text-text-muted">
-          <Users className="h-3.5 w-3.5" />
-          <span>
-            {memberCount} member{memberCount !== 1 ? 's' : ''}
-          </span>
+      )}
+
+      <div className="p-5 flex-1 flex flex-col justify-between">
+        {/* Header */}
+        <div>
+          <div className="flex items-start justify-between">
+            <h3 className="text-base font-bold text-text-base leading-snug pr-4">
+              {group.name}
+            </h3>
+            <ChevronRight
+              className="
+                h-4 w-4 flex-shrink-0 text-text-muted
+                transition-transform duration-200 group-hover:translate-x-0.5
+                group-hover:text-text-base
+              "
+            />
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-text-muted">
+            <Users className="h-3.5 w-3.5" />
+            <span>
+              {memberCount} member{memberCount !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
-      </div>
 
       {/* Inner Status Breakdown Box */}
       <div className="mt-3 bg-bg-subtle rounded-xl p-2.5 border border-border-base/60">
@@ -158,5 +171,6 @@ export function GroupCard({
         </div>
       </div>
     </div>
+  </div>
   );
 }

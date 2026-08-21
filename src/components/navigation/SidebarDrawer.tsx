@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Drawer, Avatar, Button } from "antd";
+import { Drawer, Button } from "antd";
 import { NavLink } from "react-router-dom";
 import { Receipt, Settings, Plus, LogOut, X, QrCode } from "lucide-react";
 import type { Group, Profile } from "../../types";
 import { MyQrModal } from "../MyQrModal";
+import { UserAvatar } from "../ui/UserAvatar";
 
 interface SidebarDrawerProps {
   open: boolean;
@@ -142,19 +143,7 @@ export function SidebarDrawer({
         {/* ── 3. Fixed Footer Section ── */}
         <div className="shrink-0 p-4 border-t border-border-base bg-bg-subtle/50 pb-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <Avatar
-              size={32}
-              style={{
-                backgroundColor: "var(--color-primary-500)",
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
-              {(currentUser.full_name || "User")
-                .split(" ")
-                .map((n: string) => n[0])
-                .join("")}
-            </Avatar>
+            <UserAvatar user={currentUser} size={32} />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold truncate text-text-base">
                 {currentUser.full_name || "User"}

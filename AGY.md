@@ -40,6 +40,19 @@
   - Rely on structural whitespace (padding/margins) rather than visible borders.
   - Keep interfaces flat. Never nest more than two cards deep. 
   - Forbidden tropes: Do not overuse Dashboards, Bento boxes, or apply purple-on-dark motifs.
+- **Chart Visual Cleanliness & Accessibility (Recharts)**:
+  - In `<BarChart>`, suppress the default muddy grey cursor backdrop by adding `cursor={false}` to `<RechartsTooltip />`.
+  - Suppress browser SVG click/tap black focus rings on all chart containers by applying:
+    `select-none outline-none focus:outline-none focus-visible:outline-none [&_.recharts-surface]:outline-none [&_.recharts-wrapper]:outline-none [&_svg]:outline-none [&_*]:focus:outline-none`.
+- **Layman-First Financial Terminology**:
+  - Never use corporate accounting jargon. Always use plain-English conversational labels:
+    - `Your True Spend` (not *Total Net Cost* or *Net Consumption*)
+    - `Paid from Pocket` (not *Cash Outlay* or *Disbursement*)
+    - `Month-End Forecast` (not *Projected Run-Rate*)
+    - `Spending Pace` (not *Velocity*)
+    - `Biggest Expenses` (not *Top Outliers*)
+- **Hero KPI Cards & Actionable Affordances**:
+  - Avoid "false affordances": Any card with hover lift (`hover:-translate-y-0.5`, `hover:shadow-lg`) must have an active `onClick` shortcut leading to the relevant actionable view (e.g., *You have to pay* $\to$ `/friends?filter=you_owe`, *You will receive* $\to$ `/friends?filter=owes_you`, *Total Balance* $\to$ `/spending`).
 - **Interactive Call-To-Actions (CTAs)**:
   - Avoid styling actionable buttons like informational tags/badges (e.g., flat `py-1 rounded-full bg-primary/10` without hover states).
   - Ensure all primary buttons provide distinct tactile micro-interactions (`active:scale-[0.97]`), clear hover transitions (`transition-all duration-150`), and accessibility rings (`focus:ring-2 focus:outline-none`).
@@ -65,6 +78,7 @@
 ## 5. Constraints & Non-Negotiables
 - **Dark Mode Constraint**: Handled exclusively via the `<html data-scheme="dark">` attribute. Never manipulate the AntD `ConfigProvider` dynamically in JS for theme switching.
 - **Currency Integer Storage Invariant**: Database amounts must ALWAYS be stored as integer cents/paisa (`BIGINT`). Multiply by 100 before persisting, divide by 100 for display (`cents / 100`).
+- **PWA Clipboard Synchronous Invariant**: When copying values displayed in rendered textboxes (such as UPI IDs / VPAs), avoid solely relying on async `navigator.clipboard.writeText()` because promise resolution destroys the browser's transient user activation token. Always use synchronous DOM selection (`input.focus()`, `input.select()`, `document.execCommand('copy')`) on the rendered `<input ref={...} />` to guarantee 100% clipboard success on standalone PWAs and mobile browsers.
 - **UPI Deep Link Strictness**: The BHIM UPI parser is exceptionally strict. It is **mandatory** to use the `encodeUpiParam` wrapper to strip all non-alphanumeric characters (like URL-encoded spaces `%20` or `+`) from Payee Name (`pn`) and Transaction Note (`tn`) before generating `upi://pay` links.
 - **Data Persistence (Soft Clears)**: Non-critical items (like seen notifications) must be hidden via a "Soft Clear" local mechanism (using `localStorage` state like `clearedUntil`) rather than executing permanent `DELETE` queries on the database. 
 - **Modal Context**: Always wrap interactive triggers using `App.useApp()` from Ant Design to ensure dynamically generated modals inherit the correct DOM context for theming.

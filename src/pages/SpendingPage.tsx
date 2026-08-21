@@ -114,6 +114,8 @@ export function SpendingPage() {
       <AnalyticsGuideModal
         open={isGuideOpen}
         onClose={() => setIsGuideOpen(false)}
+        summary={analytics}
+        periodLabel={periodLabel}
       />
     </div>
   );

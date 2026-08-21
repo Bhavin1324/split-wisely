@@ -191,7 +191,7 @@ export function MobileBottomNav({
                 setIsQuickMenuOpen(false);
                 onOpenGroupExpense();
               }}
-              className="flex items-center gap-4 p-3.5 rounded-2xl bg-bg-subtle hover:bg-border-base transition-colors text-left border border-border-base w-full"
+              className="flex items-center gap-4 p-3.5 rounded-2xl bg-bg-base hover:bg-border-base transition-colors text-left border border-border-base w-full"
             >
               <div className="w-11 h-11 rounded-xl bg-primary-500/10 text-primary-500 flex items-center justify-center shrink-0">
                 <Receipt className="w-5 h-5" />
@@ -208,9 +208,9 @@ export function MobileBottomNav({
                 setIsQuickMenuOpen(false);
                 onOpenPersonalExpense();
               }}
-              className="flex items-center gap-4 p-3.5 rounded-2xl bg-bg-subtle hover:bg-border-base transition-colors text-left border border-border-base w-full"
+              className="flex items-center gap-4 p-3.5 rounded-2xl bg-bg-base hover:bg-border-base transition-colors text-left border border-border-base w-full"
             >
-              <div className="w-11 h-11 rounded-xl bg-[var(--color-danger-500)]/10 text-[var(--color-danger-500)] flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 rounded-xl bg-[var(--color-primary-500)]/10 text-[var(--color-primary-500)] flex items-center justify-center shrink-0">
                 <Wallet className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">

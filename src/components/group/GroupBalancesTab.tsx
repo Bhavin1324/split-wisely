@@ -1,6 +1,7 @@
-import { Card, Avatar, Button } from "antd";
+import { Card, Button } from "antd";
 import { CheckCircle2, Calculator } from "lucide-react";
 import { formatCents } from "../../utils/currency";
+import { UserAvatar } from "../ui/UserAvatar";
 
 export function GroupBalancesTab({
   displayedDebts,
@@ -18,17 +19,23 @@ export function GroupBalancesTab({
   return (
     <div className="space-y-4">
       <Card className="rounded-2xl border-border-base shadow-sm">
-        <h3 className="text-lg font-bold text-text-base mb-4 flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-primary-500" />
-          Simplified Repayment Instructions
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-text-base mb-0">Group Balances</h2>
+          <Button
+            type="text"
+            icon={<Calculator className="h-4 w-4 text-primary-500" />}
+            onClick={onOpenLedger}
+            className="text-xs font-semibold text-primary-500 hover:text-primary-600 hover:bg-primary-500/10 flex items-center gap-1"
+          >
+            Show Calculations
+          </Button>
+        </div>
 
         {displayedDebts.length === 0 ? (
           <div className="py-8 text-center text-text-muted">
-            <CheckCircle2 className="h-12 w-12 text-primary-500 mx-auto mb-2 opacity-80" />
-            <p className="font-medium text-gray-700">
-              Everyone in this group is settled up!
-            </p>
+            <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-500" />
+            <p className="font-medium text-text-base">Everyone is settled up!</p>
+            <p className="text-xs">No outstanding balances in this group.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -37,6 +44,7 @@ export function GroupBalancesTab({
               const toProfile = getProfile(debt.to);
               const isUserDebtor = debt.from === userId;
               const isUserCreditor = debt.to === userId;
+              const counterparty = isUserDebtor ? toProfile : fromProfile;
 
               return (
                 <div
@@ -44,20 +52,10 @@ export function GroupBalancesTab({
                   className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border transition-all bg-bg-surface border-border-base`}
                 >
                   <div className="flex items-center gap-3">
-                    <Avatar
-                      size="large"
-                      style={{
-                        backgroundColor: isUserDebtor
-                          ? "#f43f5e"
-                          : isUserCreditor
-                            ? "#10b981"
-                            : "#64748b",
-                      }}
-                    >
-                      {isUserDebtor
-                        ? toProfile?.full_name.charAt(0)
-                        : fromProfile?.full_name.charAt(0)}
-                    </Avatar>
+                    <UserAvatar
+                      user={counterparty || { id: isUserDebtor ? debt.to : debt.from, full_name: counterparty?.full_name || 'Member' }}
+                      size={40}
+                    />
                     <div>
                       <div className="text-sm font-medium text-text-base">
                         {isUserDebtor ? (
