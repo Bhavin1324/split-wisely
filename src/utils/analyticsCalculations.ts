@@ -23,6 +23,14 @@ export interface DailyBucket {
   prevCumulativeCents: number;
 }
 
+export interface WeeklyBucket {
+  label: string;
+  personalExpenseCents: number;
+  groupShareCents: number;
+  totalCents: number;
+  prevTotalCents: number;
+}
+
 export interface CategoryStat {
   name: string;
   currentCents: number;
@@ -74,6 +82,7 @@ export interface AnalyticsSummary {
   prevHybrid: HybridTotals;
   totalDeltaPercent: number | null;
   buckets: DailyBucket[];
+  weeklyBuckets: WeeklyBucket[];
   categories: CategoryStat[];
   burnRate: BurnRate;
   topOutliers: OutlierItem[];
@@ -237,6 +246,66 @@ export function calculateAnalyticsSummary({
       groupShareCents: dayGrp,
       cumulativeCents: cumCurr,
       prevCumulativeCents: cumPrev,
+    });
+  }
+
+  // 4b. Weekly / Bar Buckets
+  const weeklyBuckets: WeeklyBucket[] = [];
+  if (period.mode === 'Monthly') {
+    const weekDefs = [
+      { label: 'Week 1 (1–7)', startDay: 1, endDay: 7 },
+      { label: 'Week 2 (8–14)', startDay: 8, endDay: 14 },
+      { label: 'Week 3 (15–21)', startDay: 15, endDay: 21 },
+      { label: 'Week 4 (22–28)', startDay: 22, endDay: 28 },
+    ];
+    if (totalDays > 28) {
+      weekDefs.push({ label: `Week 5 (29–${totalDays})`, startDay: 29, endDay: totalDays });
+    }
+
+    weekDefs.forEach((w) => {
+      let pers = 0;
+      let grp = 0;
+      let prevTotal = 0;
+
+      for (let day = w.startDay; day <= w.endDay; day++) {
+        const dCurr = currStart.add(day - 1, 'day');
+        const dPrev = prevStart.add(day - 1, 'day');
+
+        currPersonal.forEach(tx => { if (dayjs(tx.transaction_date).isSame(dCurr, 'day')) pers += tx.amount; });
+        currGroup.forEach(ex => {
+          if (dayjs(ex.expense_date || ex.created_at).isSame(dCurr, 'day')) {
+            const split = ex.splits?.find(s => s.user_id === userId);
+            if (split) grp += split.amount_owed;
+          }
+        });
+
+        prevPersonal.forEach(tx => { if (dayjs(tx.transaction_date).isSame(dPrev, 'day')) prevTotal += tx.amount; });
+        prevGroup.forEach(ex => {
+          if (dayjs(ex.expense_date || ex.created_at).isSame(dPrev, 'day')) {
+            const split = ex.splits?.find(s => s.user_id === userId);
+            if (split) prevTotal += split.amount_owed;
+          }
+        });
+      }
+
+      weeklyBuckets.push({
+        label: w.label,
+        personalExpenseCents: pers,
+        groupShareCents: grp,
+        totalCents: pers + grp,
+        prevTotalCents: prevTotal,
+      });
+    });
+  } else {
+    // In Weekly mode, each day is a bar bucket
+    buckets.forEach((b) => {
+      weeklyBuckets.push({
+        label: b.label,
+        personalExpenseCents: b.personalExpenseCents,
+        groupShareCents: b.groupShareCents,
+        totalCents: b.personalExpenseCents + b.groupShareCents,
+        prevTotalCents: b.prevCumulativeCents,
+      });
     });
   }
 
@@ -430,6 +499,7 @@ export function calculateAnalyticsSummary({
     prevHybrid,
     totalDeltaPercent,
     buckets,
+    weeklyBuckets,
     categories: categoryStats,
     burnRate,
     topOutliers,

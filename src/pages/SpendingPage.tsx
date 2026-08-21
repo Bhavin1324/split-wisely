@@ -89,14 +89,16 @@ export function SpendingPage() {
       
       <AnalyticsHeroKPIs summary={analytics} />
       
-      <SpendingVelocityChart buckets={analytics.buckets} />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CategoryInsightsList 
           categories={analytics.categories} 
           topOutliers={analytics.topOutliers} 
         />
         <div className="space-y-6 flex flex-col gap-4">
+          <SpendingVelocityChart 
+            buckets={analytics.buckets} 
+            weeklyBuckets={analytics.weeklyBuckets} 
+          />
           <HybridSplitRatioCard hybrid={analytics.hybrid} />
           <FriendDynamicsCard interactions={analytics.friendInteractions} />
         </div>

@@ -10,7 +10,7 @@ interface Props {
 export function FriendDynamicsCard({ interactions }: Props) {
   return (
     <Card 
-      title={<span className="text-sm font-semibold tracking-wide">Peer Dynamics & Settlement Flow</span>} 
+      title={<span className="text-sm font-semibold tracking-wide">Activity With Friends</span>} 
       className="rounded-2xl border-border-base shadow-sm flex flex-col"
       styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column' } }}
       extra={<div className="bg-primary-500/10 text-primary-600 px-2 py-0.5 rounded-full text-xs font-semibold">{interactions.length} active</div>}

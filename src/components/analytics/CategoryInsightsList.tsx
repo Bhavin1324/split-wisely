@@ -12,7 +12,7 @@ interface Props {
 export function CategoryInsightsList({ categories, topOutliers }: Props) {
   return (
     <Card 
-      title={<span className="text-sm font-semibold tracking-wide">Category Insights</span>} 
+      title={<span className="text-sm font-semibold tracking-wide">Spending by Category</span>} 
       className="rounded-2xl border-border-base shadow-sm h-full flex flex-col"
       bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column' }}
     >
@@ -69,7 +69,7 @@ export function CategoryInsightsList({ categories, topOutliers }: Props) {
       {topOutliers.length > 0 && (
         <div className="mt-6 pt-5 border-t border-border-base">
           <h4 className="text-xs font-medium uppercase tracking-wider text-text-muted mb-3">
-            Top Outliers
+            Biggest Expenses This Period
           </h4>
           <div className="space-y-3">
             {topOutliers.map((tx) => (

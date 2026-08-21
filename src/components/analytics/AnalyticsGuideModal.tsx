@@ -43,11 +43,11 @@ export function AnalyticsGuideModal({ open, onClose }: Props) {
           </p>
         </div>
 
-        {/* Concept 1: Outlay vs Net True Cost */}
+        {/* Concept 1: Paid from Pocket vs True Spend */}
         <div className="p-4 sm:p-5 rounded-2xl bg-bg-subtle border border-border-subtle space-y-3">
           <div className="flex items-center gap-2">
             <Wallet className="w-5 h-5 text-[var(--color-primary-500)]" />
-            <h3 className="text-base font-bold mb-0 text-text-base">1. Cash Outlay vs. Net True Spend</h3>
+            <h3 className="text-base font-bold mb-0 text-text-base">1. Paid from Pocket vs. Your True Spend</h3>
           </div>
           
           <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
@@ -56,8 +56,8 @@ export function AnalyticsGuideModal({ open, onClose }: Props) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div className="p-3 rounded-xl bg-bg-surface border border-border-subtle">
-              <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">Total Cash Outlay</div>
-              <div className="text-sm font-bold text-text-base mt-1">Cash That Left Your Pocket</div>
+              <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">Paid from Pocket</div>
+              <div className="text-sm font-bold text-text-base mt-1">Cash That Left Your Wallet</div>
               <p className="text-xs text-text-muted mt-1 mb-0">
                 Personal purchases + full group bills paid upfront by you.
               </p>
@@ -67,7 +67,7 @@ export function AnalyticsGuideModal({ open, onClose }: Props) {
             </div>
 
             <div className="p-3 rounded-xl bg-bg-surface border border-border-subtle">
-              <div className="text-xs font-semibold text-[var(--color-primary-500)] uppercase tracking-wider">Net True Cost (Actual Share)</div>
+              <div className="text-xs font-semibold text-[var(--color-primary-500)] uppercase tracking-wider">Your True Spend (Actual Share)</div>
               <div className="text-sm font-bold text-text-base mt-1">What You Actually Consumed</div>
               <p className="text-xs text-text-muted mt-1 mb-0">
                 Personal purchases + only your split share of group expenses.
@@ -86,11 +86,11 @@ export function AnalyticsGuideModal({ open, onClose }: Props) {
           </div>
         </div>
 
-        {/* Concept 2: Safe Daily Spend & Burn Rate */}
+        {/* Concept 2: Safe Daily Spend & Month-End Forecast */}
         <div className="p-4 sm:p-5 rounded-2xl bg-bg-subtle border border-border-subtle space-y-3">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-[var(--color-success-500)]" />
-            <h3 className="text-base font-bold mb-0 text-text-base">2. Daily Safe Limit & Projected Run-Rate</h3>
+            <h3 className="text-base font-bold mb-0 text-text-base">2. Daily Safe Limit & Month-End Forecast</h3>
           </div>
 
           <div className="space-y-3 text-xs sm:text-sm text-text-muted">
@@ -107,7 +107,7 @@ export function AnalyticsGuideModal({ open, onClose }: Props) {
             <div className="flex items-start gap-2.5">
               <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning-500)] mt-2 shrink-0" />
               <div>
-                <strong className="text-text-main">Projected Month-End:</strong> Extrapolates your current daily burn rate to predict total monthly spending:
+                <strong className="text-text-main">Month-End Forecast:</strong> Extrapolates your current daily spending pace to predict total monthly spending:
                 <div className="mt-1 p-2 rounded-lg bg-bg-surface border border-border-subtle font-financial text-xs font-semibold text-text-base">
                   Projected Total = (Net Spend ÷ Elapsed Days) × Total Days in Month
                 </div>
@@ -116,29 +116,29 @@ export function AnalyticsGuideModal({ open, onClose }: Props) {
           </div>
         </div>
 
-        {/* Concept 3: Spending Velocity & Trajectory */}
+        {/* Concept 3: Spending Pace & Comparison */}
         <div className="p-4 sm:p-5 rounded-2xl bg-bg-subtle border border-border-subtle space-y-3">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-[var(--color-primary-500)]" />
-            <h3 className="text-base font-bold mb-0 text-text-base">3. Velocity Curve & MoM Comparison</h3>
+            <h3 className="text-base font-bold mb-0 text-text-base">3. Spending Pace & Period Comparison</h3>
           </div>
 
           <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
-            The cumulative velocity chart graphs your month-to-date spending curve day-by-day (solid line) against the previous period (dashed line) at the exact same calendar milestone:
+            The spending pace chart graphs your month-to-date spending curve day-by-day (solid line) against the previous period (dashed line) at the exact same calendar milestone:
           </p>
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <Tag color="blue" className="rounded-full">Solid Line = Current Period Cumulative</Tag>
             <Tag className="rounded-full">Dashed Line = Previous Period Cumulative</Tag>
-            <Tag color="green" className="rounded-full font-financial">-15% MoM = Spending slower than last month</Tag>
+            <Tag color="green" className="rounded-full font-financial">-15% = Spending slower than last month</Tag>
           </div>
         </div>
 
-        {/* Concept 4: Peer Dynamics & Settlement Flow */}
+        {/* Concept 4: Activity With Friends */}
         <div className="p-4 sm:p-5 rounded-2xl bg-bg-subtle border border-border-subtle space-y-3">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-[var(--color-primary-500)]" />
-            <h3 className="text-base font-bold mb-0 text-text-base">4. Peer Dynamics & Social Flow</h3>
+            <h3 className="text-base font-bold mb-0 text-text-base">4. Activity With Friends</h3>
           </div>
 
           <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
