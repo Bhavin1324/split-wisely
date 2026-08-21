@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Card, Button, Select, Avatar, Divider, message, Input, Switch, QRCode } from 'antd';
-import { Download, User, Globe, Palette, QrCode, Copy, Check, ShieldCheck, Share2 } from 'lucide-react';
+import { Card, Button, Select, Divider, message, Input, Switch, QRCode } from 'antd';
+import { Download, User, Globe, Palette, QrCode, Copy, Check, ShieldCheck, Share2, Camera } from 'lucide-react';
 import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS } from '../lib/mockData';
 import { CurrencyAdapter } from '../adapters/CurrencyAdapter';
 import { ExportAdapter } from '../adapters/ExportAdapter';
@@ -13,25 +13,30 @@ import { useAllExpenses } from '../hooks/supabase/useExpensesData';
 import { updateProfile } from '../hooks/supabase/useMutations';
 import { useTheme } from '../context/ThemeContext';
 import type { ThemeType } from '../context/ThemeContext';
-
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-}
+import { UserAvatar } from '../components/ui/UserAvatar';
+import { AvatarPickerModal } from '../components/settings/AvatarPickerModal';
 
 export function SettingsPage() {
-  const { currentUser: contextUser } = useAppData();
+  const { currentUser: contextUser, refetchData } = useAppData();
   const currentUser = contextUser ?? MOCK_CURRENT_USER;
   const [currency, setCurrency] = useState(getStoredCurrency());
   const [upiId, setUpiId] = useState(currentUser.upi_id || '');
   const [isSavingUpi, setIsSavingUpi] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+
+  const handleSaveAvatar = async (newAvatarUrl: string | null) => {
+    if (DEMO_MODE) {
+      currentUser.avatar_url = newAvatarUrl;
+      messageApi.success('Profile avatar updated in Demo Mode');
+      return;
+    }
+    if (user?.id) {
+      await updateProfile(user.id, { avatar_url: newAvatarUrl || '' });
+      if (refetchData) await refetchData();
+    }
+  };
 
   const receiveQrUri = useMemo(() => {
     if (!currentUser.upi_id) return null;
@@ -166,17 +171,34 @@ export function SettingsPage() {
         </div>
         <Divider className="my-4" />
         <div className="flex items-center gap-4">
-          <Avatar
-            size={64}
-            style={{ backgroundColor: 'var(--color-primary-500)', fontSize: '1.5rem' }}
+          <div 
+            className="relative group cursor-pointer" 
+            onClick={() => setIsAvatarPickerOpen(true)}
+            title="Click to change profile photo"
           >
-            {getInitials(currentUser.full_name)}
-          </Avatar>
+            <UserAvatar
+              user={currentUser}
+              size={68}
+              className="border-2 border-border-subtle group-hover:border-primary-500 transition-colors shadow-sm"
+            />
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary-500 text-white rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+              <Camera className="w-3.5 h-3.5" />
+            </div>
+          </div>
           <div>
-            <p className="text-lg font-medium text-text-base">
-              {currentUser.full_name}
-            </p>
-            <p className="text-sm text-text-muted">
+            <div className="flex items-center gap-2">
+              <p className="text-lg font-bold text-text-base mb-0">
+                {currentUser.full_name}
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsAvatarPickerOpen(true)}
+                className="text-xs font-semibold text-primary-500 hover:text-primary-600 bg-primary-500/10 hover:bg-primary-500/20 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+              >
+                Edit Photo
+              </button>
+            </div>
+            <p className="text-sm text-text-muted mt-0.5 mb-0">
               Member since {new Date(currentUser.created_at).toLocaleDateString('en-US', {
                 month: 'long',
                 year: 'numeric',
@@ -346,6 +368,13 @@ export function SettingsPage() {
         </div>
       </Card>
       </div>
+
+      <AvatarPickerModal
+        open={isAvatarPickerOpen}
+        onClose={() => setIsAvatarPickerOpen(false)}
+        currentUser={currentUser}
+        onSave={handleSaveAvatar}
+      />
     </>
   );
 }

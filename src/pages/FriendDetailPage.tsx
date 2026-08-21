@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Avatar, Button, Card, Empty, Tag, App } from "antd";
+import { Button, Card, Empty, Tag, App } from "antd";
 import {
   ArrowLeft,
   Receipt,
@@ -23,6 +23,7 @@ import {
 import { formatCents } from "../utils/currency";
 import { formatDate } from "../utils/date";
 import { SettleUpModal } from "../components/SettleUpModal";
+import { UserAvatar } from "../components/ui/UserAvatar";
 import { AddExpenseModal } from "../components/AddExpenseModal";
 import { ExpenseStatementModal } from "../components/ExpenseStatementModal";
 import { getCategoryIcon } from "../utils/icons";
@@ -34,16 +35,6 @@ import { useAllSettlements } from "../hooks/supabase/useSettlementsData";
 import { PageSkeleton } from "../components/ui/PageSkeleton";
 import { computeFriendNetBalance } from "../utils/friendCalculations";
 import { supabase } from "../lib/supabase";
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
 
 export function FriendDetailPage() {
   const { friendId } = useParams<{ friendId: string }>();
@@ -189,13 +180,7 @@ export function FriendDetailPage() {
           {/* Top Row: Info & Relationship */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Avatar
-                size={60}
-                src={friend.avatar_url ?? undefined}
-                className="bg-gradient-to-br from-primary-500 to-primary-600 text-white font-bold text-xl shrink-0 border border-primary-500/30"
-              >
-                {getInitials(friend.full_name)}
-              </Avatar>
+              <UserAvatar user={friend} size={60} />
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-base mb-0 line-clamp-1">

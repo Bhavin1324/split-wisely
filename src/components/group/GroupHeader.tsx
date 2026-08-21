@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { Button, Dropdown, Switch, App, Tag, Tooltip } from "antd";
-import { Users, ArrowRight, Settings, CheckCircle2, Plus, UserPlus, LogOut, Trash2, Info } from "lucide-react";
+import { Users, ArrowRight, Settings, CheckCircle2, Plus, UserPlus, LogOut, Trash2, Info, Camera } from "lucide-react";
 import type { MenuProps } from "antd";
 import { formatCents } from "../../utils/currency";
 import { leaveGroup, deleteGroup, updateGroupSettings } from "../../hooks/supabase/useMutations";
 import { useNavigate } from "react-router-dom";
 import { useAppData } from "../../context/AppDataContext";
 import type { Group } from "../../types";
+import { GroupCoverModal } from "./GroupCoverModal";
 
 export function GroupHeader({
   group,
@@ -33,6 +35,7 @@ export function GroupHeader({
   const { modal, message } = App.useApp();
   const navigate = useNavigate();
   const { refetchGroups } = useAppData();
+  const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
 
   const handleLeaveGroup = () => {
     if (userNetBalance !== 0 || displayedDebts.length > 0) {
@@ -115,6 +118,13 @@ export function GroupHeader({
 
   const settingsMenu: MenuProps["items"] = [
     {
+      key: "cover",
+      className: 'h-12',
+      icon: <Camera className="h-4 w-4" />,
+      label: "Change Cover Photo",
+      onClick: () => setIsCoverModalOpen(true),
+    },
+    {
       key: "simplify",
       className: 'h-12',
       label: (
@@ -150,14 +160,35 @@ export function GroupHeader({
   ];
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-bg-surface border border-border-base p-5 sm:p-6 text-text-base shadow-sm">
-      <div className="relative z-10 space-y-5">
-        {/* Top Row: Info & Settings */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-500/20 text-primary-400 text-xl sm:text-2xl font-bold border border-primary-500/30">
-              {group.name.charAt(0)}
-            </div>
+    <>
+      <div className="relative overflow-hidden rounded-2xl bg-bg-surface border border-border-base text-text-base shadow-sm">
+        {/* Cover Photo Banner */}
+        {group.cover_image_url && (
+          <div className="relative h-28 sm:h-36 w-full overflow-hidden">
+            <img
+              src={group.cover_image_url}
+              alt={group.name}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-bg-surface via-black/40 to-black/60" />
+            <button
+              type="button"
+              onClick={() => setIsCoverModalOpen(true)}
+              className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 hover:bg-black/70 text-white text-xs font-semibold backdrop-blur-md transition-all cursor-pointer border border-white/20"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Change Cover</span>
+            </button>
+          </div>
+        )}
+
+        <div className={`relative z-10 space-y-5 p-5 sm:p-6 ${group.cover_image_url ? '-mt-10 sm:-mt-12' : ''}`}>
+          {/* Top Row: Info & Settings */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-primary-500/20 text-primary-400 text-2xl sm:text-3xl font-bold border-2 border-bg-surface shadow-md backdrop-blur-md">
+                {group.name.charAt(0)}
+              </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-base mb-0.5 line-clamp-1">
                 {group.name}
@@ -285,5 +316,12 @@ export function GroupHeader({
         </div>
       </div>
     </div>
+
+    <GroupCoverModal
+      open={isCoverModalOpen}
+      onClose={() => setIsCoverModalOpen(false)}
+      group={group}
+    />
+  </>
   );
 }

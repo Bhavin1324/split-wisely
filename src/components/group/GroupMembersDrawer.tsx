@@ -1,6 +1,7 @@
-import { Drawer, List, Button, Tag, Avatar } from "antd";
+import { Drawer, List, Button, Tag } from "antd";
 import { X, Plus } from "lucide-react";
 import { formatDate } from "../../utils/date";
+import { UserAvatar } from "../ui/UserAvatar";
 
 export function GroupMembersDrawer({
   isOpen,
@@ -59,14 +60,7 @@ export function GroupMembersDrawer({
               }
             >
               <List.Item.Meta
-                avatar={
-                  <Avatar style={{ backgroundColor: "var(--color-primary-500)" }}>
-                    {name
-                      .split(" ")
-                      .map((n: string) => n[0])
-                      .join("")}
-                  </Avatar>
-                }
+                avatar={<UserAvatar user={profile || { id: m.user_id, full_name: name }} size={38} />}
                 title={<span className="font-semibold text-text-base">{name}</span>}
                 description={
                   <span className="text-xs text-text-muted">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { Avatar, Button, Tooltip, Popover, Drawer } from "antd";
+import { Button, Tooltip, Popover, Drawer } from "antd";
 import {
   LayoutDashboard,
   Users,
@@ -19,6 +19,7 @@ import { AddExpenseModal } from "../components/AddExpenseModal";
 import { CreateGroupModal } from "../components/CreateGroupModal";
 import { AddFriendModal } from "../components/AddFriendModal";
 import { NotificationList } from "../components/ui/NotificationList";
+import { UserAvatar } from "../components/ui/UserAvatar";
 import { MobileBottomNav } from "../components/navigation/MobileBottomNav";
 import { SidebarDrawer } from "../components/navigation/SidebarDrawer";
 import { useNotifications } from "../hooks/supabase/useNotifications";
@@ -177,19 +178,7 @@ export function AppLayout() {
 
         {/* User profile footer */}
         <div className="border-t border-nav-border px-4 py-3 flex items-center gap-3">
-          <Avatar
-            size={36}
-            style={{
-              backgroundColor: "var(--color-primary-500)",
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            {currentUser.full_name
-              .split(" ")
-              .map((n: string) => n[0])
-              .join("")}
-          </Avatar>
+          <UserAvatar user={currentUser} size={36} />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium truncate">
               {currentUser.full_name}

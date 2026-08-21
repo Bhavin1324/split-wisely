@@ -1,7 +1,8 @@
-import { Card, Avatar } from 'antd';
-import { User, Users, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Card } from 'antd';
+import { Users, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import type { FriendInteraction } from '../../hooks/useAnalyticsData';
 import { formatCents } from '../../utils/currency';
+import { UserAvatar } from '../ui/UserAvatar';
 
 interface Props {
   interactions: FriendInteraction[];
@@ -25,7 +26,10 @@ export function FriendDynamicsCard({ interactions }: Props) {
           interactions.map((friend) => (
             <div key={friend.friendId} className="flex items-center justify-between py-2 border-b border-border-subtle last:border-0 last:pb-0">
               <div className="flex items-center gap-3 min-w-0">
-                <Avatar src={friend.friendAvatar} icon={<User />} className="bg-primary-500 shrink-0" />
+                <UserAvatar 
+                  user={{ id: friend.friendId, full_name: friend.friendName, avatar_url: friend.friendAvatar }} 
+                  size={38} 
+                />
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-semibold text-text-base truncate">
                     {friend.friendName}

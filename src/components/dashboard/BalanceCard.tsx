@@ -9,6 +9,7 @@ export function BalanceCard({
   bgGradient,
   iconBgClass,
   subtitle,
+  onClick,
 }: {
   title: string;
   amount: number;
@@ -17,12 +18,18 @@ export function BalanceCard({
   bgGradient: string;
   iconBgClass: string;
   subtitle: string;
+  onClick?: () => void;
 }) {
   return (
     <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
       className={`
         relative overflow-hidden rounded-2xl border border-border-base bg-bg-surface
         p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
+        ${onClick ? 'cursor-pointer active:scale-[0.98] select-none' : ''}
       `}
     >
       {/* Decorative gradient blob */}

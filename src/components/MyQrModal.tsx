@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef } from 'react';
-import { Modal, Button, QRCode, message, Tooltip, Avatar } from 'antd';
+import { Modal, Button, QRCode, message, Tooltip } from 'antd';
 import { Copy, Check, Download, QrCode, ShieldCheck, Share2 } from 'lucide-react';
 import { generateReceiveQrUri, downloadQrCode } from '../utils/upi';
 import { copyFromInput, canShare, shareText } from '../utils/clipboard';
+import { UserAvatar } from './ui/UserAvatar';
 
 interface MyQrModalProps {
   open: boolean;
@@ -50,14 +51,6 @@ export function MyQrModal({ open, onClose, vpa, userName }: MyQrModalProps) {
     }
   };
 
-  const initials = (userName || 'User')
-    .split(' ')
-    .filter(Boolean)
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-
   return (
     <>
       {contextHolder}
@@ -78,17 +71,11 @@ export function MyQrModal({ open, onClose, vpa, userName }: MyQrModalProps) {
       >
         <div className="flex flex-col items-center text-center pt-2 pb-1">
           {/* User Profile Header */}
-          <Avatar
+          <UserAvatar
+            user={{ full_name: userName }}
             size={56}
-            style={{
-              backgroundColor: 'var(--color-primary-500)',
-              fontSize: '1.25rem',
-              fontWeight: 600,
-            }}
             className="mb-2 shadow-sm"
-          >
-            {initials}
-          </Avatar>
+          />
           <div className="text-base font-bold text-text-main mb-0.5">
             {userName || 'Your Name'}
           </div>

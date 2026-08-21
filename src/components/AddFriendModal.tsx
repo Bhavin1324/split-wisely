@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, message, Button, Avatar } from 'antd';
+import { Modal, Form, Input, Select, message, Button } from 'antd';
 import { UserPlus, Search, CheckCircle2 } from 'lucide-react';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
@@ -8,22 +8,13 @@ import { addMemberToGroup, createGroupInvitation, createAppInvitation, addDirect
 import { searchProfiles } from '../hooks/supabase/useProfileData';
 import { MOCK_PROFILES, MOCK_GROUP_MEMBERS, MOCK_USER_FRIENDS } from '../lib/mockData';
 import type { Profile } from '../types';
+import { UserAvatar } from './ui/UserAvatar';
 
 interface AddFriendModalProps {
   open: boolean;
   onClose: () => void;
   defaultGroupId?: string;
   onSuccess?: () => void;
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 }
 
 export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: AddFriendModalProps) {
@@ -212,9 +203,7 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
           {matchedProfile && (
             <div className="p-3 bg-bg-base rounded-xl border border-primary-200/60 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Avatar size={36} style={{ backgroundColor: 'var(--color-primary-500)' }}>
-                  {getInitials(matchedProfile.full_name)}
-                </Avatar>
+                <UserAvatar user={matchedProfile} size={36} />
                 <div>
                   <div className="text-sm font-bold text-text-base">{matchedProfile.full_name}</div>
                   <div className="text-xs text-primary-700 flex items-center gap-1">

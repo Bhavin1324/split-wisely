@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tag, Segmented } from 'antd';
 import {
   Wallet,
@@ -28,6 +29,7 @@ import { AddExpenseModal } from '../components/AddExpenseModal';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | undefined>(undefined);
@@ -93,8 +95,9 @@ export function DashboardPage() {
           subtitle={
             balances.totalBalance >= 0
               ? 'You are in the green'
-              : 'You have to pay more than You will receive'
+              : 'Net amount you owe across all groups'
           }
+          onClick={() => navigate('/spending')}
         />
 
         <BalanceCard
@@ -104,7 +107,8 @@ export function DashboardPage() {
           colorClass="text-error-text"
           bgGradient="bg-error-bg"
           iconBgClass="bg-error-bg"
-          subtitle="Total amount You have to pay others"
+          subtitle="Total amount you have to pay others"
+          onClick={() => navigate('/friends?filter=you_owe')}
         />
 
         <BalanceCard
@@ -115,6 +119,7 @@ export function DashboardPage() {
           bgGradient="bg-emerald-400"
           iconBgClass="bg-success-bg"
           subtitle="Total amount owed to you"
+          onClick={() => navigate('/friends?filter=owes_you')}
         />
       </section>
 
@@ -175,7 +180,7 @@ export function DashboardPage() {
                   {month}
                 </h3>
                 <div className="h-px flex-1 bg-bg-subtle" />
-                <span className="font-financial text-[11px] text-gray-300">
+                <span className="font-financial text-[11px] text-text-muted">
                   {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
                 </span>
               </div>
@@ -197,7 +202,7 @@ export function DashboardPage() {
 
           {expensesByMonth.length === 0 && (
             <div className="rounded-2xl border border-dashed border-border-base py-16 text-center">
-              <Receipt className="mx-auto h-10 w-10 text-gray-300" />
+              <Receipt className="mx-auto h-10 w-10 text-text-muted" />
               <p className="mt-3 text-sm text-text-muted">No recent activity</p>
             </div>
           )}

@@ -264,10 +264,14 @@ export async function createSettlement(params: {
   }
 }
 
-export async function createGroup(params: { name: string; created_by: string }): Promise<string> {
+export async function createGroup(params: { name: string; created_by: string; cover_image_url?: string | null }): Promise<string> {
   const { data: group, error: groupErr } = await supabase
     .from('groups')
-    .insert([{ name: params.name, created_by: params.created_by }])
+    .insert([{ 
+      name: params.name, 
+      created_by: params.created_by,
+      cover_image_url: params.cover_image_url || null
+    }])
     .select()
     .single();
 
@@ -285,9 +289,14 @@ export async function createGroup(params: { name: string; created_by: string }):
 export async function createGroupWithMembers(params: {
   name: string;
   created_by: string;
+  cover_image_url?: string | null;
   member_user_ids?: string[];
 }): Promise<string> {
-  const groupId = await createGroup({ name: params.name, created_by: params.created_by });
+  const groupId = await createGroup({ 
+    name: params.name, 
+    created_by: params.created_by,
+    cover_image_url: params.cover_image_url
+  });
 
   if (params.member_user_ids && params.member_user_ids.length > 0) {
     const toInsert = params.member_user_ids
