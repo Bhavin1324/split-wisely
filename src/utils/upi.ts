@@ -80,6 +80,24 @@ export function generateUpiUri(options: UpiPaymentOptions): string | null {
 }
 
 /**
+ * Generates an NPCI compliant Personal Static Receive QR URI (`upi://pay?pa=...&pn=...&cu=INR`).
+ * Does not prefill an amount, allowing the payer to specify the amount when scanning in person.
+ */
+export function generateReceiveQrUri(vpa: string, payeeName: string): string | null {
+  const cleanVpa = sanitizeVpa(vpa);
+  if (!cleanVpa) return null;
+
+  const cleanName = encodeUpiParam(payeeName) || 'Friend';
+  const params = new URLSearchParams();
+  params.set('pa', cleanVpa);
+  params.set('pn', cleanName);
+  params.set('cu', 'INR');
+
+  const queryString = params.toString().replace(/%40/g, '@');
+  return `upi://pay?${queryString}`;
+}
+
+/**
  * Generates an app-specific Chrome Android Intent URI or custom deep link.
  * Targets specific installed UPI apps to bypass browser interceptors and provide 1-click execution.
  */
@@ -99,4 +117,29 @@ export function getAppSpecificUpiUri(app: UpiAppTarget, options: UpiPaymentOptio
   }
 
   return genericUri;
+}
+
+/**
+ * Downloads the QR code from a DOM container element as a clean PNG image.
+ * Works seamlessly with Ant Design <QRCode /> which renders a <canvas> element.
+ */
+export function downloadQrCode(elementId: string, fileName = 'splitwisely-upi-qr.png'): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const container = document.getElementById(elementId);
+    if (!container) return false;
+    const canvas = container.querySelector<HTMLCanvasElement>('canvas');
+    if (!canvas) return false;
+    const url = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = fileName;
+    link.href = url;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return true;
+  } catch (err) {
+    console.error('Failed to download QR code:', err);
+    return false;
+  }
 }
