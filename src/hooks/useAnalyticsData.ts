@@ -4,6 +4,7 @@ import {
   calculateAnalyticsSummary,
   type AnalyticsPeriod,
   type DailyBucket,
+  type WeeklyBucket,
   type CategoryStat,
   type HybridTotals,
   type BurnRate,
@@ -16,6 +17,7 @@ import {
 export type {
   AnalyticsPeriod,
   DailyBucket,
+  WeeklyBucket,
   CategoryStat,
   HybridTotals,
   BurnRate,

@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Modal, Button, QRCode, message, Tooltip } from 'antd';
-import { Copy, Check, ExternalLink, QrCode, ShieldCheck, Sparkles } from 'lucide-react';
+import { Copy, Check, ExternalLink, QrCode, ShieldCheck, Sparkles, Download, Share2 } from 'lucide-react';
 import { formatCents } from '../utils/currency';
-import { getAppSpecificUpiUri, generateUpiUri } from '../utils/upi';
+import { getAppSpecificUpiUri, generateUpiUri, downloadQrCode } from '../utils/upi';
+import { copyFromInput, canShare, shareText } from '../utils/clipboard';
 
 interface PaymentQrModalProps {
   open: boolean;
@@ -23,6 +24,7 @@ export function PaymentQrModal({
 }: PaymentQrModalProps) {
   const [copied, setCopied] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+  const vpaInputRef = useRef<HTMLInputElement>(null);
 
   const upiOptions = useMemo(() => ({
     vpa,
@@ -36,24 +38,32 @@ export function PaymentQrModal({
   const paytmUri = useMemo(() => getAppSpecificUpiUri('paytm', upiOptions), [upiOptions]);
   const genericUri = useMemo(() => upiUri || generateUpiUri(upiOptions), [upiUri, upiOptions]);
 
-  const handleCopyVpa = async () => {
+  const handleCopyVpa = () => {
     if (!vpa) return;
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(vpa);
-      } else {
-        const textArea = document.createElement('textarea');
-        textArea.value = vpa;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-      }
+    const success = copyFromInput(vpaInputRef.current, vpa);
+    if (success) {
       setCopied(true);
       messageApi.success('UPI ID copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      messageApi.error('Failed to copy UPI ID.');
+    } else {
+      messageApi.error('Failed to copy UPI ID. Please copy it manually.');
+    }
+  };
+
+  const handleShare = async () => {
+    if (!vpa) return;
+    const shared = await shareText(vpa, `Pay ${payeeName} via UPI`);
+    if (shared) {
+      messageApi.success('UPI ID shared!');
+    }
+  };
+
+  const handleDownload = () => {
+    const success = downloadQrCode('payment-hub-qr-container', `${payeeName.toLowerCase().replace(/\s+/g, '-')}-settlement-qr.png`);
+    if (success) {
+      messageApi.success('QR Code image downloaded! You can upload it in your UPI app.');
+    } else {
+      messageApi.error('Failed to download QR image.');
     }
   };
 
@@ -127,7 +137,10 @@ export function PaymentQrModal({
           </div>
 
           {/* QR Code Container */}
-          <div className="bg-bg-surface p-3.5 rounded-2xl shadow-sm border border-border-subtle inline-flex flex-col items-center justify-center mb-3 transition-transform hover:scale-[1.01]">
+          <div
+            id="payment-hub-qr-container"
+            className="bg-bg-surface p-3.5 rounded-2xl shadow-sm border border-border-subtle inline-flex flex-col items-center justify-center mb-3 transition-transform hover:scale-[1.01]"
+          >
             {genericUri ? (
               <QRCode
                 value={genericUri}
@@ -142,27 +155,59 @@ export function PaymentQrModal({
             )}
           </div>
 
-          {/* VPA Copy Pill */}
+          {/* VPA Copy & Download Pill */}
           <div className="flex items-center justify-between gap-2 bg-bg-subtle border border-border-subtle rounded-xl px-3 py-1.5 w-full max-w-[340px] mb-3">
             <div className="flex flex-col text-left min-w-0 flex-1">
               <span className="text-[10px] text-text-muted font-medium leading-none mb-0.5">
-                UPI ID / VPA
+                UPI ID / VPA (Tap to select)
               </span>
-              <span className="text-sm font-mono text-text-main font-semibold truncate">
-                {vpa}
-              </span>
-            </div>
-            <Tooltip title={copied ? 'Copied!' : 'Copy UPI ID'}>
-              <Button
+              <input
+                ref={vpaInputRef}
                 type="text"
-                size="small"
-                onClick={handleCopyVpa}
-                className="shrink-0 flex items-center gap-1 text-primary-500 hover:text-primary-600 hover:bg-primary-500/10 rounded-lg px-2"
-                icon={copied ? <Check className="w-4 h-4 text-success-500" /> : <Copy className="w-4 h-4" />}
-              >
-                <span className="text-xs font-medium">{copied ? 'Copied' : 'Copy'}</span>
-              </Button>
-            </Tooltip>
+                readOnly
+                value={vpa}
+                onClick={(e) => e.currentTarget.select()}
+                className="text-sm font-mono text-text-main font-semibold bg-transparent border-none outline-none p-0 w-full select-all cursor-pointer"
+                title="Tap to select all"
+              />
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Tooltip title={copied ? 'Copied!' : 'Copy UPI ID'}>
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={handleCopyVpa}
+                  className="flex items-center gap-1 text-primary-500 hover:text-primary-600 hover:bg-primary-500/10 rounded-lg px-2"
+                  icon={copied ? <Check className="w-4 h-4 text-success-500" /> : <Copy className="w-4 h-4" />}
+                >
+                  <span className="text-xs font-medium">{copied ? 'Copied' : 'Copy'}</span>
+                </Button>
+              </Tooltip>
+              {canShare() && (
+                <Tooltip title="Share UPI ID">
+                  <Button
+                    type="text"
+                    size="small"
+                    onClick={handleShare}
+                    className="flex items-center gap-1 text-primary-500 hover:text-primary-600 hover:bg-primary-500/10 rounded-lg px-2"
+                    icon={<Share2 className="w-4 h-4" />}
+                  >
+                    <span className="text-xs font-medium">Share</span>
+                  </Button>
+                </Tooltip>
+              )}
+              <Tooltip title="Save QR for Gallery Scan">
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={handleDownload}
+                  className="flex items-center gap-1 text-primary-500 hover:text-primary-600 hover:bg-primary-500/10 rounded-lg px-2"
+                  icon={<Download className="w-4 h-4" />}
+                >
+                  <span className="text-xs font-medium">Save</span>
+                </Button>
+              </Tooltip>
+            </div>
           </div>
 
           {/* Trust Notice */}

@@ -4,6 +4,7 @@ import {
   sanitizeVpa,
   formatUpiAmount,
   generateUpiUri,
+  generateReceiveQrUri,
   getAppSpecificUpiUri,
   UPI_APP_PACKAGES,
 } from '../upi';
@@ -153,6 +154,18 @@ describe('UPI Utility Functions', () => {
     it('returns standard upi://pay for generic target', () => {
       const uri = getAppSpecificUpiUri('generic', opts);
       expect(uri).toBe('upi://pay?pa=patelmaulik89054-1@okicici&pn=MrProject&am=1.00&cu=INR&tn=SplitTest');
+    });
+  });
+
+  describe('generateReceiveQrUri', () => {
+    it('generates a clean static receive URI without amount', () => {
+      const uri = generateReceiveQrUri('patelmaulik89054-1@okicici', 'Maulik Patel');
+      expect(uri).toBe('upi://pay?pa=patelmaulik89054-1@okicici&pn=MaulikPatel&cu=INR');
+      expect(uri).not.toContain('am=');
+    });
+
+    it('returns null if vpa is empty', () => {
+      expect(generateReceiveQrUri('', 'Maulik')).toBeNull();
     });
   });
 });

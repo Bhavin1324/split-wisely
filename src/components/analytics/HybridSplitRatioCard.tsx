@@ -14,7 +14,7 @@ export function HybridSplitRatioCard({ hybrid }: Props) {
 
   return (
     <Card 
-      title={<span className="text-sm font-semibold tracking-wide">Expense Origin (Hybrid Split)</span>} 
+      title={<span className="text-sm font-semibold tracking-wide">Personal vs. Group Bills</span>} 
       className="rounded-2xl border-border-base shadow-sm flex flex-col"
       styles={{ body: { display: 'flex', flexDirection: 'column', justifyContent: 'center' } }}
     >
@@ -65,7 +65,7 @@ export function HybridSplitRatioCard({ hybrid }: Props) {
         </div>
         
         <p className="text-xs text-text-muted text-center pt-2">
-          This chart shows what proportion of your net cost originates from direct personal tracking versus your share of shared group expenses.
+          This chart shows what proportion of your total spend comes from your own personal purchases versus your share of shared group bills.
         </p>
       </div>
     </Card>

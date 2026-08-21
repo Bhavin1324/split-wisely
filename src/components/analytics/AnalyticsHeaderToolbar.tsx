@@ -95,7 +95,24 @@ export function AnalyticsHeaderToolbar({ period, onChangePeriod, onOpenExport, o
         <div className="grid grid-cols-2 gap-2">
           <Segmented 
             block
-            options={['Monthly', 'Weekly']} 
+            options={[
+              {
+                label: (
+                  <span className={`font-semibold text-xs transition-colors ${period.mode === "Monthly" ? "text-primary-500 font-bold" : "text-text-muted"}`}>
+                    Monthly
+                  </span>
+                ),
+                value: "Monthly",
+              },
+              {
+                label: (
+                  <span className={`font-semibold text-xs transition-colors ${period.mode === "Weekly" ? "text-primary-500 font-bold" : "text-text-muted"}`}>
+                    Weekly
+                  </span>
+                ),
+                value: "Weekly",
+              },
+            ]} 
             value={period.mode} 
             onChange={handleModeChange}
             className="bg-bg-subtle/80 p-1 rounded-xl border border-border-subtle text-xs font-semibold w-full"
@@ -132,7 +149,24 @@ export function AnalyticsHeaderToolbar({ period, onChangePeriod, onOpenExport, o
 
         <div className="flex flex-wrap items-center gap-3">
           <Segmented 
-            options={['Monthly', 'Weekly']} 
+            options={[
+              {
+                label: (
+                  <span className={`font-semibold text-xs transition-colors ${period.mode === "Monthly" ? "text-primary-500 font-bold" : "text-text-muted"}`}>
+                    Monthly
+                  </span>
+                ),
+                value: "Monthly",
+              },
+              {
+                label: (
+                  <span className={`font-semibold text-xs transition-colors ${period.mode === "Weekly" ? "text-primary-500 font-bold" : "text-text-muted"}`}>
+                    Weekly
+                  </span>
+                ),
+                value: "Weekly",
+              },
+            ]} 
             value={period.mode} 
             onChange={handleModeChange}
             className="bg-bg-subtle p-1 rounded-xl border border-border-base"
