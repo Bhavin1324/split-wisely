@@ -8,11 +8,13 @@ import {
   message,
   Typography,
 } from "antd";
+import { QrCode } from "lucide-react";
 import { MOCK_CURRENT_USER, MOCK_PROFILES, MOCK_EXPENSES, MOCK_SETTLEMENTS } from "../lib/mockData";
 import {
   formatCents,
   getStoredCurrency,
 } from "../utils/currency";
+import { generateUpiUri } from "../utils/upi";
 import type { Profile } from "../types";
 import { useAppData, DEMO_MODE } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
@@ -23,6 +25,7 @@ import { createSettlement } from "../hooks/supabase/useMutations";
 import { DebtSimplifier } from "../core/domain/DebtSimplifier";
 import { supabase } from "../lib/supabase";
 import { HeroAmountInput } from "./ui/HeroAmountInput";
+import { PaymentQrModal } from "./PaymentQrModal";
 
 const { Text } = Typography;
 
@@ -70,6 +73,7 @@ export function SettleUpModal({
     defaultAmountCents ? defaultAmountCents / 100 : null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
 
   const { data: liveFriends } = useFriends(user?.id);
   const { data: liveExpenses } = useAllExpenses(user?.id);
@@ -150,32 +154,20 @@ export function SettleUpModal({
   }, [availablePayees, payeeId]);
 
   const upiIntent = useMemo(() => {
-    if (!selectedPayeeObj?.upi_id || !amountValue) return null;
+    if (!selectedPayeeObj?.upi_id || !totalCents || totalCents <= 0) return null;
 
-    const formattedAmount = amountValue.toFixed(2);
-    const upiId = selectedPayeeObj.upi_id.trim();
-    const payeeName = selectedPayeeObj.full_name.replace(/\s+/g, '');
-    const note = "Settlement"; 
-    const merchantCategoryCode = "0000";
-    const initiationMode = "04";
-    const selectedCurrency = getStoredCurrency();
-    const transactionRefId = uuidv4().replace(/-/g, '');
+    const groupName = selectedGroupId && selectedGroupId !== "DIRECT" && selectedGroupId !== "AUTO_ALL"
+      ? groups.find((g) => g.id === selectedGroupId)?.name
+      : undefined;
 
-    const params = new URLSearchParams({
-      pa: upiId,
-      pn: payeeName,
-      am: formattedAmount,
-      cu: selectedCurrency,
-      tn: note,
-      mc: merchantCategoryCode,
-      mode: initiationMode,
-      tr: transactionRefId
+    return generateUpiUri({
+      vpa: selectedPayeeObj.upi_id,
+      payeeName: selectedPayeeObj.full_name,
+      amountCents: totalCents,
+      note: groupName ? `Split ${groupName}` : "Settlement",
+      currency: getStoredCurrency(),
     });
-
-    const queryString = params.toString().replace(/\+/g, '%20');
-
-    return `upi://pay?${queryString}`;
-  }, [selectedPayeeObj, amountValue]);
+  }, [selectedPayeeObj, totalCents, selectedGroupId, groups]);
 
   const handleSave = async (skipClose = false) => {
     if (isSubmitting) return;
@@ -334,11 +326,7 @@ export function SettleUpModal({
       }
     }
     
-    window.location.href = upiIntent;
-    messageApi.info(
-      'Opening UPI App. Please complete the payment there, then return here and click "Save Payment" to record it.',
-      5,
-    );
+    setQrModalOpen(true);
   };
 
   return (
@@ -460,7 +448,7 @@ export function SettleUpModal({
                 maxAmountCents !== undefined && totalCents > maxAmountCents
                   ? "bg-error-bg border-error-border text-error-text"
                   : maxAmountCents !== undefined && totalCents < maxAmountCents
-                    ? "bg-orange-500/10 border-orange-500/20 text-orange-500"
+                    ? "bg-warning-bg border-warning-border text-warning-500"
                     : "bg-primary-500/10 border-primary-500/20 text-primary-500"
               }`}
             >
@@ -473,7 +461,7 @@ export function SettleUpModal({
                 totalCents < maxAmountCents ? (
                 <>
                   ✨ Recording partial payment. Remaining balance:{" "}
-                  <Text strong className="text-orange-500">
+                  <Text strong className="text-warning-500">
                     {formatCents(maxAmountCents - totalCents)}
                   </Text>
                 </>
@@ -515,17 +503,16 @@ export function SettleUpModal({
             </Button>
             {upiIntent && (
               <Button
-                type="primary"
                 onClick={handleUpiClick}
-                loading={isSubmitting}
                 disabled={
                   isSubmitting ||
                   (maxAmountCents !== undefined && totalCents > maxAmountCents)
                 }
                 size="large"
-                className="w-full sm:w-auto bg-[#1ea142] hover:bg-[#158032] font-semibold rounded-xl text-white border-none shadow-md"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 font-medium rounded-xl border-border-subtle hover:border-primary-500 text-text-main"
+                icon={<QrCode className="w-4 h-4 text-primary-500" />}
               >
-                Pay via UPI App
+                Pay via UPI / QR
               </Button>
             )}
             <Button
@@ -544,6 +531,15 @@ export function SettleUpModal({
           </div>
         </Form>
       </Modal>
+
+      <PaymentQrModal
+        open={qrModalOpen}
+        onClose={() => setQrModalOpen(false)}
+        upiUri={upiIntent}
+        vpa={selectedPayeeObj?.upi_id || ""}
+        payeeName={selectedPayeeObj?.full_name || defaultPayeeName || "Friend"}
+        amountCents={totalCents}
+      />
     </>
   );
 }
