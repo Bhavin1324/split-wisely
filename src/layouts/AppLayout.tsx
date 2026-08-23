@@ -20,6 +20,7 @@ import { CreateGroupModal } from "../components/CreateGroupModal";
 import { AddFriendModal } from "../components/AddFriendModal";
 import { NotificationList } from "../components/ui/NotificationList";
 import { UserAvatar } from "../components/ui/UserAvatar";
+import { OfflineBanner } from "../components/ui/OfflineBanner";
 import { MobileBottomNav } from "../components/navigation/MobileBottomNav";
 import { SidebarDrawer } from "../components/navigation/SidebarDrawer";
 import { useNotifications } from "../hooks/supabase/useNotifications";
@@ -64,6 +65,9 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-base">
+      {/* ── Real-time Offline & Reconnection Alert ── */}
+      <OfflineBanner onReconnect={refetchData} />
+
       {/* ── Sidebar ── */}
       <aside className="hidden md:flex flex-col w-64 bg-nav-bg border-r border-nav-border text-nav-text backdrop-blur-xl z-10">
         {/* Logo */}
