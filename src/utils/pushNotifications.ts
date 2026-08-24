@@ -120,7 +120,7 @@ export async function subscribeUserToPush(userId?: string): Promise<PushSubscrip
           userVisibleOnly: true,
           applicationServerKey: convertedKey as BufferSource,
         });
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000));
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
 
         subscription = (await Promise.race([subscribePromise, timeoutPromise])) as PushSubscription | null;
       }
@@ -161,6 +161,64 @@ export async function subscribeUserToPush(userId?: string): Promise<PushSubscrip
 
   // If PushManager is unavailable or FCM timed out, local notifications are still granted and fully functional!
   return true;
+}
+
+/**
+ * Silently synchronizes or reassigns the active device push subscription to the logged-in user.
+ * Runs in the background on login / app load without throwing or interrupting the UI.
+ */
+export async function syncPushSubscriptionWithBackend(userId: string): Promise<void> {
+  if (
+    DEMO_MODE ||
+    !userId ||
+    typeof window === 'undefined' ||
+    !('Notification' in window) ||
+    Notification.permission !== 'granted' ||
+    localStorage.getItem('splitwisely_push_enabled') === 'false'
+  ) {
+    return;
+  }
+
+  try {
+    const registration = await getOrRegisterServiceWorker();
+    if (!registration || !registration.pushManager) return;
+
+    let subscription = await registration.pushManager.getSubscription();
+
+    // If no subscription exists yet on this device, subscribe with the matching VAPID key
+    if (!subscription) {
+      const convertedKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
+      const subscribePromise = registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedKey as BufferSource,
+      });
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
+      subscription = (await Promise.race([subscribePromise, timeoutPromise])) as PushSubscription | null;
+    }
+
+    if (subscription) {
+      const subJson = subscription.toJSON();
+      const endpoint = subscription.endpoint;
+      const p256dh = subJson.keys?.p256dh;
+      const auth = subJson.keys?.auth;
+
+      if (endpoint && p256dh && auth) {
+        await supabase.from('push_subscriptions').upsert(
+          {
+            user_id: userId,
+            endpoint,
+            p256dh,
+            auth,
+            user_agent: navigator.userAgent,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'endpoint' }
+        );
+      }
+    }
+  } catch (err) {
+    console.warn('Background push subscription sync note:', err);
+  }
 }
 
 /**
