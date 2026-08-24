@@ -103,6 +103,7 @@ export function CreateGroupModal({ open, onClose, onSuccess }: CreateGroupModalP
           created_by: userId,
           cover_image_url: coverUrl,
           member_user_ids: values.memberIds ?? [],
+          creator_name: currentUser?.full_name,
         });
         messageApi.success(`Group "${values.name}" created successfully!`);
         refetchGroups();

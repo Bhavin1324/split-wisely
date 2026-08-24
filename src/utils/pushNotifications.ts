@@ -222,6 +222,32 @@ export async function syncPushSubscriptionWithBackend(userId: string): Promise<v
 }
 
 /**
+ * Disassociates the current browser/device endpoint from the database on logout.
+ * Ensures the logged-out user stops receiving push notifications on this device.
+ */
+export async function detachPushSubscriptionOnLogout(): Promise<void> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration || !registration.pushManager) return;
+
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      const endpoint = subscription.endpoint;
+      if (!DEMO_MODE) {
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('endpoint', endpoint);
+      }
+    }
+  } catch (err) {
+    console.warn('Detach push subscription on logout note:', err);
+  }
+}
+
+/**
  * Unsubscribes the current device and removes the subscription token from Supabase.
  */
 export async function unsubscribeUserFromPush(userId?: string): Promise<boolean> {
