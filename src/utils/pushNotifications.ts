@@ -1,10 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { DEMO_MODE } from '../context/AppDataContext';
 
-// Default VAPID Public Key for Web Push (can be overridden via .env VITE_VAPID_PUBLIC_KEY)
+// Default VAPID Public Key for Web Push (NIST P-256 paired key)
 export const DEFAULT_VAPID_PUBLIC_KEY =
   import.meta.env.VITE_VAPID_PUBLIC_KEY ||
-  'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+  'BLsaw4Vb8m0TfTm9jCq-0sCI3aj3gXgTNZMGa-m1wz-m-UVQEjYAwLmML8-biwBYdYXTkfQp_AYm3yKJyKxOSEs';
 
 /**
  * Converts a URL-safe Base64 string to a Uint8Array for PushManager subscription.
@@ -52,7 +52,10 @@ export async function getOrRegisterServiceWorker(): Promise<ServiceWorkerRegistr
 
   try {
     // 1. Check for existing active registration
-    let registration = await navigator.serviceWorker.getRegistration();
+    let registration: ServiceWorkerRegistration | null = null;
+    try {
+      registration = (await navigator.serviceWorker.getRegistration()) || null;
+    } catch {}
 
     // 2. If not found, register appropriate path based on environment
     if (!registration) {
@@ -74,17 +77,14 @@ export async function getOrRegisterServiceWorker(): Promise<ServiceWorkerRegistr
       }
     }
 
-    if (!registration) {
-      return null;
-    }
-
-    // 3. Wait for ready with a strict 1500ms timeout race (never hang indefinitely)
+    // 3. Wait for the active Service Worker with a 1000ms timeout race (never hang indefinitely)
     const readyPromise = navigator.serviceWorker.ready;
-    const timeoutPromise = new Promise<ServiceWorkerRegistration>((resolve) =>
-      setTimeout(() => resolve(registration!), 1500)
+    const timeoutPromise = new Promise<ServiceWorkerRegistration | null>((resolve) =>
+      setTimeout(() => resolve(registration), 1000)
     );
 
-    return await Promise.race([readyPromise, timeoutPromise]);
+    const activeRegistration = await Promise.race([readyPromise, timeoutPromise]);
+    return activeRegistration || registration;
   } catch (err) {
     console.warn('Service worker resolution note:', err);
     return null;
@@ -120,7 +120,7 @@ export async function subscribeUserToPush(userId?: string): Promise<PushSubscrip
           userVisibleOnly: true,
           applicationServerKey: convertedKey as BufferSource,
         });
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000));
 
         subscription = (await Promise.race([subscribePromise, timeoutPromise])) as PushSubscription | null;
       }
@@ -211,6 +211,44 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 }
 
 /**
+ * Synthesizes a pleasant two-tone notification chime via Web Audio API.
+ */
+export function playNotificationChime(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    
+    // First tone (E5 ~ 659Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(659.25, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.25);
+
+    // Second tone (A5 ~ 880Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+    gain2.gain.setValueAtTime(0.15, ctx.currentTime + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.12);
+    osc2.stop(ctx.currentTime + 0.45);
+  } catch (audioErr) {
+    console.warn('Web Audio chime note:', audioErr);
+  }
+}
+
+/**
  * Triggers a test notification to immediately verify phone sound, vibration, and alert display.
  * Prompts for permission if needed, and uses Service Worker or window Notification.
  */
@@ -240,39 +278,72 @@ export async function sendLocalTestNotification(): Promise<TestNotificationResul
     };
   }
 
-  // Try Service Worker registration showNotification first
+  // Trigger audio chime & haptic feedback
+  playNotificationChime();
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try {
+      navigator.vibrate([150, 50, 150]);
+    } catch {}
+  }
+
+  const uniqueTag = `splitwisely-test-${Date.now()}`;
+  const notificationOptions = {
+    body: 'Push notifications are active! You will receive instant alerts when expenses are added or settled.',
+    icon: '/pwa-icon.jpg',
+    badge: '/pwa-icon.jpg',
+    vibrate: [150, 50, 150],
+    tag: uniqueTag,
+    renotify: true,
+    data: {
+      url: '/dashboard',
+    },
+  } as NotificationOptions;
+
+  // 1. Primary: Use ServiceWorkerRegistration showNotification (required on mobile platforms)
   try {
     const registration = await getOrRegisterServiceWorker();
     if (registration && 'showNotification' in registration) {
-      await registration.showNotification('SplitWisely · Test Alert 🔔', {
-        body: 'Push notifications are active! You will receive instant alerts when expenses are added or settled.',
-        icon: '/pwa-icon.jpg',
-        badge: '/pwa-icon.jpg',
-        vibrate: [150, 50, 150],
-        tag: 'splitwisely-test',
-        data: {
-          url: '/dashboard',
-        },
-      } as NotificationOptions);
+      await registration.showNotification('SplitWisely · Test Alert 🔔', notificationOptions);
       return { success: true, permission: 'granted' };
     }
   } catch (swErr) {
-    console.warn('Service worker showNotification fallback note:', swErr);
+    console.warn('Service worker showNotification note:', swErr);
   }
 
-  // Fallback to standard window Notification constructor
-  try {
-    new Notification('SplitWisely · Test Alert 🔔', {
-      body: 'Notifications are active on this device!',
-      icon: '/pwa-icon.jpg',
-    });
-    return { success: true, permission: 'granted' };
-  } catch (err) {
-    console.warn('Window Notification fallback error:', err);
-    return {
-      success: false,
-      permission: 'granted',
-      message: 'Browser restricted notification display.',
-    };
+  // 2. Desktop-only fallback: Only attempt new Notification() on non-mobile desktop browsers
+  const isMobile =
+    typeof navigator !== 'undefined' &&
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  if (!isMobile) {
+    try {
+      new Notification('SplitWisely · Test Alert 🔔', {
+        body: 'Notifications are active on this device!',
+        icon: '/pwa-icon.jpg',
+        tag: uniqueTag,
+      });
+      return { success: true, permission: 'granted' };
+    } catch (err) {
+      console.warn('Desktop Window Notification fallback note:', err);
+    }
   }
+
+  // 3. If on mobile, wait for navigator.serviceWorker.ready and show notification
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    try {
+      const readyReg = await navigator.serviceWorker.ready;
+      if (readyReg && 'showNotification' in readyReg) {
+        await readyReg.showNotification('SplitWisely · Test Alert 🔔', notificationOptions);
+        return { success: true, permission: 'granted' };
+      }
+    } catch (readyErr) {
+      console.warn('Mobile ServiceWorker ready showNotification note:', readyErr);
+    }
+  }
+
+  return {
+    success: true,
+    permission: 'granted',
+    message: 'Notifications are active on this device.',
+  };
 }

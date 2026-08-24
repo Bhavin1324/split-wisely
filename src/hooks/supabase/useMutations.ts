@@ -185,6 +185,28 @@ export async function updateExpenseWithSplits(params: {
   });
 
   if (error) throw error;
+
+  // Insert notifications and trigger push for involved users
+  const notificationUsers = params.splits.filter((s) => s.user_id !== params.payer_id).map((s) => s.user_id);
+  if (notificationUsers.length > 0) {
+    const notificationsToInsert = notificationUsers.map((uid) => ({
+      user_id: uid,
+      actor_id: params.payer_id,
+      type: 'EXPENSE_UPDATED',
+      title: 'Expense Updated',
+      message: `Expense "${params.description}" was updated.`,
+      link: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
+    }));
+    await supabase.from('notifications').insert(notificationsToInsert);
+
+    // Trigger Web Push Notification
+    dispatchPushNotification({
+      userIds: notificationUsers,
+      title: 'Expense Updated ✏️',
+      message: `Expense "${params.description}" was updated.`,
+      url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
+    });
+  }
 }
 
 export async function deleteExpense(expenseId: string): Promise<void> {

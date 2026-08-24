@@ -48,16 +48,23 @@ export function usePushNotifications(): UsePushNotificationsResult {
       return;
     }
 
+    const userDisabled = localStorage.getItem('splitwisely_push_enabled') === 'false';
+    if (userDisabled) {
+      setIsSubscribed(false);
+      setLoading(false);
+      return;
+    }
+
     try {
       const registration = await getOrRegisterServiceWorker();
       if (registration && registration.pushManager) {
         const subscription = await registration.pushManager.getSubscription();
-        setIsSubscribed(Boolean(subscription) || currentPermission === 'granted');
+        setIsSubscribed(Boolean(subscription));
       } else {
         setIsSubscribed(currentPermission === 'granted');
       }
     } catch {
-      setIsSubscribed(currentPermission === 'granted');
+      setIsSubscribed(false);
     } finally {
       setLoading(false);
     }
@@ -69,6 +76,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
   const subscribe = async (): Promise<boolean> => {
     setLoading(true);
+    localStorage.setItem('splitwisely_push_enabled', 'true');
     try {
       const sub = await subscribeUserToPush(user?.id);
       setIsSubscribed(Boolean(sub));
@@ -81,11 +89,10 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
   const unsubscribe = async (): Promise<boolean> => {
     setLoading(true);
+    localStorage.setItem('splitwisely_push_enabled', 'false');
     try {
       const success = await unsubscribeUserFromPush(user?.id);
-      if (success) {
-        setIsSubscribed(false);
-      }
+      setIsSubscribed(false);
       return success;
     } finally {
       setLoading(false);
