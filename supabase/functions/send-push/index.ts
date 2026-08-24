@@ -111,7 +111,11 @@ Deno.serve(async (req: Request) => {
             auth: sub.auth,
           },
         };
-        const res = await webpush.sendNotification(pushSubscription, payload);
+        const pushOptions = {
+          urgency: "high" as const,
+          TTL: 86400,
+        };
+        const res = await webpush.sendNotification(pushSubscription, payload, pushOptions);
         successfulDispatches++;
         deliveryResults.push({ endpoint: sub.endpoint, status: res?.statusCode || 201 });
       } catch (err: any) {

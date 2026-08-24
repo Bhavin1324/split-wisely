@@ -13,15 +13,18 @@ self.addEventListener('push', (event: PushEvent) => {
   try {
     const payload = event.data.json();
     const title = payload.title || 'SplitWisely';
+    const uniqueTag = `${payload.tag || 'splitwisely'}-${Date.now()}`;
     const options = {
       body: payload.body || payload.message || 'You have a new update in SplitWisely.',
       icon: payload.icon || '/pwa-icon.jpg',
       badge: payload.badge || '/pwa-icon.jpg',
-      vibrate: [150, 50, 150],
-      tag: payload.tag || 'splitwisely-update',
+      vibrate: [300, 100, 300, 100, 300],
+      tag: uniqueTag,
       renotify: true,
+      silent: false,
+      timestamp: Date.now(),
       data: {
-        url: payload.url || payload.link || '/',
+        url: payload.url || payload.link || '/dashboard',
         ...payload,
       },
     } as NotificationOptions;
@@ -33,7 +36,11 @@ self.addEventListener('push', (event: PushEvent) => {
       self.registration.showNotification('SplitWisely', {
         body: text || 'You have a new update in SplitWisely.',
         icon: '/pwa-icon.jpg',
-      })
+        badge: '/pwa-icon.jpg',
+        vibrate: [300, 100, 300, 100, 300],
+        silent: false,
+        timestamp: Date.now(),
+      } as NotificationOptions)
     );
   }
 });
