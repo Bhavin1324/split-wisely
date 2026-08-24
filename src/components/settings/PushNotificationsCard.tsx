@@ -133,19 +133,24 @@ export function PushNotificationsCard() {
 
           {/* Action Row */}
           {isSubscribed ? (
-            <div className="pt-2 border-t border-border-subtle flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-xs text-text-muted flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-primary-500" />
-                Notifications active on this device
-              </span>
-              <Button
-                size="small"
-                icon={<Send className="w-3.5 h-3.5" />}
-                onClick={handleSendTest}
-                className="text-xs font-semibold rounded-lg text-primary-600 dark:text-primary-400 bg-primary-500/10 border-0 hover:bg-primary-500/20"
-              >
-                Send Test Alert
-              </Button>
+            <div className="pt-2 border-t border-border-subtle space-y-2">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <span className="text-xs text-text-muted flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-primary-500" />
+                  Notifications active on this device
+                </span>
+                <Button
+                  size="small"
+                  icon={<Send className="w-3.5 h-3.5" />}
+                  onClick={handleSendTest}
+                  className="text-xs font-semibold rounded-lg text-primary-600 dark:text-primary-400 bg-primary-500/10 border-0 hover:bg-primary-500/20"
+                >
+                  Send Test Alert
+                </Button>
+              </div>
+              <p className="text-[11px] text-text-muted mb-0 opacity-80">
+                💡 <strong>Tip for mobile:</strong> If your phone does not vibrate, check <em>Android Settings &rarr; Apps &rarr; Chrome &rarr; Notifications &rarr; Sites</em> and ensure <strong>Vibrate</strong> is turned ON.
+              </p>
             </div>
           ) : permission !== 'denied' ? (
             <div className="pt-2 border-t border-border-subtle flex items-center justify-between gap-3 flex-wrap">
