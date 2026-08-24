@@ -221,7 +221,10 @@ export function SettleUpModal({
           created_at: new Date().toISOString(),
         });
       } else {
-        await createSettlement(params);
+        await createSettlement({
+          ...params,
+          payer_name: params.payer_id === userId ? currentUser?.full_name : payer,
+        });
       }
     };
 

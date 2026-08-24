@@ -245,7 +245,8 @@ export async function createSettlement(params: {
   payer_id: string; 
   payee_id: string; 
   amount: number; 
-  currency_code: string 
+  currency_code: string;
+  payer_name?: string;
 }): Promise<void> {
   if (DEMO_MODE) {
     if (params.group_id) {
@@ -282,23 +283,29 @@ export async function createSettlement(params: {
     }]);
   if (error) throw error;
 
-  // Notify the payee
+  // Notify the payee with rich details
   if (params.payer_id !== params.payee_id) {
+    const symbol = params.currency_code === 'INR' ? '₹' : params.currency_code === 'USD' ? '$' : `${params.currency_code} `;
+    const formattedAmount = `${symbol}${params.amount.toFixed(2)}`;
+    const payerDisplay = params.payer_name || 'A friend';
+    const messageText = `${payerDisplay} recorded a payment of ${formattedAmount} to you.`;
+    const targetUrl = params.group_id ? `/groups/${params.group_id}` : `/friends/${params.payer_id}`;
+
     await supabase.from('notifications').insert([{
       user_id: params.payee_id,
       actor_id: params.payer_id,
       type: 'SETTLEMENT_RECORDED',
       title: 'Payment Received',
-      message: 'A payment was recorded for you.',
-      link: params.group_id ? `/groups/${params.group_id}` : '/dashboard'
+      message: messageText,
+      link: targetUrl
     }]);
 
     // Trigger Web Push Notification
     dispatchPushNotification({
       userIds: [params.payee_id],
       title: 'Payment Received 💰',
-      message: 'A payment was recorded for you.',
-      url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
+      message: messageText,
+      url: targetUrl,
     });
   }
 }
@@ -330,6 +337,7 @@ export async function createGroupWithMembers(params: {
   created_by: string;
   cover_image_url?: string | null;
   member_user_ids?: string[];
+  creator_name?: string;
 }): Promise<string> {
   const groupId = await createGroup({ 
     name: params.name, 
@@ -338,26 +346,77 @@ export async function createGroupWithMembers(params: {
   });
 
   if (params.member_user_ids && params.member_user_ids.length > 0) {
-    const toInsert = params.member_user_ids
-      .filter((uid) => uid !== params.created_by)
-      .map((uid) => ({ group_id: groupId, user_id: uid }));
+    const initialMembers = params.member_user_ids.filter((uid) => uid !== params.created_by);
+    const toInsert = initialMembers.map((uid) => ({ group_id: groupId, user_id: uid }));
 
     if (toInsert.length > 0) {
       const { error } = await supabase.from('group_members').insert(toInsert);
       if (error) console.error('Error adding initial members:', error);
+
+      if (!DEMO_MODE) {
+        const creatorName = params.creator_name || 'A friend';
+        try {
+          const notifs = initialMembers.map((uid) => ({
+            user_id: uid,
+            actor_id: params.created_by,
+            type: 'GROUP_MEMBER_ADDED',
+            title: 'Added to Group',
+            message: `${creatorName} added you to the new group "${params.name}".`,
+            link: `/groups/${groupId}`,
+          }));
+          await supabase.from('notifications').insert(notifs);
+
+          dispatchPushNotification({
+            userIds: initialMembers,
+            title: 'Added to Group 👥',
+            message: `${creatorName} added you to the new group "${params.name}".`,
+            url: `/groups/${groupId}`,
+          });
+        } catch (notifErr) {
+          console.warn('Initial members notification note:', notifErr);
+        }
+      }
     }
   }
 
   return groupId;
 }
 
-export async function addMemberToGroup(groupId: string, userId: string): Promise<void> {
+export async function addMemberToGroup(
+  groupId: string, 
+  userId: string,
+  options?: { adderId?: string; adderName?: string; groupName?: string }
+): Promise<void> {
   const { error } = await supabase
     .from('group_members')
     .insert([{ group_id: groupId, user_id: userId }]);
 
   if (error && !error.message.includes('duplicate')) {
     throw error;
+  }
+
+  if (!DEMO_MODE && options?.adderId && options.adderId !== userId) {
+    const adderName = options.adderName || 'A friend';
+    const gName = options.groupName || 'a group';
+    try {
+      await supabase.from('notifications').insert([{
+        user_id: userId,
+        actor_id: options.adderId,
+        type: 'GROUP_MEMBER_ADDED',
+        title: 'Added to Group',
+        message: `${adderName} added you to the group "${gName}".`,
+        link: `/groups/${groupId}`,
+      }]);
+
+      dispatchPushNotification({
+        userIds: [userId],
+        title: 'Added to Group 👥',
+        message: `${adderName} added you to the group "${gName}".`,
+        url: `/groups/${groupId}`,
+      });
+    } catch (notifErr) {
+      console.warn('Group member push notification dispatch note:', notifErr);
+    }
   }
 }
 
@@ -518,7 +577,12 @@ export async function deleteSettlement(settlementId: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function addDirectFriend(userId: string, friendId: string, status: 'PENDING' | 'ACCEPTED' = 'ACCEPTED'): Promise<void> {
+export async function addDirectFriend(
+  userId: string, 
+  friendId: string, 
+  status: 'PENDING' | 'ACCEPTED' = 'ACCEPTED',
+  adderName?: string
+): Promise<void> {
   if (DEMO_MODE) {
     const { MOCK_USER_FRIENDS } = await import('../../lib/mockData');
     const exists = MOCK_USER_FRIENDS.some(
@@ -537,13 +601,36 @@ export async function addDirectFriend(userId: string, friendId: string, status: 
   if (error && !error.message.includes('duplicate')) {
     throw error;
   }
+
+  if (!DEMO_MODE && userId !== friendId) {
+    const name = adderName || 'A friend';
+    try {
+      await supabase.from('notifications').insert([{
+        user_id: friendId,
+        actor_id: userId,
+        type: 'FRIEND_ADDED',
+        title: 'New Friend Added',
+        message: `${name} added you as a friend on SplitWisely.`,
+        link: '/friends',
+      }]);
+
+      dispatchPushNotification({
+        userIds: [friendId],
+        title: 'New Friend Added 🤝',
+        message: `${name} added you as a friend on SplitWisely.`,
+        url: '/friends',
+      });
+    } catch (notifErr) {
+      console.warn('Friend notification dispatch note:', notifErr);
+    }
+  }
 }
 
-export async function inviteDirectFriend(userId: string, friendId: string): Promise<void> {
-  return addDirectFriend(userId, friendId, 'PENDING');
+export async function inviteDirectFriend(userId: string, friendId: string, adderName?: string): Promise<void> {
+  return addDirectFriend(userId, friendId, 'PENDING', adderName);
 }
 
-export async function acceptFriendRequest(userId: string, friendId: string): Promise<void> {
-  return addDirectFriend(userId, friendId, 'ACCEPTED');
+export async function acceptFriendRequest(userId: string, friendId: string, adderName?: string): Promise<void> {
+  return addDirectFriend(userId, friendId, 'ACCEPTED', adderName);
 }
 

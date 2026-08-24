@@ -4,6 +4,7 @@ import { Button, Spin, Card, message } from 'antd';
 import { CheckCircle2, XCircle, Users, Receipt, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { dispatchPushNotification } from '../utils/pushDispatcher';
 
 /**
  * JoinGroupPage handles the /join?token=... invitation flow.
@@ -78,10 +79,35 @@ export function JoinGroupPage() {
           .update({ status: 'accepted' })
           .eq('id', invitation.id);
 
-        setGroupName((invitation as any).groups?.name ?? 'Group');
+        const groupDisplayName = (invitation as any).groups?.name ?? 'Group';
+        setGroupName(groupDisplayName);
         setGroupId(invitation.group_id);
         setStatus('success');
-        messageApi.success(`You've joined "${(invitation as any).groups?.name}"!`);
+        messageApi.success(`You've joined "${groupDisplayName}"!`);
+
+        // 5. Notify the inviter who created the link
+        if (invitation.invited_by && invitation.invited_by !== user.id) {
+          const joinerName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'A new member';
+          try {
+            await supabase.from('notifications').insert([{
+              user_id: invitation.invited_by,
+              actor_id: user.id,
+              type: 'GROUP_MEMBER_ADDED',
+              title: 'New Member Joined',
+              message: `${joinerName} joined "${groupDisplayName}".`,
+              link: `/groups/${invitation.group_id}`,
+            }]);
+
+            dispatchPushNotification({
+              userIds: [invitation.invited_by],
+              title: 'New Member Joined 👥',
+              message: `${joinerName} joined "${groupDisplayName}".`,
+              url: `/groups/${invitation.group_id}`,
+            });
+          } catch (notifErr) {
+            console.warn('Inviter push notification dispatch note:', notifErr);
+          }
+        }
       } catch (err: any) {
         setStatus('error');
         setErrorMsg(err?.message || 'Something went wrong processing your invitation.');

@@ -35,6 +35,7 @@ import { useAllSettlements } from "../hooks/supabase/useSettlementsData";
 import { PageSkeleton } from "../components/ui/PageSkeleton";
 import { computeFriendNetBalance } from "../utils/friendCalculations";
 import { supabase } from "../lib/supabase";
+import { dispatchPushNotification } from "../utils/pushDispatcher";
 
 export function FriendDetailPage() {
   const { friendId } = useParams<{ friendId: string }>();
@@ -138,6 +139,14 @@ export function FriendDetailPage() {
           message: `${senderName} sent you a payment reminder for ${formattedAmt}.`,
           is_read: false,
           metadata: { sender_id: user.id, amount_cents: absBalance },
+        });
+
+        // Trigger real-time Web Push Notification to friend's device
+        dispatchPushNotification({
+          userIds: [friend.id],
+          title: "Payment Reminder ⏰",
+          message: `${senderName} sent you a payment reminder for ${formattedAmt}.`,
+          url: `/friends/${user.id}`,
         });
       } catch (error) {
         console.error("Failed to send reminder notification:", error);

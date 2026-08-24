@@ -65,6 +65,11 @@ export function useNotifications() {
           const newNotif = payload.new as AppNotification;
           setNotifications((prev) => [newNotif, ...prev].slice(0, 20));
 
+          // ── Never trigger OS notification banner for your own actions ──
+          if (newNotif.actor_id === user.id) {
+            return;
+          }
+
           // ── Trigger Native OS Notification (Banner, Sound, Vibration) ──
           if (
             typeof window !== 'undefined' &&
