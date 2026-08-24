@@ -5,6 +5,7 @@ import { Receipt, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { OfflineBanner } from '../components/ui/OfflineBanner';
+import { PwaInstallPrompt } from '../components/pwa/PwaInstallPrompt';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -311,6 +312,9 @@ export function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* PWA First-Time Install Banner */}
+      <PwaInstallPrompt />
     </div>
   );
 }

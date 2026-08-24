@@ -21,6 +21,7 @@ import { AddFriendModal } from "../components/AddFriendModal";
 import { NotificationList } from "../components/ui/NotificationList";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { OfflineBanner } from "../components/ui/OfflineBanner";
+import { PwaInstallPrompt } from "../components/pwa/PwaInstallPrompt";
 import { MobileBottomNav } from "../components/navigation/MobileBottomNav";
 import { SidebarDrawer } from "../components/navigation/SidebarDrawer";
 import { useNotifications } from "../hooks/supabase/useNotifications";
@@ -340,6 +341,9 @@ export function AppLayout() {
         open={isAddFriendOpen}
         onClose={() => setIsAddFriendOpen(false)}
       />
+
+      {/* ── PWA First-Time Install Banner ── */}
+      <PwaInstallPrompt />
     </div>
   );
 }
