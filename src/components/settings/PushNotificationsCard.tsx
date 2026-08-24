@@ -30,12 +30,10 @@ export function PushNotificationsCard() {
       }
     } else {
       try {
-        const success = await unsubscribe();
-        if (success) {
-          messageApi.info('Push notifications disabled on this device.');
-        }
+        await unsubscribe();
+        messageApi.success('Push notifications turned off for this device.');
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to unsubscribe';
+        const msg = err instanceof Error ? err.message : 'Failed to disable push notifications';
         messageApi.error(msg);
       }
     }
@@ -78,8 +76,6 @@ export function PushNotificationsCard() {
     );
   }
 
-  const isPermissionGranted = permission === 'granted' || isSubscribed;
-
   return (
     <>
       {contextHolder}
@@ -94,7 +90,7 @@ export function PushNotificationsCard() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h4 className="text-base font-bold text-text-base mb-0">Push Notifications</h4>
-                  {isPermissionGranted ? (
+                  {isSubscribed ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                       <CheckCircle2 className="w-3 h-3" /> Active on Device
                     </span>
@@ -115,7 +111,7 @@ export function PushNotificationsCard() {
             </div>
 
             <Switch
-              checked={isPermissionGranted}
+              checked={isSubscribed}
               loading={loading}
               onChange={handleToggle}
               disabled={permission === 'denied'}
@@ -136,7 +132,7 @@ export function PushNotificationsCard() {
           )}
 
           {/* Action Row */}
-          {isPermissionGranted ? (
+          {isSubscribed ? (
             <div className="pt-2 border-t border-border-subtle flex items-center justify-between gap-3 flex-wrap">
               <span className="text-xs text-text-muted flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-primary-500" />

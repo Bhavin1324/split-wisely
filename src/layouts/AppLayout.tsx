@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Button, Tooltip, Popover, Drawer } from "antd";
 import {
@@ -27,6 +27,7 @@ import { SidebarDrawer } from "../components/navigation/SidebarDrawer";
 import { useNotifications } from "../hooks/supabase/useNotifications";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
+import { syncPushSubscriptionWithBackend } from "../utils/pushNotifications";
 
 const NAV_ITEMS = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -52,10 +53,17 @@ export function AppLayout() {
   const [mobileNotificationPopoverOpen, setMobileNotificationPopoverOpen] =
     useState(false);
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { currentUser: contextUser, groups: contextGroups, refetchData } = useAppData();
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearSeen } =
     useNotifications();
+
+  // Automatically register and assign active device push subscription for the logged-in user
+  useEffect(() => {
+    if (user?.id) {
+      syncPushSubscriptionWithBackend(user.id);
+    }
+  }, [user?.id]);
 
 
   // Provide a safe fallback during initial load to prevent crashes.

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { DEMO_MODE } from '../../context/AppDataContext';
+import { getOrRegisterServiceWorker } from '../../utils/pushNotifications';
 
 export interface AppNotification {
   id: string;
@@ -61,7 +62,46 @@ export function useNotifications() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          setNotifications((prev) => [payload.new as AppNotification, ...prev].slice(0, 20));
+          const newNotif = payload.new as AppNotification;
+          setNotifications((prev) => [newNotif, ...prev].slice(0, 20));
+
+          // ── Trigger Native OS Notification (Banner, Sound, Vibration) ──
+          if (
+            typeof window !== 'undefined' &&
+            'Notification' in window &&
+            Notification.permission === 'granted'
+          ) {
+            getOrRegisterServiceWorker()
+              .then((registration) => {
+                if (registration && 'showNotification' in registration) {
+                  registration.showNotification(newNotif.title || 'SplitWisely', {
+                    body: newNotif.message || 'You have a new update in SplitWisely.',
+                    icon: '/pwa-icon.jpg',
+                    badge: '/pwa-icon.jpg',
+                    vibrate: [150, 50, 150],
+                    tag: `splitwisely-${newNotif.id}`,
+                    data: {
+                      url: newNotif.link || '/dashboard',
+                    },
+                  } as NotificationOptions);
+                } else {
+                  new Notification(newNotif.title || 'SplitWisely', {
+                    body: newNotif.message || 'You have a new update in SplitWisely.',
+                    icon: '/pwa-icon.jpg',
+                  });
+                }
+              })
+              .catch(() => {
+                try {
+                  new Notification(newNotif.title || 'SplitWisely', {
+                    body: newNotif.message || 'You have a new update in SplitWisely.',
+                    icon: '/pwa-icon.jpg',
+                  });
+                } catch {
+                  // Ignore fallback error
+                }
+              });
+          }
         }
       )
       .on(
