@@ -2,6 +2,7 @@ import { DEMO_MODE } from '../../context/AppDataContext';
 import { supabase } from '../../lib/supabase';
 import { MOCK_EXPENSES, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
 import type { Expense, GroupActivityItem } from '../../types';
+import { dispatchPushNotification } from '../../utils/pushDispatcher';
 
 export async function createExpenseWithSplits(params: { 
   group_id: string | null; 
@@ -95,6 +96,14 @@ export async function createExpenseWithSplits(params: {
       link: params.group_id ? `/groups/${params.group_id}` : '/dashboard'
     }));
     await supabase.from('notifications').insert(notificationsToInsert);
+
+    // Trigger Web Push Notification
+    dispatchPushNotification({
+      userIds: notificationUsers,
+      title: 'New Expense Added',
+      message: `An expense "${params.description}" was added.`,
+      url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
+    });
   }
 
   return data as string;
@@ -261,6 +270,14 @@ export async function createSettlement(params: {
       message: 'A payment was recorded for you.',
       link: params.group_id ? `/groups/${params.group_id}` : '/dashboard'
     }]);
+
+    // Trigger Web Push Notification
+    dispatchPushNotification({
+      userIds: [params.payee_id],
+      title: 'Payment Received 💰',
+      message: 'A payment was recorded for you.',
+      url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
+    });
   }
 }
 

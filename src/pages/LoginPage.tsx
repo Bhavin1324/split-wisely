@@ -4,6 +4,8 @@ import { Button, Input, Divider, message, Modal } from 'antd';
 import { Receipt, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { OfflineBanner } from '../components/ui/OfflineBanner';
+import { PwaInstallPrompt } from '../components/pwa/PwaInstallPrompt';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -156,7 +158,8 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-500 via-primary-600 to-teal-700 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-600 via-primary-700 to-indigo-900 flex items-center justify-center p-4 relative overflow-hidden">
+      <OfflineBanner />
       {contextHolder}
 
       {/* Decorative background elements */}
@@ -309,6 +312,9 @@ export function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* PWA First-Time Install Banner */}
+      <PwaInstallPrompt />
     </div>
   );
 }

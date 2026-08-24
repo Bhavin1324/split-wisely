@@ -15,6 +15,7 @@ import { useTheme } from '../context/ThemeContext';
 import type { ThemeType } from '../context/ThemeContext';
 import { UserAvatar } from '../components/ui/UserAvatar';
 import { AvatarPickerModal } from '../components/settings/AvatarPickerModal';
+import { PushNotificationsCard } from '../components/settings/PushNotificationsCard';
 
 export function SettingsPage() {
   const { currentUser: contextUser, refetchData } = useAppData();
@@ -347,6 +348,9 @@ export function SettingsPage() {
           </span>
         </div>
       </Card>
+
+      {/* Push Notifications Section */}
+      <PushNotificationsCard />
 
       {/* Export Section */}
       <Card className="rounded-2xl border-border-base shadow-sm">
