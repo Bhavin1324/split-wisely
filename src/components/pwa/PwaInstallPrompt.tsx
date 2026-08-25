@@ -36,7 +36,7 @@ export function PwaInstallPrompt() {
   return (
     <>
       {/* Floating Bottom Banner */}
-      <aside aria-label="Install SplitWisely App" className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+      <aside aria-label="Install Centfolio App" className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
         <div className="bg-bg-surface/95 backdrop-blur-md border border-primary-500/30 dark:border-primary-500/20 shadow-2xl rounded-2xl p-4 text-text-base relative overflow-hidden">
           {/* Subtle decorative glow */}
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-primary-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -53,12 +53,12 @@ export function PwaInstallPrompt() {
           <div className="flex items-start gap-3.5 pr-6">
             <img
               src="/pwa-icon.jpg"
-              alt="SplitWisely"
+              alt="Centfolio"
               className="w-12 h-12 rounded-xl object-cover shadow-sm shrink-0 border border-border-subtle"
             />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h4 className="text-sm font-bold text-text-base mb-0">Install SplitWisely</h4>
+                <h4 className="text-sm font-bold text-text-base mb-0">Install Centfolio</h4>
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary-500/15 text-primary-600 dark:text-primary-400">
                   PWA
                 </span>
@@ -136,7 +136,7 @@ export function PwaInstallPrompt() {
       >
         <div className="space-y-4 py-2 text-sm text-text-base">
           <p className="text-text-muted text-xs">
-            To install SplitWisely on iOS, follow these quick steps in Safari:
+            To install Centfolio on iOS, follow these quick steps in Safari:
           </p>
 
           <div className="space-y-3">

@@ -18,7 +18,7 @@ export async function dispatchPushNotification({
   title,
   message,
   url = '/dashboard',
-  tag = 'splitwisely-update',
+  tag = 'centfolio-update',
 }: PushPayload): Promise<void> {
   if (DEMO_MODE || !userIds || userIds.length === 0) {
     return;

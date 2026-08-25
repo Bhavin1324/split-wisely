@@ -56,7 +56,7 @@ Deno.serve(async (req: Request) => {
     const vapidPrivateKey =
       Deno.env.get("VAPID_PRIVATE_KEY") ||
       "dwCjMJ2nPzzD1bh2Lea8ge7FLpordLKVD2QNOmOj770";
-    const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:support@splitwisely.app";
+    const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:support@centfolio.app";
 
     try {
       webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
@@ -91,12 +91,12 @@ Deno.serve(async (req: Request) => {
 
     // 2. Prepare payload
     const payload = JSON.stringify({
-      title: title || "SplitWisely",
-      body: message || "You have a new update in SplitWisely.",
+      title: title || "Centfolio",
+      body: message || "You have a new update in Centfolio.",
       icon: "/pwa-icon.jpg",
       badge: "/pwa-icon.jpg",
       url: url || "/dashboard",
-      tag: tag || "splitwisely-update",
+      tag: tag || "centfolio-update",
     });
 
     // 3. Dispatch web push notifications

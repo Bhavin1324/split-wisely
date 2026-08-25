@@ -174,6 +174,7 @@ export async function syncPushSubscriptionWithBackend(userId: string): Promise<v
     typeof window === 'undefined' ||
     !('Notification' in window) ||
     Notification.permission !== 'granted' ||
+    localStorage.getItem('centfolio_push_enabled') === 'false' ||
     localStorage.getItem('splitwisely_push_enabled') === 'false'
   ) {
     return;
@@ -370,7 +371,7 @@ export async function sendLocalTestNotification(): Promise<TestNotificationResul
     } catch {}
   }
 
-  const uniqueTag = `splitwisely-test-${Date.now()}`;
+  const uniqueTag = `centfolio-test-${Date.now()}`;
   const notificationOptions = {
     body: 'Push notifications are active! You will receive instant alerts when expenses are added or settled.',
     icon: '/pwa-icon.jpg',
@@ -387,7 +388,7 @@ export async function sendLocalTestNotification(): Promise<TestNotificationResul
   try {
     const registration = await getOrRegisterServiceWorker();
     if (registration && 'showNotification' in registration) {
-      await registration.showNotification('SplitWisely · Test Alert 🔔', notificationOptions);
+      await registration.showNotification('Centfolio · Test Alert 🔔', notificationOptions);
       return { success: true, permission: 'granted' };
     }
   } catch (swErr) {
@@ -401,7 +402,7 @@ export async function sendLocalTestNotification(): Promise<TestNotificationResul
 
   if (!isMobile) {
     try {
-      new Notification('SplitWisely · Test Alert 🔔', {
+      new Notification('Centfolio · Test Alert 🔔', {
         body: 'Notifications are active on this device!',
         icon: '/pwa-icon.jpg',
         tag: uniqueTag,
@@ -417,7 +418,7 @@ export async function sendLocalTestNotification(): Promise<TestNotificationResul
     try {
       const readyReg = await navigator.serviceWorker.ready;
       if (readyReg && 'showNotification' in readyReg) {
-        await readyReg.showNotification('SplitWisely · Test Alert 🔔', notificationOptions);
+        await readyReg.showNotification('Centfolio · Test Alert 🔔', notificationOptions);
         return { success: true, permission: 'granted' };
       }
     } catch (readyErr) {

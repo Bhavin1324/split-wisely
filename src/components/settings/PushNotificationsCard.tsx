@@ -1,5 +1,6 @@
-import { Card, Switch, Button, message, Tag } from 'antd';
-import { BellRing, BellOff, Send, ShieldAlert, Sparkles, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { Card, Switch, Button, message, Tag, Modal } from 'antd';
+import { BellRing, BellOff, Send, Sparkles, CheckCircle2, Info, HelpCircle, RotateCcw, Smartphone, Apple, Laptop } from 'lucide-react';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 export function PushNotificationsCard() {
@@ -11,9 +12,12 @@ export function PushNotificationsCard() {
     subscribe,
     unsubscribe,
     sendTest,
+    refreshStatus,
   } = usePushNotifications();
 
   const [messageApi, contextHolder] = message.useMessage();
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
+  const [checkingPermission, setCheckingPermission] = useState(false);
 
   const handleToggle = async (checked: boolean) => {
     if (checked) {
@@ -22,11 +26,20 @@ export function PushNotificationsCard() {
         if (success) {
           messageApi.success('Push notifications enabled for this device!');
         } else {
-          messageApi.warning('Could not subscribe. Please allow notification permission in your browser.');
+          // If permission is blocked/denied, open the guide modal
+          if (Notification.permission === 'denied') {
+            setGuideModalOpen(true);
+          } else {
+            messageApi.warning('Could not subscribe. Please allow notification permission in your browser.');
+          }
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to enable push notifications';
-        messageApi.error(msg);
+        if (Notification.permission === 'denied') {
+          setGuideModalOpen(true);
+        } else {
+          const msg = err instanceof Error ? err.message : 'Failed to enable push notifications';
+          messageApi.error(msg);
+        }
       }
     } else {
       try {
@@ -39,13 +52,41 @@ export function PushNotificationsCard() {
     }
   };
 
+  const handleCheckPermissionAndRetry = async () => {
+    setCheckingPermission(true);
+    await refreshStatus();
+    if (Notification.permission === 'granted') {
+      const success = await subscribe();
+      setCheckingPermission(false);
+      if (success) {
+        setGuideModalOpen(false);
+        messageApi.success('Notifications successfully enabled!');
+      }
+    } else if (Notification.permission === 'default') {
+      // If user reset to default, requesting permission will now trigger the native OS prompt
+      try {
+        const success = await subscribe();
+        setCheckingPermission(false);
+        if (success) {
+          setGuideModalOpen(false);
+          messageApi.success('Notifications successfully enabled!');
+        }
+      } catch {
+        setCheckingPermission(false);
+      }
+    } else {
+      setCheckingPermission(false);
+      messageApi.warning('Notifications are still blocked in browser settings. Please follow the steps below.');
+    }
+  };
+
   const handleSendTest = async () => {
     try {
       const result = await sendTest();
       if (result.success) {
         messageApi.success('Test notification sent! Check your notification bar or lock screen.');
       } else if (result.permission === 'denied') {
-        messageApi.error(result.message || 'Notifications are blocked in your browser settings.');
+        setGuideModalOpen(true);
       } else {
         messageApi.warning(result.message || 'Please allow notification permission when prompted.');
       }
@@ -95,9 +136,12 @@ export function PushNotificationsCard() {
                       <CheckCircle2 className="w-3 h-3" /> Active on Device
                     </span>
                   ) : permission === 'denied' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
-                      <ShieldAlert className="w-3 h-3" /> Blocked in Browser
-                    </span>
+                    <button
+                      onClick={() => setGuideModalOpen(true)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                    >
+                      <Info className="w-3 h-3" /> Blocked · Tap for guide
+                    </button>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-border-subtle text-text-muted">
                       Disabled
@@ -112,27 +156,14 @@ export function PushNotificationsCard() {
 
             <Switch
               checked={isSubscribed}
-              loading={loading}
+              loading={loading || checkingPermission}
               onChange={handleToggle}
-              disabled={permission === 'denied'}
               className="shrink-0"
             />
           </div>
 
-          {/* Browser Permission Blocked Warning */}
-          {permission === 'denied' && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 space-y-1">
-              <div className="font-semibold flex items-center gap-1.5">
-                <ShieldAlert className="w-4 h-4" /> Notifications are blocked in browser settings
-              </div>
-              <p className="mb-0 text-[11px] opacity-90">
-                To receive alerts, tap the lock/tune icon in your browser address bar and change Notifications to "Allow".
-              </p>
-            </div>
-          )}
-
-          {/* Action Row */}
-          {isSubscribed ? (
+          {/* Action Row - Only shown when active on device */}
+          {isSubscribed && (
             <div className="pt-2 border-t border-border-subtle space-y-2">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <span className="text-xs text-text-muted flex items-center gap-1.5">
@@ -152,24 +183,121 @@ export function PushNotificationsCard() {
                 💡 <strong>Tip for mobile:</strong> If your phone does not vibrate, check <em>Android Settings &rarr; Apps &rarr; Chrome &rarr; Notifications &rarr; Sites</em> and ensure <strong>Vibrate</strong> is turned ON.
               </p>
             </div>
-          ) : permission !== 'denied' ? (
-            <div className="pt-2 border-t border-border-subtle flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-xs text-text-muted">
-                Permission not yet enabled on this browser
-              </span>
-              <Button
-                size="small"
-                type="primary"
-                loading={loading}
-                onClick={() => handleToggle(true)}
-                className="text-xs font-semibold rounded-lg bg-primary-500 hover:bg-primary-600"
-              >
-                Enable Notifications
-              </Button>
-            </div>
-          ) : null}
+          )}
         </div>
       </Card>
+
+      {/* Guide Modal for Unblocking Notifications */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-text-base">
+            <HelpCircle className="w-5 h-5 text-primary-500" />
+            <span>How to Enable Notifications</span>
+          </div>
+        }
+        open={guideModalOpen}
+        onCancel={() => setGuideModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setGuideModalOpen(false)}>
+            Cancel
+          </Button>,
+          <Button
+            key="retry"
+            type="primary"
+            loading={checkingPermission}
+            icon={<RotateCcw className="w-3.5 h-3.5" />}
+            onClick={handleCheckPermissionAndRetry}
+            className="bg-primary-500 hover:bg-primary-600 font-semibold"
+          >
+            Check & Enable
+          </Button>,
+        ]}
+        centered
+        destroyOnClose
+        className="rounded-2xl overflow-hidden"
+      >
+        <div className="py-2 space-y-3.5 text-sm text-text-base max-h-[70vh] overflow-y-auto pr-1">
+          <p className="text-xs text-text-muted mb-2">
+            Because notification permission was previously dismissed or blocked, your device requires you to allow it in settings:
+          </p>
+
+          {/* Android Section */}
+          <div className="p-3.5 rounded-xl bg-bg-subtle border border-border-base space-y-2.5">
+            <div className="font-semibold text-xs text-text-base flex items-center gap-1.5">
+              <Smartphone className="w-4 h-4 text-emerald-500" />
+              <span>Android (App Info & Browser)</span>
+            </div>
+
+            <div className="space-y-1.5 pl-1 text-xs text-text-muted">
+              <div className="font-medium text-[11px] text-primary-500">
+                Option A: Fast App Info Shortcut (Recommended)
+              </div>
+              <ol className="list-decimal list-inside space-y-1 pl-1">
+                <li>Long-press the <strong>Centfolio</strong> (or <strong>Chrome</strong>) app icon on your Home screen.</li>
+                <li>Tap <strong>App info (ℹ️)</strong>.</li>
+                <li>Tap <strong>Notifications</strong> and toggle <strong className="text-success-text">Allow notifications ON</strong>.</li>
+              </ol>
+            </div>
+
+            <div className="space-y-1.5 pl-1 text-xs text-text-muted pt-1 border-t border-border-subtle/60">
+              <div className="font-medium text-[11px] text-text-muted">
+                Option B: In-Browser Address Bar
+              </div>
+              <ol className="list-decimal list-inside space-y-1 pl-1">
+                <li>Tap the <strong>tune / lock icon 🔒</strong> at the left of the address bar.</li>
+                <li>Tap <strong>Permissions</strong> &rarr; Set <strong>Notifications</strong> to <strong className="text-success-text">Allow</strong>.</li>
+              </ol>
+            </div>
+          </div>
+
+          {/* iOS Section */}
+          <div className="p-3.5 rounded-xl bg-bg-subtle border border-border-base space-y-2.5">
+            <div className="font-semibold text-xs text-text-base flex items-center gap-1.5">
+              <Apple className="w-4 h-4 text-neutral-400" />
+              <span>iPhone / iPad (iOS Settings)</span>
+            </div>
+
+            <div className="space-y-1.5 pl-1 text-xs text-text-muted">
+              <div className="font-medium text-[11px] text-primary-500">
+                Option A: For Installed PWA App
+              </div>
+              <ol className="list-decimal list-inside space-y-1 pl-1">
+                <li>Open your iPhone <strong>Settings</strong> app.</li>
+                <li>Scroll down and tap <strong>Centfolio</strong>.</li>
+                <li>Tap <strong>Notifications</strong> and turn <strong className="text-success-text">Allow Notifications ON</strong>.</li>
+              </ol>
+            </div>
+
+            <div className="space-y-1.5 pl-1 text-xs text-text-muted pt-1 border-t border-border-subtle/60">
+              <div className="font-medium text-[11px] text-text-muted">
+                Option B: For Safari Web Browser
+              </div>
+              <ol className="list-decimal list-inside space-y-1 pl-1">
+                <li>Open iPhone <strong>Settings &rarr; Notifications &rarr; Safari</strong>.</li>
+                <li>Ensure <strong>Allow Notifications</strong> is toggled <strong className="text-success-text">ON</strong>.</li>
+              </ol>
+            </div>
+          </div>
+
+          {/* Desktop Section */}
+          <div className="p-3.5 rounded-xl bg-bg-subtle border border-border-base space-y-2">
+            <div className="font-semibold text-xs text-text-base flex items-center gap-1.5">
+              <Laptop className="w-4 h-4 text-blue-500" />
+              <span>Desktop (Chrome / Edge / Firefox)</span>
+            </div>
+            <ol className="list-decimal list-inside text-xs text-text-muted space-y-1 pl-1">
+              <li>Click the <strong>view site information (padlock 🔒)</strong> icon next to the URL.</li>
+              <li>Toggle <strong>Notifications</strong> to <strong className="text-success-text">ON / Allow</strong> and reload the page.</li>
+            </ol>
+          </div>
+
+          <div className="pt-1 text-center">
+            <span className="text-xs text-text-muted">
+              After updating your settings, tap <strong>"Check & Enable"</strong> below to activate!
+            </span>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

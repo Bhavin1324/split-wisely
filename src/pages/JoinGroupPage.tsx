@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button, Spin, Card, message } from 'antd';
-import { CheckCircle2, XCircle, Users, Receipt, ArrowRight } from 'lucide-react';
+import { CheckCircle2, XCircle, Users, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { dispatchPushNotification } from '../utils/pushDispatcher';
@@ -130,10 +130,10 @@ export function JoinGroupPage() {
       <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm mb-4">
-            <Receipt className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm mb-4 shadow-xl overflow-hidden">
+            <img src="/brand-logo.png" alt="Centfolio" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">SplitWisely</h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Centfolio</h1>
         </div>
 
         <Card className="rounded-2xl shadow-2xl">

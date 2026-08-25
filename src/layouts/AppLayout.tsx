@@ -10,7 +10,6 @@ import {
   Settings,
   LogOut,
   Plus,
-  Receipt,
   UserPlus,
   Bell,
   Menu,
@@ -81,10 +80,10 @@ export function AppLayout() {
       <aside className="hidden md:flex flex-col w-64 bg-nav-bg border-r border-nav-border text-nav-text backdrop-blur-xl z-10">
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-nav-border">
-          <div className="w-9 h-9 rounded-xl bg-primary-500 flex items-center justify-center">
-            <Receipt className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-xl bg-primary-500 flex items-center justify-center overflow-hidden shadow-sm transition-colors duration-200">
+            <img src="/brand-logo.png" alt="Centfolio" className="w-full h-full object-contain" />
           </div>
-          <span className="text-lg font-bold tracking-tight">SplitWisely</span>
+          <span className="text-lg font-bold tracking-tight">Centfolio</span>
         </div>
 
         {/* Action CTAs */}
@@ -247,11 +246,11 @@ export function AppLayout() {
 
       {/* ── Mobile Header ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-nav-bg text-nav-text border-b border-nav-border backdrop-blur-xl flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center">
-            <Receipt className="w-4 h-4" />
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center overflow-hidden shadow-sm transition-colors duration-200">
+            <img src="/brand-logo.png" alt="Centfolio" className="w-full h-full object-contain" />
           </div>
-          <span className="font-bold text-lg">SplitWisely</span>
+          <span className="font-bold text-lg">Centfolio</span>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -269,7 +268,7 @@ export function AppLayout() {
             closable={false}
             onClose={() => setMobileNotificationPopoverOpen(false)}
             open={mobileNotificationPopoverOpen}
-            height="85vh"
+            height="70vh"
             styles={{ body: { padding: 0 } }}
             className="rounded-b-3xl overflow-hidden shadow-2xl"
           >

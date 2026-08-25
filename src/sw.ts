@@ -12,10 +12,10 @@ self.addEventListener('push', (event: PushEvent) => {
 
   try {
     const payload = event.data.json();
-    const title = payload.title || 'SplitWisely';
-    const uniqueTag = `${payload.tag || 'splitwisely'}-${Date.now()}`;
+    const title = payload.title || 'Centfolio';
+    const uniqueTag = `${payload.tag || 'centfolio'}-${Date.now()}`;
     const options = {
-      body: payload.body || payload.message || 'You have a new update in SplitWisely.',
+      body: payload.body || payload.message || 'You have a new update in Centfolio.',
       icon: payload.icon || '/pwa-icon.jpg',
       badge: payload.badge || '/pwa-icon.jpg',
       vibrate: [300, 100, 300, 100, 300],
@@ -33,8 +33,8 @@ self.addEventListener('push', (event: PushEvent) => {
   } catch {
     const text = event.data.text();
     event.waitUntil(
-      self.registration.showNotification('SplitWisely', {
-        body: text || 'You have a new update in SplitWisely.',
+      self.registration.showNotification('Centfolio', {
+        body: text || 'You have a new update in Centfolio.',
         icon: '/pwa-icon.jpg',
         badge: '/pwa-icon.jpg',
         vibrate: [300, 100, 300, 100, 300],

@@ -1,8 +1,8 @@
-# SplitWisely Debt Calculation & Balance Aggregation Engine Architecture
+# Centfolio Debt Calculation & Balance Aggregation Engine Architecture
 
 ## 1. Overview & Core Architecture
 
-SplitWisely employs a dual-layered balance architecture designed to provide both **isolated group financial tracking** and **global 1-on-1 friend relationship tracking**.
+Centfolio employs a dual-layered balance architecture designed to provide both **isolated group financial tracking** and **global 1-on-1 friend relationship tracking**.
 
 ```
 +-----------------------------------------------------------------------------------+

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { Button, Input, Divider, message, Modal } from 'antd';
-import { Receipt, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { OfflineBanner } from '../components/ui/OfflineBanner';
@@ -172,14 +172,14 @@ export function LoginPage() {
       <div className="relative w-full max-w-md">
         {/* Logo / Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm mb-4">
-            <Receipt className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm mb-4 shadow-xl overflow-hidden">
+            <img src="/brand-logo.png" alt="Centfolio" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">
-            SplitWisely
+            Centfolio
           </h1>
           <p className="text-primary-100 mt-2 text-sm">
-            Split expenses with friends, effortlessly.
+            Split expenses with friends, effortlessly with Centfolio.
           </p>
         </div>
 
@@ -307,7 +307,7 @@ export function LoginPage() {
           {/* Mode Indicator */}
           <p className="text-center text-xs text-text-muted mt-6">
             {isSupabaseConfigured
-              ? 'Connected to live Supabase Auth'
+              ? 'Login to split across friends and manage personal expenses'
               : 'Demo mode active — click Sign In or Google to explore'}
           </p>
         </div>

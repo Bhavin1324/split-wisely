@@ -1,6 +1,6 @@
 # Centralized Theme Architecture
 
-This document serves as a comprehensive guide for developers working on the Split-Wisely clone. It explains how our centralized theme system works, how to interact with it, and how to scale it by adding new color tokens or entirely new themes.
+This document serves as a comprehensive guide for developers working on Centfolio. It explains how our centralized theme system works, how to interact with it, and how to scale it by adding new color tokens or entirely new themes.
 
 ## 1. Core Philosophy
 

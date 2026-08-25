@@ -1,6 +1,6 @@
-# Comprehensive Session Handover & Project State: SplitWisely
+# Comprehensive Session Handover & Project State: Centfolio
 
-This document serves as an exhaustive, file-by-file historical record of all architectural decisions, implementations, and bug fixes applied to the SplitWisely clone project to date.
+This document serves as an exhaustive, file-by-file historical record of all architectural decisions, implementations, and bug fixes applied to the Centfolio project to date.
 
 ---
 
