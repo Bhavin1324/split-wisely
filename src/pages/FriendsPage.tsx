@@ -53,12 +53,12 @@ export function FriendsPage() {
   const { user } = useAuth();
   const { currentUser, groups: contextGroups } = useAppData();
   
-  const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
+  const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
   const { loading: appLoading } = useAppData();
-  const { data: liveFriends, loading: friendsLoading } = useFriends(user?.id);
-  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
-  const { data: liveSettlements } = useAllSettlements(user?.id);
+  const { data: liveFriends, loading: friendsLoading } = useFriends(userId);
+  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(userId);
+  const { data: liveSettlements } = useAllSettlements(userId);
 
   const friends = DEMO_MODE ? getFriendsForUser(MOCK_CURRENT_USER.id) : (liveFriends || []);
 
