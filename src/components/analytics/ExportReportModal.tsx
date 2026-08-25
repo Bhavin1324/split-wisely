@@ -14,7 +14,7 @@ export function ExportReportModal({ open, onClose, rows, periodLabel }: Props) {
 
   const handleDownload = () => {
     try {
-      const filename = `splitwisely-report-${periodLabel.replace(/\s+/g, '-').toLowerCase()}.csv`;
+      const filename = `centfolio-report-${periodLabel.replace(/\s+/g, '-').toLowerCase()}.csv`;
       exportToCSV(rows, filename);
       message.success('Report downloaded successfully');
       onClose();

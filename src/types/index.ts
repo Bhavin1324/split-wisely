@@ -83,6 +83,7 @@ export type GroupActivityActionType =
   | 'EXPENSE_UPDATED' 
   | 'EXPENSE_DELETED' 
   | 'SETTLEMENT_RECORDED' 
+  | 'SETTLEMENT_DELETED' 
   | 'MEMBER_ADDED' 
   | 'MEMBER_REMOVED' 
   | 'GROUP_UPDATED';

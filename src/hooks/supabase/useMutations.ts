@@ -1,6 +1,6 @@
 import { DEMO_MODE } from '../../context/AppDataContext';
 import { supabase } from '../../lib/supabase';
-import { MOCK_EXPENSES, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
+import { MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
 import type { Expense, GroupActivityItem } from '../../types';
 import { dispatchPushNotification } from '../../utils/pushDispatcher';
 
@@ -527,7 +527,7 @@ export async function createAppInvitation(params: { email: string, inviterName: 
       .from('email_notifications')
       .insert([{
         recipient_email: params.email,
-        subject: `${params.inviterName} has invited you to SplitWisely!`,
+        subject: `${params.inviterName} has invited you to Centfolio!`,
         body_json: {
           inviter_name: params.inviterName,
           token: null
@@ -572,9 +572,75 @@ export async function deleteGroup(groupId: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function deleteSettlement(settlementId: string): Promise<void> {
+export async function deleteSettlement(
+  settlementId: string,
+  activityMetadata?: {
+    group_id?: string | null;
+    actor_id?: string;
+    payer_id?: string;
+    payee_id?: string;
+    amount?: number;
+    payer_name?: string;
+    payee_name?: string;
+  }
+): Promise<void> {
+  if (DEMO_MODE) {
+    const idx = MOCK_SETTLEMENTS.findIndex((s) => s.id === settlementId);
+    if (idx !== -1) {
+      MOCK_SETTLEMENTS.splice(idx, 1);
+    }
+    if (activityMetadata?.group_id) {
+      const payerName = activityMetadata.payer_name || (activityMetadata.payer_id ? getProfileById(activityMetadata.payer_id)?.full_name : null) || 'Someone';
+      const payeeName = activityMetadata.payee_name || (activityMetadata.payee_id ? getProfileById(activityMetadata.payee_id)?.full_name : null) || 'someone';
+      const actor = activityMetadata.actor_id ? getProfileById(activityMetadata.actor_id) : undefined;
+      const activity: GroupActivityItem = {
+        id: `act-${Date.now()}`,
+        group_id: activityMetadata.group_id,
+        actor_id: activityMetadata.actor_id || null,
+        action_type: 'SETTLEMENT_DELETED',
+        description: `Payment from ${payerName} to ${payeeName} was deleted`,
+        metadata: {
+          settlement_id: settlementId,
+          amount: activityMetadata.amount,
+          payer_id: activityMetadata.payer_id,
+          payee_id: activityMetadata.payee_id,
+          payer_name: payerName,
+          payee_name: payeeName,
+        },
+        created_at: new Date().toISOString(),
+        actor,
+      };
+      MOCK_GROUP_ACTIVITIES.unshift(activity);
+    }
+    return;
+  }
+
   const { error } = await supabase.from('settlements').delete().eq('id', settlementId);
   if (error) throw error;
+
+  if (activityMetadata?.group_id) {
+    const payerName = activityMetadata.payer_name || 'Someone';
+    const payeeName = activityMetadata.payee_name || 'someone';
+    const description = `Payment from ${payerName} to ${payeeName} was deleted`;
+    try {
+      await supabase.from('group_activities').insert([{
+        group_id: activityMetadata.group_id,
+        actor_id: activityMetadata.actor_id || null,
+        action_type: 'SETTLEMENT_DELETED',
+        description,
+        metadata: {
+          settlement_id: settlementId,
+          amount: activityMetadata.amount,
+          payer_id: activityMetadata.payer_id,
+          payee_id: activityMetadata.payee_id,
+          payer_name: payerName,
+          payee_name: payeeName,
+        }
+      }]);
+    } catch (actErr) {
+      console.warn('Failed to insert group activity for settlement deletion:', actErr);
+    }
+  }
 }
 
 export async function addDirectFriend(
@@ -610,14 +676,14 @@ export async function addDirectFriend(
         actor_id: userId,
         type: 'FRIEND_ADDED',
         title: 'New Friend Added',
-        message: `${name} added you as a friend on SplitWisely.`,
+        message: `${name} added you as a friend on Centfolio.`,
         link: '/friends',
       }]);
 
       dispatchPushNotification({
         userIds: [friendId],
         title: 'New Friend Added 🤝',
-        message: `${name} added you as a friend on SplitWisely.`,
+        message: `${name} added you as a friend on Centfolio.`,
         url: '/friends',
       });
     } catch (notifErr) {

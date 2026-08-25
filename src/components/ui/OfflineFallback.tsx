@@ -12,7 +12,7 @@ interface OfflineFallbackProps {
 
 export function OfflineFallback({
   title = "No Internet Connection",
-  subTitle = "SplitWisely requires an active internet connection to securely load your balances and sync group expenses.",
+  subTitle = "Centfolio requires an active internet connection to securely load your balances and sync group expenses.",
   onRetry,
   showHomeButton = true,
 }: OfflineFallbackProps) {

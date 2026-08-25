@@ -3,7 +3,11 @@
  */
 export function getStoredCurrency(): string {
   if (typeof window !== 'undefined' && window.localStorage) {
-    return localStorage.getItem('splitwisely_user_currency') || 'INR';
+    return (
+      localStorage.getItem('centfolio_user_currency') ||
+      localStorage.getItem('splitwisely_user_currency') ||
+      'INR'
+    );
   }
   return 'INR';
 }
@@ -13,7 +17,7 @@ export function getStoredCurrency(): string {
  */
 export function setStoredCurrency(currencyCode: string): void {
   if (typeof window !== 'undefined' && window.localStorage) {
-    localStorage.setItem('splitwisely_user_currency', currencyCode);
+    localStorage.setItem('centfolio_user_currency', currencyCode);
   }
 }
 

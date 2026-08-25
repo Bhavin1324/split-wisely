@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const DISMISS_STORAGE_KEY = 'splitwisely_pwa_install_dismissed';
+const DISMISS_STORAGE_KEY = 'centfolio_pwa_install_dismissed';
 const DISMISS_DURATION_DAYS = 7;
 
 interface BeforeInstallPromptEvent extends Event {

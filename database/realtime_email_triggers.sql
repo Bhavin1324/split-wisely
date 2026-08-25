@@ -1,5 +1,5 @@
 -- ============================================================================
--- SplitWisely: Email Notification Trigger Functions
+-- Centfolio: Email Notification Trigger Functions
 -- Run these in your Supabase SQL Editor after schema.sql
 -- ============================================================================
 -- These triggers fire when expenses or settlements are inserted,
@@ -123,16 +123,23 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_inviter_name TEXT;
   v_group_name TEXT;
+  v_app_name TEXT;
 BEGIN
   SELECT full_name INTO v_inviter_name FROM profiles WHERE id = NEW.invited_by;
   SELECT name INTO v_group_name FROM groups WHERE id = NEW.group_id;
+
+  BEGIN
+    SELECT value INTO v_app_name FROM public.app_settings WHERE key = 'app_name' LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    v_app_name := 'Centfolio';
+  END;
 
   INSERT INTO email_notifications (
     recipient_email, notification_type, subject, body_json
   ) VALUES (
     NEW.email,
     'group_invitation',
-    v_inviter_name || ' invited you to join "' || v_group_name || '" on SplitWisely',
+    v_inviter_name || ' invited you to join "' || v_group_name || '" on ' || COALESCE(v_app_name, 'Centfolio'),
     jsonb_build_object(
       'invitation_id', NEW.id,
       'inviter_name', v_inviter_name,

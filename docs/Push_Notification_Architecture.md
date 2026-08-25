@@ -1,6 +1,6 @@
-# DiviPulse Web Push Notification Architecture & Technical Implementation
+# Centfolio Web Push Notification Architecture & Technical Implementation
 
-This document provides a comprehensive, easy-to-understand technical guide on how **Web Push Notifications** work in general, and how they are implemented across **DiviPulse** (Frontend PWA, Supabase PostgreSQL, and Supabase Edge Functions).
+This document provides a comprehensive, easy-to-understand technical guide on how **Web Push Notifications** work in general, and how they are implemented across **Centfolio** (Frontend PWA, Supabase PostgreSQL, and Supabase Edge Functions).
 
 ---
 
@@ -77,13 +77,13 @@ sequenceDiagram
 
 ---
 
-## 4. DiviPulse Implementation Architecture
+## 4. Centfolio Implementation Architecture
 
-In DiviPulse, push notifications are architected across four modular layers:
+In Centfolio, push notifications are architected across four modular layers:
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────────────┐
-│                                  DIVIPULSE CLIENT                                 │
+│                                  Centfolio CLIENT                                 │
 │                                                                                   │
 │   ┌───────────────────────────┐                     ┌───────────────────────────┐ │
 │   │   AppLayout / AuthContext │                     │   PushNotificationsCard   │ │
@@ -229,7 +229,7 @@ sequenceDiagram
 
 ---
 
-### Lifecycle 2: All Event Triggers Across DiviPulse
+### Lifecycle 2: All Event Triggers Across Centfolio
 
 | Trigger Event | Originating Component | Recipient Targeted | Notification Title & Message |
 | :--- | :--- | :--- | :--- |

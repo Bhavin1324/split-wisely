@@ -128,7 +128,7 @@ export function SettingsPage() {
       category: exp.category?.name ?? 'Uncategorized',
       date: exp.created_at,
     }));
-    ExportAdapter.exportToCSV(csvData, 'splitwisely-expenses.csv');
+    ExportAdapter.exportToCSV(csvData, 'centfolio-expenses.csv');
     messageApi.success('Expenses exported as CSV');
   };
 
@@ -154,7 +154,7 @@ export function SettingsPage() {
       expenses: mappedExpenses,
       settlements: mappedSettlements,
     };
-    ExportAdapter.exportToJSON(backupData, 'splitwisely-backup.json');
+    ExportAdapter.exportToJSON(backupData, 'centfolio-backup.json');
     messageApi.success('Full backup exported as JSON');
   };
 

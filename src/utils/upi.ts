@@ -123,7 +123,7 @@ export function getAppSpecificUpiUri(app: UpiAppTarget, options: UpiPaymentOptio
  * Downloads the QR code from a DOM container element as a clean PNG image.
  * Works seamlessly with Ant Design <QRCode /> which renders a <canvas> element.
  */
-export function downloadQrCode(elementId: string, fileName = 'splitwisely-upi-qr.png'): boolean {
+export function downloadQrCode(elementId: string, fileName = 'centfolio-upi-qr.png'): boolean {
   if (typeof document === 'undefined') return false;
   try {
     const container = document.getElementById(elementId);

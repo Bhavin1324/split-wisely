@@ -79,27 +79,27 @@ export function useNotifications() {
             getOrRegisterServiceWorker()
               .then((registration) => {
                 if (registration && 'showNotification' in registration) {
-                  registration.showNotification(newNotif.title || 'SplitWisely', {
-                    body: newNotif.message || 'You have a new update in SplitWisely.',
+                  registration.showNotification(newNotif.title || 'Centfolio', {
+                    body: newNotif.message || 'You have a new update in Centfolio.',
                     icon: '/pwa-icon.jpg',
                     badge: '/pwa-icon.jpg',
                     vibrate: [150, 50, 150],
-                    tag: `splitwisely-${newNotif.id}`,
+                    tag: `centfolio-${newNotif.id}`,
                     data: {
                       url: newNotif.link || '/dashboard',
                     },
                   } as NotificationOptions);
                 } else {
-                  new Notification(newNotif.title || 'SplitWisely', {
-                    body: newNotif.message || 'You have a new update in SplitWisely.',
+                  new Notification(newNotif.title || 'Centfolio', {
+                    body: newNotif.message || 'You have a new update in Centfolio.',
                     icon: '/pwa-icon.jpg',
                   });
                 }
               })
               .catch(() => {
                 try {
-                  new Notification(newNotif.title || 'SplitWisely', {
-                    body: newNotif.message || 'You have a new update in SplitWisely.',
+                  new Notification(newNotif.title || 'Centfolio', {
+                    body: newNotif.message || 'You have a new update in Centfolio.',
                     icon: '/pwa-icon.jpg',
                   });
                 } catch {

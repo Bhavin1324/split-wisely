@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Input, Form, message, Alert } from 'antd';
-import { Lock, Receipt } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -50,8 +50,8 @@ export function ResetPasswordPage() {
     <div className="min-h-screen bg-bg-base flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
-            <Receipt className="w-8 h-8 text-white" />
+          <div className="w-12 h-12 bg-primary-500 rounded-xl flex items-center justify-center overflow-hidden text-white shadow-lg shadow-primary-500/25 transition-colors duration-200">
+            <img src="/brand-logo.png" alt="Centfolio" className="w-full h-full object-contain" />
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-text-base">

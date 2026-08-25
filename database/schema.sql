@@ -1,5 +1,5 @@
 -- ============================================================================
--- SplitWisely Master PostgreSQL DDL Schema & RPC Procedures
+-- Centfolio Master PostgreSQL DDL Schema & RPC Procedures
 -- ============================================================================
 
 -- Enable UUID extension

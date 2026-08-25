@@ -48,7 +48,9 @@ export function usePushNotifications(): UsePushNotificationsResult {
       return;
     }
 
-    const userDisabled = localStorage.getItem('splitwisely_push_enabled') === 'false';
+    const userDisabled =
+      localStorage.getItem('centfolio_push_enabled') === 'false' ||
+      localStorage.getItem('splitwisely_push_enabled') === 'false';
     if (userDisabled) {
       setIsSubscribed(false);
       setLoading(false);
@@ -76,7 +78,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
   const subscribe = async (): Promise<boolean> => {
     setLoading(true);
-    localStorage.setItem('splitwisely_push_enabled', 'true');
+    localStorage.setItem('centfolio_push_enabled', 'true');
     try {
       const sub = await subscribeUserToPush(user?.id);
       setIsSubscribed(Boolean(sub));
@@ -89,7 +91,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
   const unsubscribe = async (): Promise<boolean> => {
     setLoading(true);
-    localStorage.setItem('splitwisely_push_enabled', 'false');
+    localStorage.setItem('centfolio_push_enabled', 'false');
     try {
       const success = await unsubscribeUserFromPush(user?.id);
       setIsSubscribed(false);

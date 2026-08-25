@@ -1,4 +1,4 @@
-# SplitWisely Coding Rules & Conventions
+# Centfolio Coding Rules & Conventions
 
 ## Tech Stack
 - React 18 (Vite)
@@ -29,7 +29,7 @@
 ## Technical Decisions
 - **Dark Mode**: Managed via `<html data-scheme="dark">`. Overrides AntD tokens via Tailwind utilities in `index.css` rather than modifying AntD ConfigProvider dynamically.
 - **PWA**: Configured in `vite.config.ts`. Mobile views utilize `Drawer` components and bottom navigation for native feel.
-- **UPI**: BHIM parser strictness is handled natively by `encodeUpiParam` to ensure URI deep links don't break.
+- **UPI P2P Web Invariants**: Browser-initiated `upi://pay` deep links to personal VPAs (P2P) are blocked by major UPI apps (Google Pay, PhonePe, Paytm) under NPCI anti-phishing rules that restrict browser intents to verified merchants (P2M). Therefore, in-app P2P payment flows must NEVER rely solely on direct `upi://pay` intent redirection. P2P settlement UI must always prioritize **QR Code display** (with "Save to Gallery" download) and **1-tap Copy UPI ID / VPA** for 100% reliable settlement execution. BHIM parser strictness is handled natively by `encodeUpiParam`.
 - **Settlement Integrity (AUTO_ALL)**: Never create `group_id = NULL` settlement records. Multi-group global netting (`AUTO_ALL`) must discover all active group debts and insert distinct group-linked `createSettlement` records to ensure no group ledger is orphaned.
 
 ## UI/UX & Design System Guidelines
