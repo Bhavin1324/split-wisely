@@ -6,6 +6,7 @@ import { MOCK_CURRENT_USER } from '../lib/mockData';
 import type { Expense } from '../types';
 import { formatCents, getStoredCurrency } from '../utils/currency';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
+import { useAuth } from '../context/AuthContext';
 import { createExpenseWithSplits, updateExpenseWithSplits } from '../hooks/supabase/useMutations';
 import { useExpenseForm } from '../hooks/useExpenseForm';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -26,8 +27,9 @@ interface AddExpenseModalProps {
 
 export function AddExpenseModal({ open, onClose, groupId, existingExpense, onSuccess }: AddExpenseModalProps) {
   const isMobile = useIsMobile(640);
+  const { user } = useAuth();
   const { currentUser, groups, categories, refetchData } = useAppData();
-  const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
+  const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
   const formState = useExpenseForm(groupId, existingExpense, open, userId, categories);
   const {

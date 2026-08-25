@@ -19,7 +19,7 @@ interface AppDataContextType {
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
 
 export const AppDataProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -96,6 +96,8 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   }, [user?.id, fetchProfile, fetchGroups, fetchCategories]);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const fetchData = async () => {
       setLoading(true);
       if (user?.id) {
@@ -113,7 +115,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     };
 
     fetchData();
-  }, [user?.id, fetchProfile, fetchGroups, fetchCategories]);
+  }, [user?.id, authLoading, fetchProfile, fetchGroups, fetchCategories]);
 
   useEffect(() => {
     if (!user?.id || DEMO_MODE) return;
@@ -139,7 +141,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
         currentUser,
         groups,
         categories,
-        loading,
+        loading: authLoading || loading,
         refetchGroups,
         refetchProfile,
         refetchData,

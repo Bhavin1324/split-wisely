@@ -91,7 +91,7 @@ export function useDashboardData(userId: string, groups: Group[], allExpenses: E
       groupBalances,
       groupDebtsMap,
     };
-  }, [userId, groups, allExpenses]);
+  }, [userId, groups, allExpenses, allSettlements]);
 
   const expensesByMonth = useMemo(() => {
     const sorted = [...allExpenses].sort(

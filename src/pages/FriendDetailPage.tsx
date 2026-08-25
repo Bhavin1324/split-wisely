@@ -43,11 +43,11 @@ export function FriendDetailPage() {
   const { message } = App.useApp();
   const { user } = useAuth();
   const { currentUser, groups: contextGroups, loading: appLoading } = useAppData();
-  const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
+  const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
 
-  const { data: liveFriends, loading: friendsLoading } = useFriends(user?.id);
-  const { data: liveExpenses, loading: expensesLoading, refetch: refetchExpenses } = useAllExpenses(user?.id);
-  const { data: liveSettlements, refetch: refetchSettlements } = useAllSettlements(user?.id);
+  const { data: liveFriends, loading: friendsLoading } = useFriends(userId);
+  const { data: liveExpenses, loading: expensesLoading, refetch: refetchExpenses } = useAllExpenses(userId);
+  const { data: liveSettlements, refetch: refetchSettlements } = useAllSettlements(userId);
 
   const handleRefetchAll = useCallback(async () => {
     await Promise.all([refetchExpenses(), refetchSettlements()]);
