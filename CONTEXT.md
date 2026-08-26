@@ -1,103 +1,85 @@
-# Comprehensive Session Handover & Project State: Centfolio
+# Comprehensive Project Architecture & Handover Context: Centfolio
 
-This document serves as an exhaustive, file-by-file historical record of all architectural decisions, implementations, and bug fixes applied to the Centfolio project to date.
-
----
-
-## 1. Exhaustive Detailed Change Log
-
-### A. Core Architecture & Global UI
-- **`vite.config.ts`**: Configured Progressive Web App (PWA) manifest and Workbox caching to ensure the app is installable on mobile devices with native-like behaviors.
-- **`tailwind.config.js` & `src/index.css`**: 
-  - Overhauled the entire design system to use centralized semantic CSS variables (`--color-bg-base`, `--color-primary-500`).
-  - Integrated `darkMode: 'class'` in Tailwind.
-  - Implemented `.ant-app` global overrides to forcefully adapt Ant Design components (Modals, Drawers, Switches, Dropdowns) to inherit Tailwind's dark mode variables seamlessly, bypassing complex JS configuration.
-- **`src/context/ThemeContext.tsx`**: Manages Light/Dark toggle state persisting to `localStorage('splitwisely_dark_mode')`, mapping to `<html data-scheme="dark">`.
-- **`src/layouts/AppLayout.tsx`**: 
-  - Restructured responsive navigation. Added bottom-tab navigation for mobile.
-  - Lifted the global `useNotifications` hook to the layout root to prevent double-websocket instantiations that previously crashed the app via the `GlobalErrorBoundary`.
-  - Replaced cramped mobile popovers with an immersive, native-feeling `<Drawer placement="top" height="85vh" rounded-b-3xl>` for notifications.
-- **`src/components/ui/PageSkeleton.tsx`**: Built standard AntD-based skeleton loaders to prevent layout shift during global suspense/loading boundaries.
-
-### B. Group Orchestration & Ledger Engine
-- **`src/pages/GroupDetailPage.tsx`**: 
-  - Executed a massive refactor, condensing a 900+ line file into a 150-line orchestrator that imports modular sub-components. Passed required context down via clean props. Removed obsolete unused props (`myDebts`, `getProfile`).
-  - Integrated `GroupActivityTab.tsx` as an append-only audit trail to show a historical timeline of group events, while keeping the orchestrator file well under the 300-line limit.
-- **`src/hooks/useGroupCalculations.ts`**: 
-  - Rebuilt the core debt engine. It now actively structures historical data into `expensesItemized` and `paymentsItemized` arrays, ensuring mathematical transparency.
-- **`src/components/group/GroupHeader.tsx`**: 
-  - Completely redesigned. Removed hardcoded styling. 
-  - Introduced a dual-display balance system: Top-level displays the user's "Overall Net Balance" dynamically, while the detailed "Your Status" breakdown box exists just beneath it.
-- **`src/components/group/GroupLedgerModal.tsx`**: Created to solve the "Trust" factor. Provides users a step-by-step mathematical breakdown ("How are these calculated?") to prove the debt engine's accuracy.
-- **`src/components/group/GroupExpensesTab.tsx` & `GroupBalancesTab.tsx`**: Segregated feed data from settlement views.
-- **`src/components/group/GroupMembersDrawer.tsx`**: Centralized add/remove member controls securely off-screen.
-- **`src/components/group/GroupActivityTab.tsx`**: Added a UI feed mapping DB logs to relative date bucketing, semantic icons, and monospaced financial formatting.
-- **`supabase/migrations/20260814000000_group_activities.sql`**: Created audit table for group events, secured by append-only RLS (`INSERT` only), and populated via strict Postgres triggers on `expenses`, `settlements`, and `group_members`. Configured `ON DELETE CASCADE` so logs are bounded to the group lifecycle.
-
-### C. Backend Interactions & Notifications
-- **`src/hooks/supabase/useNotifications.ts`**: 
-  - Intercepts Postgres `INSERT` and `UPDATE` events via Supabase Realtime Channels.
-  - Implemented a "Soft Clear" mechanism. Using `localStorage('notificationsClearedUntil')`, the UI intelligently filters out read notifications older than the timestamp, ensuring the UI remains clean without executing destructive `DELETE` statements on the historical database.
-- **`src/components/ui/NotificationList.tsx`**: 
-  - Redesigned with a Segmented control mapping to local React state (`activeTab`) to filter between "All" and "Unread". 
-  - Implemented crisp hover hierarchies and empty-state graphics. Unread notifications clear instantly upon interaction.
-- **Realtime Lifecycle Fortification**:
-  - Across `useExpensesData.ts`, `useSettlementsData.ts`, `useGroupsData.ts`, and `useNotifications.ts`, eradicated recurring `cannot add listener to subscribed channel` errors. 
-  - Implemented the strict formula: generating highly unique channel instances (`prefix-\${Date.now()}-\${Math.random().toString(36).substring(2,7)}`), strictly chaining all `.on('postgres_changes')` events *before* `.subscribe()`, and returning a rigid `supabase.removeChannel` cleanup on unmount.
-- **React State Synchronization (Eliminated DOM Events)**:
-  - Eliminated dangerous legacy implementations of `window.dispatchEvent` and `window.addEventListener` for component UI synchronization.
-  - Funneled all data revalidation through a clean, centralized `refetchData()` pipeline exported by `AppDataContext.tsx`.
-
-### D. Deep Link Fixes & Financial Modals
-- **`src/components/SettleUpModal.tsx`**: 
-  - **BHIM UPI Fix**: Identified a strict constraint in India's BHIM/NPCI parsers crashing on URL-encoded spaces (`%20`) and URI-plus characters (`+`). Wrote an aggressive `encodeUpiParam` wrapper to strip all non-alphanumeric characters from Payee Name (`pn`) and Transaction Note (`tn`).
-  - Added rigid dynamic validation flashing an Error banner if a user attempts to overpay (creating false negative debt) and a Warning banner calculating remaining balance for partial settlements.
-  - **AUTO_ALL Settlement Netting (True Cross-Group Clearing)**: Rebuilt the multi-group settlement allocation logic. The engine now actively intercepts reciprocal debts (where the payee owes the payer), adds them to the payer's "purchasing power", and proportionally pays off exact debt amounts in individual group ledgers, completely prohibiting orphaned `group_id = NULL` settlements that previously desynchronized system states.
-- **Split Tabs (`SharesSplitTab.tsx`, `ExactSplitTab.tsx`, `PercentageSplitTab.tsx`)**: 
-  - Fixed horizontal mobile overflow bugs where ultra-long participant names pushed inputs off-screen. Deployed fluid flex layouts (`flex-1 min-w-0 truncate`) and hardened inputs with `shrink-0`.
-- **`src/pages/SettingsPage.tsx`**: 
-  - Fixed JSON/CSV Data exports. Re-mapped raw database integer cents (e.g. `1050`) by dividing by 100 on-the-fly to output standard fractional currency (`10.50`).
-- **Dashboard UI Cache Busters**:
-  - Fixed `DashboardPage.tsx` and `useDashboardData.ts` to actively accept live production settlements (which were previously hard-coded to empty arrays), successfully driving zero-balance UI updates ("Settled Up" badges) in real-time.
+This document serves as the master architectural reference, domain knowledge base, and exhaustive historical record of all systems, decisions, and constraints for **Centfolio** (formerly SplitWisely).
 
 ---
 
-## 2. Architecture & State Overview
+## 1. Project Overview & Identity
 
-- **Data Flow**: 
-  - The application relies heavily on global context Providers (`AppDataContext`, `AuthContext`) minimizing prop drilling. For real-time updates (like notifications), we centralize the websocket connection at the top-most layout (`AppLayout`) and filter downward.
-- **Database Schema**: 
-  - The `notifications` table utilizes standard boolean states (`is_read`). 
-  - The `settlements` and `expenses` ledgers map rigorously using `group_id`. `AUTO_ALL` netting relies on strictly matching `payer_id`, `payee_id`, and `group_id` for accurate ledger deductions.
-- **Dependencies & Variables**: 
-  - Supabase client requires standard `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-  - Application strictly utilizes `lucide-react` for iconography and `antd` for robust modal/drawer/input primitives.
-- **Testing Dependencies**:
-  - `vitest` is utilized for backend logic edge-case audits.
+* **Application Name**: Centfolio (Smart Expense Splitting & Personal Finance Ledger)
+* **Target Audience**: Friends, roommates, travel groups, and individuals managing shared expenses and personal debit/credit ledgers.
+* **Platforms**:
+  * **Web & Progressive Web App (PWA)**: Deployed on Vercel (`split-wisely.vercel.app`), standalone mobile installation, service worker offline caching.
+  * **Capacitor Mobile App (Android / iOS)**: Native hybrid React app sharing the same backend, real-time sync, and native Android SMS Auto-Ledger parser.
+* **Unified Supabase Backend**: Project `kvddxuxnyhqxmmmfetvn` (PostgreSQL 17.6.1 in region `ap-northeast-1`).
 
 ---
 
-## 3. Verified & Working Status
+## 2. Core Architectural Pillars
 
-- **Compilation / Build**: 100% Green. Executing `npm run build` (`tsc -b && vite build`) confirms all Typescript typing and modules compile flawlessly.
-- **Features Tested**:
-  - The `GroupDetailPage` refactor passes compilation and all manual visual integrity checks.
-  - The "Soft-Clear" logic accurately masks historical notifications.
-  - PWA service workers generate and precache core assets successfully.
-- **Mathematical Stress Test (Debt Simplifier Engine)**:
-  - Fuzz-tested `DebtSimplifier.ts` logic mapping 10,000 highly-complex cyclic transactions across 50 users resulting in exact mathematical convergence (zero dropped fractional pennies) confirming ultimate stability at scale.
-- **Manual Verification Required (For Upcoming Sessions)**:
-  - Generate a mock expense, hit "Settle Up", and test the generated UPI Deep Link via a physical Android device on BHIM and PhonePe to confirm the `encodeUpiParam` wrapper functions perfectly in production.
+### A. Centralized Design System & Theming
+* **Tailwind Semantic Variables**: Centralized in `tailwind.config.js` and `src/index.css` using CSS custom properties (`--color-bg-base`, `--color-bg-surface`, `--color-primary-500`, `--color-text-base`, etc.).
+* **Ant Design Dark Mode Adaptation**: Overridden via `.ant-app` global selectors so AntD components (Modals, Drawers, Dropdowns, DatePickers) seamlessly adapt to dark/light theme tokens without complex JS configurations.
+* **Dynamic Theme Context**: `ThemeContext.tsx` handles theme switches with safe migration fallbacks from legacy `splitwisely_*` localStorage keys to `centfolio_*`.
+
+### B. Group Debt & Financial Engine
+* **Mathematical Debt Simplification (`DebtSimplifier.ts`)**: Cyclic graph minimization engine simplifying mutual group debts into the minimal number of direct P2P transactions without losing a single cent.
+* **Cross-Group Settlement Netting (`AUTO_ALL`)**: Intercepts reciprocal debts across groups and accurately distributes payments into individual group ledgers, prohibiting orphaned `group_id = NULL` records.
+* **Audit Timeline (`group_activities`)**: Append-only activity log tracking `EXPENSE_CREATED`, `EXPENSE_UPDATED`, `EXPENSE_DELETED`, `SETTLEMENT_RECORDED`, `SETTLEMENT_DELETED`, `MEMBER_ADDED`, `MEMBER_REMOVED`, and `GROUP_UPDATED`.
+
+### C. Indian UPI Payments & Settlement Invariants
+* **NPCI / Web Browser P2P Limitation**: Under NPCI anti-phishing guidelines, web browsers triggering `upi://pay` deep links to personal VPAs (P2P) are blocked by UPI apps (GPay, PhonePe, Paytm).
+* **Centfolio Solution**:
+  1. High-contrast **on-screen dynamic UPI QR Code** (auto-populated with exact payee VPA, amount, and transaction note).
+  2. **1-Tap "Copy UPI ID"** action.
+  3. **"Save QR to Gallery"** download option.
+* **BHIM UPI Character Sanitization**: Strict `encodeUpiParam` wrapper stripping non-alphanumeric characters to prevent parser errors in Indian banking apps.
+
+### D. Push Notifications & PWA Lifecycle
+* **Push Notification Stack**: Web Push API (VAPID) + Supabase Edge Function (`send-push`) + Postgres `email_notifications` queue.
+* **Unblocking Guide Modal**: Step-by-step instructions for Android (App Info ℹ️ shortcut & address bar permissions) and iOS (Settings $\to$ Centfolio $\to$ Notifications).
+* **Browser Permission Invariant**: Once `Notification.permission === 'denied'`, browsers never show the native prompt again. The app directs users to App Info / Site Settings and provides an interactive retry button.
+
+### E. Database Security & Encryption
+* **Encrypted UPI Storage (`profiles_base` & `public.profiles`)**: UPI IDs are encrypted at rest using `pgcrypto` (`pgp_sym_encrypt`).
+* **`SECURITY INVOKER` View (`public.profiles`)**: Configured with `with (security_invoker = true)` to ensure all client queries strictly respect Row Level Security (RLS) policies on `profiles_base`.
 
 ---
 
-## 4. Pending Work & Immediate Next Steps
+## 3. Database Schema (24 Tables & Views)
 
-### Known Edge Cases & UX Polish
-- Soft-cleared notifications rely entirely on browser local storage. Switching devices or clearing cache will temporarily restore previously cleared "read" notifications.
-- A11y (Accessibility) checks are pending for the `GroupHeader` contrast ratios specifically addressing `--success-text` and `--error-text` visibility on Dark Mode backgrounds.
+```
+public.profiles_base (id, full_name, avatar_url, default_currency, upi_id_encrypted, created_at)
+  └── public.profiles (VIEW: with transparent pgp_sym_decrypt and security_invoker = true)
+public.groups (id, name, type, currency_code, created_by, simplify_debts, created_at, updated_at)
+public.group_members (id, group_id, user_id, joined_at)
+public.group_invitations (id, group_id, invited_by, email, token, status, created_at)
+public.group_activities (id, group_id, actor_id, action_type, description, metadata, created_at)
+public.categories (id, name, icon, is_system, created_at)
+public.expenses (id, group_id, category_id, description, total_amount, currency_code, exchange_rate, base_currency_amount, payer_id, receipt_image_url, created_by, expense_date, created_at, updated_at)
+public.expense_splits (id, expense_id, user_id, amount_owed, created_at)
+public.expense_comments (id, expense_id, user_id, comment, created_at)
+public.settlements (id, group_id, payer_id, payee_id, amount, currency_code, payment_method, notes, source_account_id, destination_account_id, created_at)
+public.user_friends (id, user_id, friend_id, status, created_at)
+public.friends (id, user_id_1, user_id_2, balance, created_at)
+public.notifications (id, user_id, title, message, type, is_read, link_url, created_at)
+public.email_notifications (id, recipient_user_id, recipient_email, notification_type, subject, body_json, status, attempts, error_message, created_at, processed_at)
+public.push_subscriptions (id, user_id, endpoint, keys, created_at)
+public.app_settings (key, value, description, updated_at)
+public.user_accounts (id, user_id, name, type, balance, currency_code, account_number, is_active, created_at, updated_at)
+public.personal_transactions (id, user_id, account_id, category_id, amount, transaction_type, description, transaction_date, is_recurring, created_at, updated_at)
+public.personal_budgets (id, user_id, category_id, amount, period, start_date, created_at, updated_at)
+public.recurring_bills (id, user_id, account_id, category_id, name, amount, frequency, next_due_date, is_active, auto_pay, created_at, updated_at)
+public.activity_logs (id, group_id, user_id, action_type, metadata, created_at)
+public.receipt_items (id, expense_id, name, price, quantity, created_at)
+public.item_assignments (id, item_id, user_id, created_at)
+public.default_splits (id, group_id, user_id, percentage, share, created_at)
+```
 
-### Action Checklist for Next Agent Session
-1. [ ] **A11y Audit**: Execute contrast ratio validation against WCAG 2.1 standards for the new dual-balance text blocks in `GroupHeader.tsx`.
-2. [ ] **UI Micro-Interactions**: Review the mobile Drawer CSS transition timings for `NotificationList` to ensure 60fps frame-rate smoothness.
-3. [ ] **Rule Enforcement Setup**: Review the `splitwisely-development-patterns.md` and `.agyrules` / `.rules` files drafted and finalized in this session to enforce AI agent constraints permanently.
+---
+
+## 4. Mobile App (Capacitor) Roadmap & Invariants
+
+* **Shared Backend**: Capacitor Mobile connects to `https://kvddxuxnyhqxmmmfetvn.supabase.co` on the `public` schema.
+* **SMS Auto-Ledger Ingestion**: Android SMS reader parses bank debit/credit text and directly inserts into `public.personal_transactions`, syncing instantly to both Web and Mobile.
+* **Auth Scheme**: Custom redirect scheme `centfolio://auth/callback` added to Supabase Redirect URLs.

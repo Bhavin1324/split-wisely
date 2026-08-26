@@ -1,8 +1,9 @@
 # Project Rules & Guidelines (AGY.md)
 
 ## 1. Tech Stack & Architecture
-- **Frameworks & Libraries**: React 18 (Vite), TypeScript, Tailwind CSS, Ant Design (AntD), Supabase (Backend & Auth), Lucide React (Icons).
-- **Architecture**: Single Page Application (SPA) configured as a Progressive Web App (PWA). Global states managed via React Context (`AppDataContext`, `ThemeContext`, `AuthContext`).
+- **Frameworks & Libraries**: React 19 (Vite), TypeScript, Tailwind CSS, Ant Design (AntD), Supabase (Backend & Auth), Lucide React (Icons), Capacitor (Mobile App).
+- **Architecture**: Single Page Application (SPA) configured as a Progressive Web App (PWA) and Capacitor Native Mobile App sharing the unified Supabase project (`kvddxuxnyhqxmmmfetvn`).
+- **Mobile Handover Guide**: See `docs/Mobile_App_Capacitor_Architecture.md` for Capacitor setup, Android SMS auto-ledger parser, and deep linking.
 - **Folder Structure Conventions**:
   - `src/components/`: Reusable, stateless UI components. Grouped by feature domain (e.g., `src/components/group/`).
   - `src/hooks/`: Custom business logic, specifically `supabase/` for DB interactions and real-time subscriptions.
