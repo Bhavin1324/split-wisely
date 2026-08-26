@@ -43,8 +43,8 @@ npm install
 ### 3. Environment Variables
 Create a `.env` file in the root directory:
 ```env
-VITE_SUPABASE_URL=https://kvddxuxnyhqxmmmfetvn.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_rw_7drSHquDLDSrRMWOLhQ_yWNBd-dH
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
 ```
 
 ### 4. Development & Build Commands
@@ -64,7 +64,6 @@ npm run build
 ## 📖 Architecture & Documentation
 
 * **[CONTEXT.md](CONTEXT.md)**: Master project history, design system, debt engine, and domain invariants.
-* **[Mobile App Capacitor Architecture](docs/Mobile_App_Capacitor_Architecture.md)**: Comprehensive guide for the Capacitor Native Mobile App & SMS Auto-Ledger parser.
 * **[Push Notification Architecture](docs/Push_Notification_Architecture.md)**: Web Push API, Edge Functions, and VAPID setup.
 * **[Theme Architecture](docs/Theme_Architecture.md)**: Semantic CSS tokens and Ant Design dark-mode integration.
 * **[Debt Calculation Logic](docs/debt-calculation-logic.md)**: Mathematical proofs and greedy graph minimization algorithm.
