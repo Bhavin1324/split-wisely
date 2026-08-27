@@ -31,9 +31,6 @@ export interface LedgerInput {
  */
 export function getTxMonth(dateStr: string): string {
   if (!dateStr) return '';
-  if (dateStr.length >= 7 && dateStr[4] === '-') {
-    return dateStr.substring(0, 7);
-  }
   return dayjs(dateStr).format('YYYY-MM');
 }
 

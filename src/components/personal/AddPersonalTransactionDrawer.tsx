@@ -190,9 +190,15 @@ export function AddPersonalTransactionDrawer({
 
       setSubmitting(true);
       const amountCents = Math.round(amountValue * 100);
-      const dateIso = values.date
-        ? values.date.format('YYYY-MM-DDTHH:mm:ss')
-        : dayjs().format('YYYY-MM-DDTHH:mm:ss');
+      const selectedDate = values.date ? dayjs(values.date) : dayjs();
+      let dateIso: string;
+      if (isEditing && existingTransaction) {
+        dateIso = selectedDate.toISOString();
+      } else {
+        dateIso = selectedDate.isSame(dayjs(), 'day')
+          ? dayjs().toISOString()
+          : selectedDate.hour(12).minute(0).second(0).millisecond(0).toISOString();
+      }
 
       const dto: CreateTransactionDTO = {
         id: existingTransaction?.id,
