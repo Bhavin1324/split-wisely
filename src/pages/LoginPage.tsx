@@ -71,63 +71,67 @@ export function LoginPage() {
     }
 
     setLoading(true);
-    let authError = null;
-    let authSession = null;
-    let authUser = null;
+    try {
+      let authError = null;
+      let authSession = null;
+      let authUser = null;
 
-    if (isLoginMode) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      authError = error;
-      authSession = data.session;
-    } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-          },
-        },
-      });
-      authError = error;
-      authSession = data.session;
-      authUser = data.user;
-      
-      if (!error && data.user?.identities?.length === 0) {
-        authError = new Error('This email is already registered. Please sign in instead.');
-      }
-    }
-
-    setLoading(false);
-
-    if (authError) {
-      // Provide a helpful message if email confirmation is required but not done
-      if (authError.message.toLowerCase().includes('email not confirmed')) {
-        messageApi.error('Email not confirmed. Please check your inbox or disable "Confirm Email" in your Supabase Auth settings.');
-      } else {
-        messageApi.error(authError.message);
-      }
-    } else {
       if (isLoginMode) {
-        messageApi.success('Successfully signed in!');
-        navigate('/dashboard');
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        authError = error;
+        authSession = data.session;
       } else {
-        if (authSession) {
-          messageApi.success('Successfully signed up! You are now logged in.');
-          navigate('/dashboard');
-        } else if (authUser) {
-          Modal.success({
-            title: 'Check your email',
-            content: 'Registration successful! We have sent a confirmation link to your email address. Please click it to activate your account.',
-            okText: 'Got it',
-          });
-          setIsLoginMode(true);
-          setPassword('');
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+            },
+          },
+        });
+        authError = error;
+        authSession = data.session;
+        authUser = data.user;
+        
+        if (!error && data.user?.identities?.length === 0) {
+          authError = new Error('This email is already registered. Please sign in instead.');
         }
       }
+
+      if (authError) {
+        if (authError.message.toLowerCase().includes('email not confirmed')) {
+          messageApi.error('Email not confirmed. Please check your inbox or disable "Confirm Email" in your Supabase Auth settings.');
+        } else {
+          messageApi.error(authError.message);
+        }
+      } else {
+        if (isLoginMode) {
+          messageApi.success('Successfully signed in!');
+          navigate('/dashboard');
+        } else {
+          if (authSession) {
+            messageApi.success('Successfully signed up! You are now logged in.');
+            navigate('/dashboard');
+          } else if (authUser) {
+            Modal.success({
+              title: 'Check your email',
+              content: 'Registration successful! We have sent a confirmation link to your email address. Please click it to activate your account.',
+              okText: 'Got it',
+            });
+            setIsLoginMode(true);
+            setPassword('');
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Authentication exception:', err);
+      messageApi.error(err?.message || 'Failed to connect to authentication server. Please check your internet connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
