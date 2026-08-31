@@ -18,7 +18,7 @@ describe('Debt Visualizer Calculations', () => {
       [akarshId]: { id: akarshId, full_name: 'Akarsh', avatar_url: null },
     };
 
-    // Subset of realistic expenses matching the live group
+    // Realistic expenses matching the live group
     const expenses = [
       {
         id: 'exp-1',
@@ -85,7 +85,7 @@ describe('Debt Visualizer Calculations', () => {
     expect(result.groupId).toBe(groupId);
     expect(result.members.length).toBe(4);
 
-    // Invariant: Direct Net Balance must exactly equal Simplified Net Balance for all members
+    // Invariant 1: Direct Net Balance must exactly equal Simplified Net Balance for all members
     groupMembers.forEach((uid) => {
       const story = result.userStories[uid];
       expect(story).toBeDefined();
@@ -93,10 +93,31 @@ describe('Debt Visualizer Calculations', () => {
       expect(story.shortcutExplanation.length).toBeGreaterThan(10);
     });
 
+    // Invariant 2: Zero-Sum Board strictly equals 0 cents
+    expect(result.zeroSumBoard.netSumCents).toBe(0);
+    expect(result.zeroSumBoard.totalCreditorsCents).toBe(result.zeroSumBoard.totalDebtorsCents);
+    expect(result.zeroSumBoard.tallies.length).toBe(4);
+
+    // Stage 1: Receipt Accumulation checks for Jaimin
+    const jaiminStory = result.userStories[jaiminId];
+    expect(jaiminStory.receiptAccumulation.totalPaidCents).toBe(27800 + 27000); // 54800
+    expect(jaiminStory.receiptAccumulation.totalConsumedCents).toBe(13900 + 3667 + 1250 + 15000); // 33817
+    expect(jaiminStory.receiptAccumulation.netTakeHomeCents).toBe(54800 - 33817);
+
+    // Stage 2: Pairwise offsets check (Jaimin vs Barberrion)
+    const jaiminBarberrionOffset = jaiminStory.pairwiseOffsets.find((p) => p.friendId === barberrionId);
+    expect(jaiminBarberrionOffset).toBeDefined();
+    expect(jaiminBarberrionOffset?.theyOweYouTotalCents).toBe(13900 + 12000); // 25900
+    expect(jaiminBarberrionOffset?.youOweThemTotalCents).toBe(1250);          // 1250
+    expect(jaiminBarberrionOffset?.netDirectDebtCents).toBe(25900 - 1250);   // 24650
+    expect(jaiminBarberrionOffset?.direction).toBe('THEY_OWE_YOU');
+
     // Akarsh owes 1250 in total
     const akarshStory = result.userStories[akarshId];
     expect(akarshStory.simplifiedNetBalanceCents).toBe(-1250);
     expect(akarshStory.status).toBe('PAYING');
+    expect(akarshStory.receiptAccumulation.totalPaidCents).toBe(0);
+    expect(akarshStory.receiptAccumulation.totalConsumedCents).toBe(1250);
 
     // Total simplified transfers <= total direct transfers
     expect(result.totalSimplifiedTransfersCount).toBeLessThanOrEqual(result.totalDirectTransfersCount);
@@ -139,5 +160,6 @@ describe('Debt Visualizer Calculations', () => {
     expect(result.userStories[userB].status).toBe('SETTLED');
     expect(result.userStories[userA].simplifiedNetBalanceCents).toBe(0);
     expect(result.userStories[userB].simplifiedNetBalanceCents).toBe(0);
+    expect(result.zeroSumBoard.netSumCents).toBe(0);
   });
 });
