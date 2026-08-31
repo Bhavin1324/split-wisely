@@ -104,7 +104,7 @@ export function FriendDetailPage() {
         const isFriendInvolved = e.payer_id === friendId || e.splits?.some((s: any) => s.user_id === friendId);
         return isUserInvolved && isFriendInvolved;
       })
-      .map((e) => ({ type: 'expense' as const, data: e, created_at: e.created_at }));
+      .map((e) => ({ type: 'expense' as const, data: e, date: e.expense_date ?? e.created_at, created_at: e.created_at }));
 
     const sttList = settlements
       .filter(
@@ -112,10 +112,10 @@ export function FriendDetailPage() {
           (s.payer_id === userId && s.payee_id === friendId) ||
           (s.payer_id === friendId && s.payee_id === userId),
       )
-      .map((s) => ({ type: 'settlement' as const, data: s, created_at: s.created_at }));
+      .map((s) => ({ type: 'settlement' as const, data: s, date: s.created_at, created_at: s.created_at }));
 
     const merged = [...expList, ...sttList].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
 
     return { merged, groupsList };
@@ -420,7 +420,7 @@ export function FriendDetailPage() {
                         )}
                       </div>
                       <div className="text-xs text-text-muted mt-0.5">
-                        {isUserPayer ? "You paid" : `${friend.full_name} paid`} • {formatDate(expense.created_at)}
+                        {isUserPayer ? "You paid" : `${friend.full_name} paid`} • {formatDate(expense.expense_date ?? expense.created_at)}
                       </div>
                     </div>
                   </div>
