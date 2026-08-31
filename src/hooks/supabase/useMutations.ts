@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
 import type { Expense, GroupActivityItem } from '../../types';
 import { dispatchPushNotification } from '../../utils/pushDispatcher';
+import { formatCents } from '../../utils/currency';
 
 export async function createExpenseWithSplits(params: { 
   group_id: string | null; 
@@ -87,12 +88,15 @@ export async function createExpenseWithSplits(params: {
   // Insert notifications for all users involved (except the creator)
   const notificationUsers = params.splits.filter(s => s.user_id !== params.created_by).map(s => s.user_id);
   if (notificationUsers.length > 0) {
+    const formattedTotal = formatCents(params.total_amount, params.currency_code);
+    const messageText = `An expense "${params.description}" (${formattedTotal}) was added.`;
+
     const notificationsToInsert = notificationUsers.map(uid => ({
       user_id: uid,
       actor_id: params.created_by,
       type: 'EXPENSE_ADDED',
       title: 'New Expense Added',
-      message: `An expense "${params.description}" was added.`,
+      message: messageText,
       link: params.group_id ? `/groups/${params.group_id}` : '/dashboard'
     }));
     await supabase.from('notifications').insert(notificationsToInsert);
@@ -101,7 +105,7 @@ export async function createExpenseWithSplits(params: {
     dispatchPushNotification({
       userIds: notificationUsers,
       title: 'New Expense Added',
-      message: `An expense "${params.description}" was added.`,
+      message: messageText,
       url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
     });
   }
@@ -189,12 +193,15 @@ export async function updateExpenseWithSplits(params: {
   // Insert notifications and trigger push for involved users
   const notificationUsers = params.splits.filter((s) => s.user_id !== params.payer_id).map((s) => s.user_id);
   if (notificationUsers.length > 0) {
+    const formattedTotal = formatCents(params.total_amount, params.currency_code);
+    const messageText = `Expense "${params.description}" (${formattedTotal}) was updated.`;
+
     const notificationsToInsert = notificationUsers.map((uid) => ({
       user_id: uid,
       actor_id: params.payer_id,
       type: 'EXPENSE_UPDATED',
       title: 'Expense Updated',
-      message: `Expense "${params.description}" was updated.`,
+      message: messageText,
       link: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
     }));
     await supabase.from('notifications').insert(notificationsToInsert);
@@ -203,7 +210,7 @@ export async function updateExpenseWithSplits(params: {
     dispatchPushNotification({
       userIds: notificationUsers,
       title: 'Expense Updated ✏️',
-      message: `Expense "${params.description}" was updated.`,
+      message: messageText,
       url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
     });
   }
@@ -285,8 +292,7 @@ export async function createSettlement(params: {
 
   // Notify the payee with rich details
   if (params.payer_id !== params.payee_id) {
-    const symbol = params.currency_code === 'INR' ? '₹' : params.currency_code === 'USD' ? '$' : `${params.currency_code} `;
-    const formattedAmount = `${symbol}${params.amount.toFixed(2)}`;
+    const formattedAmount = formatCents(params.amount, params.currency_code);
     const payerDisplay = params.payer_name || 'A friend';
     const messageText = `${payerDisplay} recorded a payment of ${formattedAmount} to you.`;
     const targetUrl = params.group_id ? `/groups/${params.group_id}` : `/friends/${params.payer_id}`;
