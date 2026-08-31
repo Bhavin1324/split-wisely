@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { Button, Input, Divider, message, Modal } from 'antd';
-import { Receipt, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { OfflineBanner } from '../components/ui/OfflineBanner';
+import { PwaInstallPrompt } from '../components/pwa/PwaInstallPrompt';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -69,63 +71,67 @@ export function LoginPage() {
     }
 
     setLoading(true);
-    let authError = null;
-    let authSession = null;
-    let authUser = null;
+    try {
+      let authError = null;
+      let authSession = null;
+      let authUser = null;
 
-    if (isLoginMode) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      authError = error;
-      authSession = data.session;
-    } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-          },
-        },
-      });
-      authError = error;
-      authSession = data.session;
-      authUser = data.user;
-      
-      if (!error && data.user?.identities?.length === 0) {
-        authError = new Error('This email is already registered. Please sign in instead.');
-      }
-    }
-
-    setLoading(false);
-
-    if (authError) {
-      // Provide a helpful message if email confirmation is required but not done
-      if (authError.message.toLowerCase().includes('email not confirmed')) {
-        messageApi.error('Email not confirmed. Please check your inbox or disable "Confirm Email" in your Supabase Auth settings.');
-      } else {
-        messageApi.error(authError.message);
-      }
-    } else {
       if (isLoginMode) {
-        messageApi.success('Successfully signed in!');
-        navigate('/dashboard');
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        authError = error;
+        authSession = data.session;
       } else {
-        if (authSession) {
-          messageApi.success('Successfully signed up! You are now logged in.');
-          navigate('/dashboard');
-        } else if (authUser) {
-          Modal.success({
-            title: 'Check your email',
-            content: 'Registration successful! We have sent a confirmation link to your email address. Please click it to activate your account.',
-            okText: 'Got it',
-          });
-          setIsLoginMode(true);
-          setPassword('');
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+            },
+          },
+        });
+        authError = error;
+        authSession = data.session;
+        authUser = data.user;
+        
+        if (!error && data.user?.identities?.length === 0) {
+          authError = new Error('This email is already registered. Please sign in instead.');
         }
       }
+
+      if (authError) {
+        if (authError.message.toLowerCase().includes('email not confirmed')) {
+          messageApi.error('Email not confirmed. Please check your inbox or disable "Confirm Email" in your Supabase Auth settings.');
+        } else {
+          messageApi.error(authError.message);
+        }
+      } else {
+        if (isLoginMode) {
+          messageApi.success('Successfully signed in!');
+          navigate('/dashboard');
+        } else {
+          if (authSession) {
+            messageApi.success('Successfully signed up! You are now logged in.');
+            navigate('/dashboard');
+          } else if (authUser) {
+            Modal.success({
+              title: 'Check your email',
+              content: 'Registration successful! We have sent a confirmation link to your email address. Please click it to activate your account.',
+              okText: 'Got it',
+            });
+            setIsLoginMode(true);
+            setPassword('');
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Authentication exception:', err);
+      messageApi.error(err?.message || 'Failed to connect to authentication server. Please check your internet connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -156,7 +162,8 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-500 via-primary-600 to-teal-700 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-600 via-primary-700 to-indigo-900 flex items-center justify-center p-4 relative overflow-hidden">
+      <OfflineBanner />
       {contextHolder}
 
       {/* Decorative background elements */}
@@ -169,14 +176,14 @@ export function LoginPage() {
       <div className="relative w-full max-w-md">
         {/* Logo / Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm mb-4">
-            <Receipt className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm mb-4 shadow-xl overflow-hidden">
+            <img src="/brand-logo.png" alt="Centfolio" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">
-            SplitWisely
+            Centfolio
           </h1>
           <p className="text-primary-100 mt-2 text-sm">
-            Split expenses with friends, effortlessly.
+            Split expenses with friends, effortlessly with Centfolio.
           </p>
         </div>
 
@@ -304,11 +311,14 @@ export function LoginPage() {
           {/* Mode Indicator */}
           <p className="text-center text-xs text-text-muted mt-6">
             {isSupabaseConfigured
-              ? 'Connected to live Supabase Auth'
+              ? 'Login to split across friends and manage personal expenses'
               : 'Demo mode active — click Sign In or Google to explore'}
           </p>
         </div>
       </div>
+
+      {/* PWA First-Time Install Banner */}
+      <PwaInstallPrompt />
     </div>
   );
 }

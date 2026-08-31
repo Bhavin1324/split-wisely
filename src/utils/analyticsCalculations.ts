@@ -75,6 +75,39 @@ export interface FriendInteraction {
   totalVolume: number;
 }
 
+export interface GroupSpendingBreakdown {
+  groupId: string;
+  groupName: string;
+  groupType?: string;
+  myShareCents: number;
+  totalGroupVolumeCents: number;
+  myPaidOutlayCents: number;
+  expenseCount: number;
+  percentageOfTotalGroupShares: number;
+}
+
+export interface PersonalCategoryBreakdown {
+  name: string;
+  totalCents: number;
+  count: number;
+  percentage: number;
+}
+
+export interface PersonalPaymentMethodBreakdown {
+  method: 'UPI' | 'CARD' | 'CASH' | 'BANK' | 'OTHER';
+  totalCents: number;
+  count: number;
+  percentage: number;
+}
+
+export interface PersonalSpendingBreakdown {
+  totalExpenseCents: number;
+  transactionCount: number;
+  averageTxCents: number;
+  categories: PersonalCategoryBreakdown[];
+  paymentMethods: PersonalPaymentMethodBreakdown[];
+}
+
 export interface AnalyticsSummary {
   period: AnalyticsPeriod;
   prevPeriod: AnalyticsPeriod;
@@ -87,6 +120,8 @@ export interface AnalyticsSummary {
   burnRate: BurnRate;
   topOutliers: OutlierItem[];
   friendInteractions: FriendInteraction[];
+  groupBreakdowns: GroupSpendingBreakdown[];
+  personalBreakdown: PersonalSpendingBreakdown;
   budgetAmountCents: number | null;
   safeDailySpendCents: number | null;
 }
@@ -492,6 +527,110 @@ export function calculateAnalyticsSummary({
     totalVolume: f.totalPaidForFriend + f.totalPaidByFriend
   })).sort((a, b) => b.totalVolume - a.totalVolume).slice(0, 4);
 
+  // 10. Group Spending Breakdown
+  const groupMap = new Map<string, {
+    groupId: string;
+    groupName: string;
+    groupType?: string;
+    myShareCents: number;
+    totalGroupVolumeCents: number;
+    myPaidOutlayCents: number;
+    expenseCount: number;
+  }>();
+
+  currGroup.forEach(ex => {
+    const gId = ex.group_id || 'standalone';
+    const grpObj = groups.find(g => g.id === gId);
+    const grpName = grpObj ? grpObj.name : 'Shared Bills';
+
+    if (!groupMap.has(gId)) {
+      groupMap.set(gId, {
+        groupId: gId,
+        groupName: grpName,
+        myShareCents: 0,
+        totalGroupVolumeCents: 0,
+        myPaidOutlayCents: 0,
+        expenseCount: 0,
+      });
+    }
+
+    const gData = groupMap.get(gId)!;
+    gData.totalGroupVolumeCents += ex.total_amount;
+    gData.expenseCount += 1;
+
+    const userSplit = ex.splits?.find(s => s.user_id === userId);
+    if (userSplit) {
+      gData.myShareCents += userSplit.amount_owed;
+    }
+
+    if (ex.payer_id === userId) {
+      gData.myPaidOutlayCents += ex.total_amount;
+    }
+  });
+
+  const groupBreakdowns: GroupSpendingBreakdown[] = Array.from(groupMap.values())
+    .map(g => ({
+      ...g,
+      percentageOfTotalGroupShares: hybrid.groupNetShareCents > 0
+        ? Math.round((g.myShareCents / hybrid.groupNetShareCents) * 100)
+        : 0,
+    }))
+    .sort((a, b) => b.myShareCents - a.myShareCents);
+
+  // 11. Personal Spending Breakdown
+  const personalCatMap = new Map<string, { totalCents: number; count: number }>();
+  const methodMap = new Map<string, { totalCents: number; count: number }>();
+
+  currPersonal.forEach(tx => {
+    const cat = tx.category || 'Other';
+    const cVal = personalCatMap.get(cat) || { totalCents: 0, count: 0 };
+    cVal.totalCents += tx.amount;
+    cVal.count += 1;
+    personalCatMap.set(cat, cVal);
+
+    let method = 'UPI';
+    const match = (tx.description || '').match(/^\[(UPI|CARD|CASH|BANK)\]/i);
+    if (match) {
+      method = match[1].toUpperCase();
+    }
+    const mVal = methodMap.get(method) || { totalCents: 0, count: 0 };
+    mVal.totalCents += tx.amount;
+    mVal.count += 1;
+    methodMap.set(method, mVal);
+  });
+
+  const personalCategories: PersonalCategoryBreakdown[] = Array.from(personalCatMap.entries())
+    .map(([name, val]) => ({
+      name,
+      totalCents: val.totalCents,
+      count: val.count,
+      percentage: hybrid.personalExpenseCents > 0
+        ? Math.round((val.totalCents / hybrid.personalExpenseCents) * 100)
+        : 0,
+    }))
+    .sort((a, b) => b.totalCents - a.totalCents);
+
+  const personalPaymentMethods: PersonalPaymentMethodBreakdown[] = Array.from(methodMap.entries())
+    .map(([method, val]) => ({
+      method: method as any,
+      totalCents: val.totalCents,
+      count: val.count,
+      percentage: hybrid.personalExpenseCents > 0
+        ? Math.round((val.totalCents / hybrid.personalExpenseCents) * 100)
+        : 0,
+    }))
+    .sort((a, b) => b.totalCents - a.totalCents);
+
+  const personalBreakdown: PersonalSpendingBreakdown = {
+    totalExpenseCents: hybrid.personalExpenseCents,
+    transactionCount: currPersonal.length,
+    averageTxCents: currPersonal.length > 0
+      ? Math.round(hybrid.personalExpenseCents / currPersonal.length)
+      : 0,
+    categories: personalCategories,
+    paymentMethods: personalPaymentMethods,
+  };
+
   return {
     period,
     prevPeriod,
@@ -504,6 +643,8 @@ export function calculateAnalyticsSummary({
     burnRate,
     topOutliers,
     friendInteractions,
+    groupBreakdowns,
+    personalBreakdown,
     budgetAmountCents,
     safeDailySpendCents,
   };

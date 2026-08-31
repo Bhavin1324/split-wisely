@@ -107,11 +107,16 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
         const targetGroup = values.groupId || defaultGroupId;
 
         if (matches.length > 0 && targetGroup) {
-          await addMemberToGroup(targetGroup, matches[0].id);
+          const targetGroupObj = groups.find((g) => g.id === targetGroup);
+          await addMemberToGroup(targetGroup, matches[0].id, {
+            adderId: currentUserId,
+            adderName: currentUser?.full_name,
+            groupName: targetGroupObj?.name,
+          });
           messageApi.success(`Added ${matches[0].full_name} to the group!`);
         } else if (matches.length > 0 && !targetGroup) {
           // Added as a general friend (not in a specific group yet)
-          await addDirectFriend(currentUserId, matches[0].id);
+          await addDirectFriend(currentUserId, matches[0].id, 'ACCEPTED', currentUser?.full_name);
           messageApi.success(`Added ${matches[0].full_name} as a friend!`);
         } else {
           // No user found. Before inviting, we must ensure the input is a valid email address.
@@ -207,7 +212,7 @@ export function AddFriendModal({ open, onClose, defaultGroupId, onSuccess }: Add
                 <div>
                   <div className="text-sm font-bold text-text-base">{matchedProfile.full_name}</div>
                   <div className="text-xs text-primary-700 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" /> Registered SplitWisely User
+                    <CheckCircle2 className="h-3 w-3" /> Registered Centfolio User
                   </div>
                 </div>
               </div>

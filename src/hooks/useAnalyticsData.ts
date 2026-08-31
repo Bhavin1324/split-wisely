@@ -10,6 +10,10 @@ import {
   type BurnRate,
   type OutlierItem,
   type FriendInteraction,
+  type GroupSpendingBreakdown,
+  type PersonalCategoryBreakdown,
+  type PersonalPaymentMethodBreakdown,
+  type PersonalSpendingBreakdown,
   type AnalyticsSummary,
   type CalculateAnalyticsDataProps,
 } from '../utils/analyticsCalculations';
@@ -23,6 +27,10 @@ export type {
   BurnRate,
   OutlierItem,
   FriendInteraction,
+  GroupSpendingBreakdown,
+  PersonalCategoryBreakdown,
+  PersonalPaymentMethodBreakdown,
+  PersonalSpendingBreakdown,
   AnalyticsSummary,
   CalculateAnalyticsDataProps,
 };

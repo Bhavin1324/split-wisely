@@ -41,8 +41,8 @@ export function DashboardPage() {
   const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
   const { data: liveSettlements, loading: settlementsLoading } = useAllSettlements(user?.id);
 
-  const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
-  const displayName = currentUser?.full_name ?? (DEMO_MODE ? MOCK_CURRENT_USER.full_name : 'User');
+  const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
+  const displayName = currentUser?.full_name || user?.user_metadata?.full_name || (DEMO_MODE ? MOCK_CURRENT_USER.full_name : 'User');
   const groups = DEMO_MODE ? MOCK_GROUPS : contextGroups;
   const allExpenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses || []);
 

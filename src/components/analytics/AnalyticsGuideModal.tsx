@@ -291,7 +291,7 @@ export function AnalyticsGuideModal({ open, onClose, summary, periodLabel }: Pro
             {/* How Each Card is Calculated Table */}
             <div className="space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">
-                How Split-Wisely Computes the Cards from this Story:
+                How Centfolio Computes the Cards from this Story:
               </h4>
 
               {/* Row 1: Paid from Pocket */}

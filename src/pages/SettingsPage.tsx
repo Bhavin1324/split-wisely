@@ -15,6 +15,7 @@ import { useTheme } from '../context/ThemeContext';
 import type { ThemeType } from '../context/ThemeContext';
 import { UserAvatar } from '../components/ui/UserAvatar';
 import { AvatarPickerModal } from '../components/settings/AvatarPickerModal';
+import { PushNotificationsCard } from '../components/settings/PushNotificationsCard';
 
 export function SettingsPage() {
   const { currentUser: contextUser, refetchData } = useAppData();
@@ -127,7 +128,7 @@ export function SettingsPage() {
       category: exp.category?.name ?? 'Uncategorized',
       date: exp.created_at,
     }));
-    ExportAdapter.exportToCSV(csvData, 'splitwisely-expenses.csv');
+    ExportAdapter.exportToCSV(csvData, 'centfolio-expenses.csv');
     messageApi.success('Expenses exported as CSV');
   };
 
@@ -153,7 +154,7 @@ export function SettingsPage() {
       expenses: mappedExpenses,
       settlements: mappedSettlements,
     };
-    ExportAdapter.exportToJSON(backupData, 'splitwisely-backup.json');
+    ExportAdapter.exportToJSON(backupData, 'centfolio-backup.json');
     messageApi.success('Full backup exported as JSON');
   };
 
@@ -347,6 +348,9 @@ export function SettingsPage() {
           </span>
         </div>
       </Card>
+
+      {/* Push Notifications Section */}
+      <PushNotificationsCard />
 
       {/* Export Section */}
       <Card className="rounded-2xl border-border-base shadow-sm">

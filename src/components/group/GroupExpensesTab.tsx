@@ -119,7 +119,15 @@ export function GroupExpensesTab({
                       okButtonProps: { danger: true },
                       onOk: async () => {
                         try {
-                          await deleteSettlement(settlement.id);
+                          await deleteSettlement(settlement.id, {
+                            group_id: settlement.group_id,
+                            actor_id: userId,
+                            payer_id: settlement.payer_id,
+                            payee_id: settlement.payee_id,
+                            amount: settlement.amount,
+                            payer_name: payer?.full_name,
+                            payee_name: payee?.full_name,
+                          });
                           message.success("Payment deleted");
                           await refetchData();
                           if (onRefresh) {

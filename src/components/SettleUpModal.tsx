@@ -59,7 +59,7 @@ export function SettleUpModal({
 }: SettleUpModalProps) {
   const { user } = useAuth();
   const { currentUser, groups, refetchData } = useAppData();
-  const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
+  const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
 
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
@@ -221,7 +221,10 @@ export function SettleUpModal({
           created_at: new Date().toISOString(),
         });
       } else {
-        await createSettlement(params);
+        await createSettlement({
+          ...params,
+          payer_name: params.payer_id === userId ? currentUser?.full_name : payer,
+        });
       }
     };
 

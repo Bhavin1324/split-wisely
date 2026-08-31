@@ -1,7 +1,9 @@
 import { DEMO_MODE } from '../../context/AppDataContext';
 import { supabase } from '../../lib/supabase';
-import { MOCK_EXPENSES, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
+import { MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
 import type { Expense, GroupActivityItem } from '../../types';
+import { dispatchPushNotification } from '../../utils/pushDispatcher';
+import { formatCents } from '../../utils/currency';
 
 export async function createExpenseWithSplits(params: { 
   group_id: string | null; 
@@ -86,15 +88,26 @@ export async function createExpenseWithSplits(params: {
   // Insert notifications for all users involved (except the creator)
   const notificationUsers = params.splits.filter(s => s.user_id !== params.created_by).map(s => s.user_id);
   if (notificationUsers.length > 0) {
+    const formattedTotal = formatCents(params.total_amount, params.currency_code);
+    const messageText = `An expense "${params.description}" (${formattedTotal}) was added.`;
+
     const notificationsToInsert = notificationUsers.map(uid => ({
       user_id: uid,
       actor_id: params.created_by,
       type: 'EXPENSE_ADDED',
       title: 'New Expense Added',
-      message: `An expense "${params.description}" was added.`,
+      message: messageText,
       link: params.group_id ? `/groups/${params.group_id}` : '/dashboard'
     }));
     await supabase.from('notifications').insert(notificationsToInsert);
+
+    // Trigger Web Push Notification
+    dispatchPushNotification({
+      userIds: notificationUsers,
+      title: 'New Expense Added',
+      message: messageText,
+      url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
+    });
   }
 
   return data as string;
@@ -176,6 +189,31 @@ export async function updateExpenseWithSplits(params: {
   });
 
   if (error) throw error;
+
+  // Insert notifications and trigger push for involved users
+  const notificationUsers = params.splits.filter((s) => s.user_id !== params.payer_id).map((s) => s.user_id);
+  if (notificationUsers.length > 0) {
+    const formattedTotal = formatCents(params.total_amount, params.currency_code);
+    const messageText = `Expense "${params.description}" (${formattedTotal}) was updated.`;
+
+    const notificationsToInsert = notificationUsers.map((uid) => ({
+      user_id: uid,
+      actor_id: params.payer_id,
+      type: 'EXPENSE_UPDATED',
+      title: 'Expense Updated',
+      message: messageText,
+      link: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
+    }));
+    await supabase.from('notifications').insert(notificationsToInsert);
+
+    // Trigger Web Push Notification
+    dispatchPushNotification({
+      userIds: notificationUsers,
+      title: 'Expense Updated ✏️',
+      message: messageText,
+      url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
+    });
+  }
 }
 
 export async function deleteExpense(expenseId: string): Promise<void> {
@@ -214,7 +252,8 @@ export async function createSettlement(params: {
   payer_id: string; 
   payee_id: string; 
   amount: number; 
-  currency_code: string 
+  currency_code: string;
+  payer_name?: string;
 }): Promise<void> {
   if (DEMO_MODE) {
     if (params.group_id) {
@@ -251,16 +290,29 @@ export async function createSettlement(params: {
     }]);
   if (error) throw error;
 
-  // Notify the payee
+  // Notify the payee with rich details
   if (params.payer_id !== params.payee_id) {
+    const formattedAmount = formatCents(params.amount, params.currency_code);
+    const payerDisplay = params.payer_name || 'A friend';
+    const messageText = `${payerDisplay} recorded a payment of ${formattedAmount} to you.`;
+    const targetUrl = params.group_id ? `/groups/${params.group_id}` : `/friends/${params.payer_id}`;
+
     await supabase.from('notifications').insert([{
       user_id: params.payee_id,
       actor_id: params.payer_id,
       type: 'SETTLEMENT_RECORDED',
       title: 'Payment Received',
-      message: 'A payment was recorded for you.',
-      link: params.group_id ? `/groups/${params.group_id}` : '/dashboard'
+      message: messageText,
+      link: targetUrl
     }]);
+
+    // Trigger Web Push Notification
+    dispatchPushNotification({
+      userIds: [params.payee_id],
+      title: 'Payment Received 💰',
+      message: messageText,
+      url: targetUrl,
+    });
   }
 }
 
@@ -291,6 +343,7 @@ export async function createGroupWithMembers(params: {
   created_by: string;
   cover_image_url?: string | null;
   member_user_ids?: string[];
+  creator_name?: string;
 }): Promise<string> {
   const groupId = await createGroup({ 
     name: params.name, 
@@ -299,26 +352,77 @@ export async function createGroupWithMembers(params: {
   });
 
   if (params.member_user_ids && params.member_user_ids.length > 0) {
-    const toInsert = params.member_user_ids
-      .filter((uid) => uid !== params.created_by)
-      .map((uid) => ({ group_id: groupId, user_id: uid }));
+    const initialMembers = params.member_user_ids.filter((uid) => uid !== params.created_by);
+    const toInsert = initialMembers.map((uid) => ({ group_id: groupId, user_id: uid }));
 
     if (toInsert.length > 0) {
       const { error } = await supabase.from('group_members').insert(toInsert);
       if (error) console.error('Error adding initial members:', error);
+
+      if (!DEMO_MODE) {
+        const creatorName = params.creator_name || 'A friend';
+        try {
+          const notifs = initialMembers.map((uid) => ({
+            user_id: uid,
+            actor_id: params.created_by,
+            type: 'GROUP_MEMBER_ADDED',
+            title: 'Added to Group',
+            message: `${creatorName} added you to the new group "${params.name}".`,
+            link: `/groups/${groupId}`,
+          }));
+          await supabase.from('notifications').insert(notifs);
+
+          dispatchPushNotification({
+            userIds: initialMembers,
+            title: 'Added to Group 👥',
+            message: `${creatorName} added you to the new group "${params.name}".`,
+            url: `/groups/${groupId}`,
+          });
+        } catch (notifErr) {
+          console.warn('Initial members notification note:', notifErr);
+        }
+      }
     }
   }
 
   return groupId;
 }
 
-export async function addMemberToGroup(groupId: string, userId: string): Promise<void> {
+export async function addMemberToGroup(
+  groupId: string, 
+  userId: string,
+  options?: { adderId?: string; adderName?: string; groupName?: string }
+): Promise<void> {
   const { error } = await supabase
     .from('group_members')
     .insert([{ group_id: groupId, user_id: userId }]);
 
   if (error && !error.message.includes('duplicate')) {
     throw error;
+  }
+
+  if (!DEMO_MODE && options?.adderId && options.adderId !== userId) {
+    const adderName = options.adderName || 'A friend';
+    const gName = options.groupName || 'a group';
+    try {
+      await supabase.from('notifications').insert([{
+        user_id: userId,
+        actor_id: options.adderId,
+        type: 'GROUP_MEMBER_ADDED',
+        title: 'Added to Group',
+        message: `${adderName} added you to the group "${gName}".`,
+        link: `/groups/${groupId}`,
+      }]);
+
+      dispatchPushNotification({
+        userIds: [userId],
+        title: 'Added to Group 👥',
+        message: `${adderName} added you to the group "${gName}".`,
+        url: `/groups/${groupId}`,
+      });
+    } catch (notifErr) {
+      console.warn('Group member push notification dispatch note:', notifErr);
+    }
   }
 }
 
@@ -429,7 +533,7 @@ export async function createAppInvitation(params: { email: string, inviterName: 
       .from('email_notifications')
       .insert([{
         recipient_email: params.email,
-        subject: `${params.inviterName} has invited you to SplitWisely!`,
+        subject: `${params.inviterName} has invited you to Centfolio!`,
         body_json: {
           inviter_name: params.inviterName,
           token: null
@@ -474,12 +578,83 @@ export async function deleteGroup(groupId: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function deleteSettlement(settlementId: string): Promise<void> {
+export async function deleteSettlement(
+  settlementId: string,
+  activityMetadata?: {
+    group_id?: string | null;
+    actor_id?: string;
+    payer_id?: string;
+    payee_id?: string;
+    amount?: number;
+    payer_name?: string;
+    payee_name?: string;
+  }
+): Promise<void> {
+  if (DEMO_MODE) {
+    const idx = MOCK_SETTLEMENTS.findIndex((s) => s.id === settlementId);
+    if (idx !== -1) {
+      MOCK_SETTLEMENTS.splice(idx, 1);
+    }
+    if (activityMetadata?.group_id) {
+      const payerName = activityMetadata.payer_name || (activityMetadata.payer_id ? getProfileById(activityMetadata.payer_id)?.full_name : null) || 'Someone';
+      const payeeName = activityMetadata.payee_name || (activityMetadata.payee_id ? getProfileById(activityMetadata.payee_id)?.full_name : null) || 'someone';
+      const actor = activityMetadata.actor_id ? getProfileById(activityMetadata.actor_id) : undefined;
+      const activity: GroupActivityItem = {
+        id: `act-${Date.now()}`,
+        group_id: activityMetadata.group_id,
+        actor_id: activityMetadata.actor_id || null,
+        action_type: 'SETTLEMENT_DELETED',
+        description: `Payment from ${payerName} to ${payeeName} was deleted`,
+        metadata: {
+          settlement_id: settlementId,
+          amount: activityMetadata.amount,
+          payer_id: activityMetadata.payer_id,
+          payee_id: activityMetadata.payee_id,
+          payer_name: payerName,
+          payee_name: payeeName,
+        },
+        created_at: new Date().toISOString(),
+        actor,
+      };
+      MOCK_GROUP_ACTIVITIES.unshift(activity);
+    }
+    return;
+  }
+
   const { error } = await supabase.from('settlements').delete().eq('id', settlementId);
   if (error) throw error;
+
+  if (activityMetadata?.group_id) {
+    const payerName = activityMetadata.payer_name || 'Someone';
+    const payeeName = activityMetadata.payee_name || 'someone';
+    const description = `Payment from ${payerName} to ${payeeName} was deleted`;
+    try {
+      await supabase.from('group_activities').insert([{
+        group_id: activityMetadata.group_id,
+        actor_id: activityMetadata.actor_id || null,
+        action_type: 'SETTLEMENT_DELETED',
+        description,
+        metadata: {
+          settlement_id: settlementId,
+          amount: activityMetadata.amount,
+          payer_id: activityMetadata.payer_id,
+          payee_id: activityMetadata.payee_id,
+          payer_name: payerName,
+          payee_name: payeeName,
+        }
+      }]);
+    } catch (actErr) {
+      console.warn('Failed to insert group activity for settlement deletion:', actErr);
+    }
+  }
 }
 
-export async function addDirectFriend(userId: string, friendId: string, status: 'PENDING' | 'ACCEPTED' = 'ACCEPTED'): Promise<void> {
+export async function addDirectFriend(
+  userId: string, 
+  friendId: string, 
+  status: 'PENDING' | 'ACCEPTED' = 'ACCEPTED',
+  adderName?: string
+): Promise<void> {
   if (DEMO_MODE) {
     const { MOCK_USER_FRIENDS } = await import('../../lib/mockData');
     const exists = MOCK_USER_FRIENDS.some(
@@ -498,13 +673,36 @@ export async function addDirectFriend(userId: string, friendId: string, status: 
   if (error && !error.message.includes('duplicate')) {
     throw error;
   }
+
+  if (!DEMO_MODE && userId !== friendId) {
+    const name = adderName || 'A friend';
+    try {
+      await supabase.from('notifications').insert([{
+        user_id: friendId,
+        actor_id: userId,
+        type: 'FRIEND_ADDED',
+        title: 'New Friend Added',
+        message: `${name} added you as a friend on Centfolio.`,
+        link: '/friends',
+      }]);
+
+      dispatchPushNotification({
+        userIds: [friendId],
+        title: 'New Friend Added 🤝',
+        message: `${name} added you as a friend on Centfolio.`,
+        url: '/friends',
+      });
+    } catch (notifErr) {
+      console.warn('Friend notification dispatch note:', notifErr);
+    }
+  }
 }
 
-export async function inviteDirectFriend(userId: string, friendId: string): Promise<void> {
-  return addDirectFriend(userId, friendId, 'PENDING');
+export async function inviteDirectFriend(userId: string, friendId: string, adderName?: string): Promise<void> {
+  return addDirectFriend(userId, friendId, 'PENDING', adderName);
 }
 
-export async function acceptFriendRequest(userId: string, friendId: string): Promise<void> {
-  return addDirectFriend(userId, friendId, 'ACCEPTED');
+export async function acceptFriendRequest(userId: string, friendId: string, adderName?: string): Promise<void> {
+  return addDirectFriend(userId, friendId, 'ACCEPTED', adderName);
 }
 

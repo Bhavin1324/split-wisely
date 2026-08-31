@@ -1,5 +1,5 @@
 -- ============================================================================
--- SplitWisely Module: Personal Expense & Simple Accounting Ledger
+-- Centfolio Module: Personal Expense & Simple Accounting Ledger
 -- ============================================================================
 
 -- 1. PERSONAL BUDGETS TABLE

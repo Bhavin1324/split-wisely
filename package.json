@@ -1,5 +1,5 @@
 {
-  "name": "split-wisely",
+  "name": "centfolio",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -29,6 +29,7 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^6.0.4",
     "autoprefixer": "^10.5.4",
     "babel-plugin-react-compiler": "^1.0.0",

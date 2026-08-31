@@ -1,5 +1,5 @@
 -- ============================================================================
--- SplitWisely Master PostgreSQL DDL Schema & RPC Procedures
+-- Centfolio Master PostgreSQL DDL Schema & RPC Procedures
 -- ============================================================================
 
 -- Enable UUID extension
@@ -289,4 +289,28 @@ DROP POLICY IF EXISTS "View invitations" ON group_invitations;
 DROP POLICY IF EXISTS "Insert invitations" ON group_invitations;
 CREATE POLICY "View invitations" ON group_invitations FOR SELECT USING (true);
 CREATE POLICY "Insert invitations" ON group_invitations FOR INSERT WITH CHECK (true);
+
+-- 15. PUSH NOTIFICATION SUBSCRIPTIONS (PWA Web Push Tokens)
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  user_agent TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users manage own subscriptions" ON push_subscriptions;
+CREATE POLICY "Users manage own subscriptions" ON push_subscriptions
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Service role read all subscriptions" ON push_subscriptions;
+CREATE POLICY "Service role read all subscriptions" ON push_subscriptions
+  FOR SELECT USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);
+
 

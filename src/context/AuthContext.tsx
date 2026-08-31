@@ -1,14 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { detachPushSubscriptionOnLogout } from '../utils/pushNotifications';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  resetPasswordForEmail: (email: string) => Promise<{ error: Error | null }>;
-  updatePassword: (password: string) => Promise<{ error: Error | null }>;
+  resetPasswordForEmail: (email: string) => Promise<{ data: any; error: any }>;
+  updatePassword: (password: string) => Promise<{ data: any; error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType>({ 
@@ -16,11 +17,11 @@ const AuthContext = createContext<AuthContextType>({
   session: null, 
   loading: true, 
   signOut: async () => {},
-  resetPasswordForEmail: async () => ({ error: null }),
-  updatePassword: async () => ({ error: null })
+  resetPasswordForEmail: async () => ({ data: null, error: null }),
+  updatePassword: async () => ({ data: null, error: null })
 });
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +43,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = useCallback(async () => {
+    try {
+      await detachPushSubscriptionOnLogout();
+    } catch {}
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

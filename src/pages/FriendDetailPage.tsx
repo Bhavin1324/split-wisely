@@ -35,6 +35,7 @@ import { useAllSettlements } from "../hooks/supabase/useSettlementsData";
 import { PageSkeleton } from "../components/ui/PageSkeleton";
 import { computeFriendNetBalance } from "../utils/friendCalculations";
 import { supabase } from "../lib/supabase";
+import { dispatchPushNotification } from "../utils/pushDispatcher";
 
 export function FriendDetailPage() {
   const { friendId } = useParams<{ friendId: string }>();
@@ -42,11 +43,11 @@ export function FriendDetailPage() {
   const { message } = App.useApp();
   const { user } = useAuth();
   const { currentUser, groups: contextGroups, loading: appLoading } = useAppData();
-  const userId = currentUser?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
+  const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
 
-  const { data: liveFriends, loading: friendsLoading } = useFriends(user?.id);
-  const { data: liveExpenses, loading: expensesLoading, refetch: refetchExpenses } = useAllExpenses(user?.id);
-  const { data: liveSettlements, refetch: refetchSettlements } = useAllSettlements(user?.id);
+  const { data: liveFriends, loading: friendsLoading } = useFriends(userId);
+  const { data: liveExpenses, loading: expensesLoading, refetch: refetchExpenses } = useAllExpenses(userId);
+  const { data: liveSettlements, refetch: refetchSettlements } = useAllSettlements(userId);
 
   const handleRefetchAll = useCallback(async () => {
     await Promise.all([refetchExpenses(), refetchSettlements()]);
@@ -138,6 +139,14 @@ export function FriendDetailPage() {
           message: `${senderName} sent you a payment reminder for ${formattedAmt}.`,
           is_read: false,
           metadata: { sender_id: user.id, amount_cents: absBalance },
+        });
+
+        // Trigger real-time Web Push Notification to friend's device
+        dispatchPushNotification({
+          userIds: [friend.id],
+          title: "Payment Reminder ⏰",
+          message: `${senderName} sent you a payment reminder for ${formattedAmt}.`,
+          url: `/friends/${user.id}`,
         });
       } catch (error) {
         console.error("Failed to send reminder notification:", error);

@@ -26,13 +26,17 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeType>(() => {
-    const saved = localStorage.getItem('splitwisely_theme');
+    const saved =
+      localStorage.getItem('centfolio_theme') ||
+      localStorage.getItem('splitwisely_theme');
     return (saved as ThemeType) || 'green';
   });
 
   const [scheme, setSchemeState] = useState<SchemeType>(() => {
     // Check system preference as default, fallback to light
-    const saved = localStorage.getItem('splitwisely_scheme');
+    const saved =
+      localStorage.getItem('centfolio_scheme') ||
+      localStorage.getItem('splitwisely_scheme');
     if (saved) return saved as SchemeType;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
@@ -55,12 +59,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme, scheme]);
 
   const setTheme = (newTheme: ThemeType) => {
-    localStorage.setItem('splitwisely_theme', newTheme);
+    localStorage.setItem('centfolio_theme', newTheme);
     setThemeState(newTheme);
   };
 
   const setScheme = (newScheme: SchemeType) => {
-    localStorage.setItem('splitwisely_scheme', newScheme);
+    localStorage.setItem('centfolio_scheme', newScheme);
     setSchemeState(newScheme);
   };
 

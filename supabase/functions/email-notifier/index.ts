@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
         htmlContent = `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2>You've been invited!</h2>
-            <p>${body_json.inviter_name} has invited you to join the group <strong>${body_json.group_name}</strong> on SplitWisely.</p>
+            <p>${body_json.inviter_name} has invited you to join the group <strong>${body_json.group_name}</strong> on Centfolio.</p>
             <div style="margin: 30px 0;">
               <a href="https://bsplit-wisely.vercel.app/join?token=${body_json.token}" 
                  style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
@@ -62,22 +62,22 @@ Deno.serve(async (req) => {
             <p style="color: #666; font-size: 14px;">Or copy this link: https://bsplit-wisely.vercel.app/join?token=${body_json.token}</p>
           </div>
         `;
-        textContent = `You've been invited!\n\n${body_json.inviter_name} has invited you to join the group "${body_json.group_name}" on SplitWisely.\n\nAccept Invitation: https://bsplit-wisely.vercel.app/join?token=${body_json.token}`;
+        textContent = `You've been invited!\n\n${body_json.inviter_name} has invited you to join the group "${body_json.group_name}" on Centfolio.\n\nAccept Invitation: https://bsplit-wisely.vercel.app/join?token=${body_json.token}`;
       } else if (notification_type === 'app_invitation') {
         htmlContent = `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2>You've been invited to SplitWisely!</h2>
-            <p>${body_json.inviter_name || 'Someone'} has invited you to join the SplitWisely app.</p>
+            <h2>You've been invited to Centfolio!</h2>
+            <p>${body_json.inviter_name || 'Someone'} has invited you to join the Centfolio app.</p>
             <div style="margin: 30px 0;">
               <a href="https://bsplit-wisely.vercel.app/login" 
                  style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                Join SplitWisely
+                Join Centfolio
               </a>
             </div>
             <p style="color: #666; font-size: 14px;">Or copy this link: https://bsplit-wisely.vercel.app/login</p>
           </div>
         `;
-        textContent = `You've been invited to SplitWisely!\n\n${body_json.inviter_name || 'Someone'} has invited you to join the SplitWisely app.\n\nJoin SplitWisely: https://bsplit-wisely.vercel.app/login`;
+        textContent = `You've been invited to Centfolio!\n\n${body_json.inviter_name || 'Someone'} has invited you to join the Centfolio app.\n\nJoin Centfolio: https://bsplit-wisely.vercel.app/login`;
       }
 
       if (gmailUser && gmailPass) {

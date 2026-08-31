@@ -1,4 +1,4 @@
-# Project Rules for SplitWisely
+# Project Rules for Centfolio
 
 ## Code Quality & Architecture Rules
 1. **No Band-Aid Fixes:** Do not wrap lifecycle or subscription errors in `try/catch` or superficial `if` statements without fixing the underlying hook dependency or unmount cleanup.

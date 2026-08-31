@@ -25,3 +25,5 @@ dist-ssr
 *.env.*
 mcp_config.json
 migrations
+supabase/.temp
+.env
