@@ -15,6 +15,7 @@ import { AnalyticsHeroKPIs } from '../components/analytics/AnalyticsHeroKPIs';
 import { SpendingVelocityChart } from '../components/analytics/SpendingVelocityChart';
 import { CategoryInsightsList } from '../components/analytics/CategoryInsightsList';
 import { HybridSplitRatioCard } from '../components/analytics/HybridSplitRatioCard';
+import { HybridBreakdownModal } from '../components/analytics/HybridBreakdownModal';
 import { FriendDynamicsCard } from '../components/analytics/FriendDynamicsCard';
 import { ExportReportModal } from '../components/analytics/ExportReportModal';
 import { AnalyticsGuideModal } from '../components/analytics/AnalyticsGuideModal';
@@ -30,6 +31,8 @@ export function SpendingPage() {
   });
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+  const [breakdownTab, setBreakdownTab] = useState<'PERSONAL' | 'GROUP'>('GROUP');
 
   const { user } = useAuth();
   const { categories: contextCategories, loading: appLoading, groups } = useAppData();
@@ -99,10 +102,26 @@ export function SpendingPage() {
             buckets={analytics.buckets} 
             weeklyBuckets={analytics.weeklyBuckets} 
           />
-          <HybridSplitRatioCard hybrid={analytics.hybrid} />
+          <HybridSplitRatioCard 
+            hybrid={analytics.hybrid} 
+            onOpenBreakdown={(tab) => {
+              setBreakdownTab(tab);
+              setIsBreakdownOpen(true);
+            }}
+          />
           <FriendDynamicsCard interactions={analytics.friendInteractions} />
         </div>
       </div>
+
+      <HybridBreakdownModal
+        open={isBreakdownOpen}
+        onClose={() => setIsBreakdownOpen(false)}
+        initialTab={breakdownTab}
+        periodLabel={periodLabel}
+        groupBreakdowns={analytics.groupBreakdowns}
+        personalBreakdown={analytics.personalBreakdown}
+        hybrid={analytics.hybrid}
+      />
 
       <ExportReportModal 
         open={isExportOpen} 
