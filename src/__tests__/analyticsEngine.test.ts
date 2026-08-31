@@ -484,6 +484,125 @@ describe('Analytics Engine: Fuzz Testing (500 Randomized Runs)', () => {
           result.buckets[b - 1].cumulativeCents
         );
       }
+
+      // Assert Group Breakdown Sum Convergence
+      const totalGroupBreakdownShares = result.groupBreakdowns.reduce((acc, g) => acc + g.myShareCents, 0);
+      expect(totalGroupBreakdownShares).toBe(result.hybrid.groupNetShareCents);
+
+      // Assert Personal Breakdown Sum Convergence
+      expect(result.personalBreakdown.totalExpenseCents).toBe(result.hybrid.personalExpenseCents);
+      const totalCategoryCents = result.personalBreakdown.categories.reduce((acc, c) => acc + c.totalCents, 0);
+      expect(totalCategoryCents).toBe(result.hybrid.personalExpenseCents);
     }
   }, 30000);
+
+  it('Invariant 6: Breakdown Drill-Down Mathematical Properties', () => {
+    const period = {
+      mode: 'Monthly' as const,
+      monthYear: '2026-08',
+      weekStart: '2026-08-01T00:00:00Z',
+    };
+    const userId = 'user-1';
+
+    const groups: Group[] = [
+      { id: 'grp-1', name: 'Goa Trip', cover_image_url: null, created_by: 'user-1', created_at: '2026-08-01T00:00:00Z' },
+      { id: 'grp-2', name: 'Flat 402', cover_image_url: null, created_by: 'user-1', created_at: '2026-08-01T00:00:00Z' },
+    ];
+
+    const liveExpenses: Expense[] = [
+      {
+        id: 'exp-1',
+        group_id: 'grp-1',
+        payer_id: 'user-1',
+        created_by: 'user-1',
+        total_amount: 10000,
+        currency_code: 'INR',
+        exchange_rate: 1,
+        base_currency_amount: 10000,
+        description: 'Hotel Booking',
+        expense_date: '2026-08-10T12:00:00Z',
+        created_at: '2026-08-10T12:00:00Z',
+        splits: [
+          { id: 's-1', expense_id: 'exp-1', user_id: 'user-1', amount_owed: 5000 },
+          { id: 's-2', expense_id: 'exp-1', user_id: 'user-2', amount_owed: 5000 },
+        ],
+      },
+      {
+        id: 'exp-2',
+        group_id: 'grp-2',
+        payer_id: 'user-2',
+        created_by: 'user-2',
+        total_amount: 6000,
+        currency_code: 'INR',
+        exchange_rate: 1,
+        base_currency_amount: 6000,
+        description: 'Groceries',
+        expense_date: '2026-08-15T12:00:00Z',
+        created_at: '2026-08-15T12:00:00Z',
+        splits: [
+          { id: 's-3', expense_id: 'exp-2', user_id: 'user-1', amount_owed: 3000 },
+          { id: 's-4', expense_id: 'exp-2', user_id: 'user-2', amount_owed: 3000 },
+        ],
+      },
+    ];
+
+    const personalTransactions: PersonalTransaction[] = [
+      {
+        id: 'tx-1',
+        user_id: 'user-1',
+        type: 'EXPENSE',
+        amount: 4000,
+        category: 'Food',
+        description: '[UPI] Dinner with family',
+        transaction_date: '2026-08-12T12:00:00Z',
+        created_at: '2026-08-12T12:00:00Z',
+      },
+      {
+        id: 'tx-2',
+        user_id: 'user-1',
+        type: 'EXPENSE',
+        amount: 2000,
+        category: 'Transport',
+        description: '[CARD] Fuel',
+        transaction_date: '2026-08-14T12:00:00Z',
+        created_at: '2026-08-14T12:00:00Z',
+      },
+    ];
+
+    const result = calculateAnalyticsSummary({
+      period,
+      liveExpenses,
+      personalTransactions,
+      budget: null,
+      categories: [],
+      groups,
+      userId,
+    });
+
+    // Group breakdown assertions
+    expect(result.groupBreakdowns.length).toBe(2);
+    const goa = result.groupBreakdowns.find(g => g.groupId === 'grp-1');
+    expect(goa).toBeDefined();
+    expect(goa?.myShareCents).toBe(5000);
+    expect(goa?.totalGroupVolumeCents).toBe(10000);
+    expect(goa?.myPaidOutlayCents).toBe(10000);
+
+    const flat = result.groupBreakdowns.find(g => g.groupId === 'grp-2');
+    expect(flat).toBeDefined();
+    expect(flat?.myShareCents).toBe(3000);
+    expect(flat?.totalGroupVolumeCents).toBe(6000);
+    expect(flat?.myPaidOutlayCents).toBe(0);
+
+    // Personal breakdown assertions
+    expect(result.personalBreakdown.totalExpenseCents).toBe(6000);
+    expect(result.personalBreakdown.transactionCount).toBe(2);
+    expect(result.personalBreakdown.averageTxCents).toBe(3000);
+    expect(result.personalBreakdown.categories.length).toBe(2);
+    expect(result.personalBreakdown.paymentMethods.length).toBe(2);
+    
+    const upi = result.personalBreakdown.paymentMethods.find(p => p.method === 'UPI');
+    expect(upi?.totalCents).toBe(4000);
+    const card = result.personalBreakdown.paymentMethods.find(p => p.method === 'CARD');
+    expect(card?.totalCents).toBe(2000);
+  });
 });
