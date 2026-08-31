@@ -95,13 +95,13 @@ export function useDashboardData(userId: string, groups: Group[], allExpenses: E
 
   const expensesByMonth = useMemo(() => {
     const sorted = [...allExpenses].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      (a, b) => new Date(b.expense_date ?? b.created_at).getTime() - new Date(a.expense_date ?? a.created_at).getTime(),
     );
 
     const monthMap = new Map<string, Expense[]>();
 
     sorted.forEach((expense) => {
-      const key = getMonthYearKey(expense.created_at);
+      const key = getMonthYearKey(expense.expense_date ?? expense.created_at);
       const existing = monthMap.get(key);
       if (existing) {
         existing.push(expense);
