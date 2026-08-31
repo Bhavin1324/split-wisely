@@ -22,6 +22,8 @@ import { GroupBalancesTab } from "../components/group/GroupBalancesTab";
 import { GroupActivityTab } from "../components/group/GroupActivityTab";
 import { GroupMembersDrawer } from "../components/group/GroupMembersDrawer";
 import { GroupLedgerModal } from "../components/group/GroupLedgerModal";
+import { DebtVisualizerModal } from "../components/group/DebtVisualizerModal";
+import { DebtReplayModal } from "../components/group/DebtReplayModal";
 import { removeMemberFromGroup } from "../hooks/supabase/useMutations";
 
 export function GroupDetailPage() {
@@ -44,6 +46,9 @@ export function GroupDetailPage() {
   
   const [isMembersDrawerOpen, setIsMembersDrawerOpen] = useState(false);
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+  const [isVisualizerOpen, setIsVisualizerOpen] = useState(false);
+  const [isReplayOpen, setIsReplayOpen] = useState(false);
+  const [visualizerUserId, setVisualizerUserId] = useState<string | undefined>(undefined);
 
   const { user } = useAuth();
   const { currentUser, groups, loading: appLoading } = useAppData();
@@ -64,8 +69,25 @@ export function GroupDetailPage() {
     myDebts,
     getProfile,
     memberLedgers,
+    groupExpenses,
+    groupSettlements,
     loading: groupLoading,
   } = useGroupCalculations(groupId, userId, group);
+
+  const memberUserIds = useMemo(() => {
+    return groupMembers.map((m: any) => m.user_id || m.id || m.profile?.id).filter(Boolean);
+  }, [groupMembers]);
+
+  const profilesMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    groupMembers.forEach((m: any) => {
+      const uid = m.user_id || m.id || m.profile?.id;
+      if (uid) {
+        map[uid] = getProfile(uid) || m.profile || { id: uid, full_name: 'Member' };
+      }
+    });
+    return map;
+  }, [groupMembers, getProfile]);
 
   if (appLoading || groupLoading) {
     return <PageSkeleton layout="dashboard" />;
@@ -162,6 +184,10 @@ export function GroupDetailPage() {
             setSettleUpMaxAmount(amount);
           }}
           onOpenLedger={() => setIsLedgerOpen(true)}
+          onOpenVisualizer={(targetId) => {
+            setVisualizerUserId(targetId || userId);
+            setIsVisualizerOpen(true);
+          }}
         />
       )}
 
@@ -233,6 +259,32 @@ export function GroupDetailPage() {
         isOpen={isLedgerOpen}
         onClose={() => setIsLedgerOpen(false)}
         memberLedgers={memberLedgers}
+        userId={userId}
+      />
+
+      <DebtVisualizerModal
+        open={isVisualizerOpen}
+        onClose={() => setIsVisualizerOpen(false)}
+        groupId={groupId || ''}
+        groupName={group.name}
+        groupMembers={memberUserIds}
+        expenses={groupExpenses}
+        settlements={groupSettlements}
+        profilesMap={profilesMap}
+        initialUserId={visualizerUserId}
+        currentUserId={userId}
+        onOpenReplay={() => setIsReplayOpen(true)}
+      />
+
+      <DebtReplayModal
+        open={isReplayOpen}
+        onClose={() => setIsReplayOpen(false)}
+        groupId={groupId || ''}
+        groupName={group.name}
+        groupMembers={memberUserIds}
+        expenses={groupExpenses}
+        settlements={groupSettlements}
+        profilesMap={profilesMap}
         userId={userId}
       />
     </div>

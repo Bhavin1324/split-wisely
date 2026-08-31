@@ -197,6 +197,8 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
     myDebts,
     getProfile,
     memberLedgers,
+    groupExpenses,
+    groupSettlements,
     loading
   };
 }
