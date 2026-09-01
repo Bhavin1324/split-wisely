@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Modal, Segmented, Button } from 'antd';
+import { Modal, Segmented, Button, Tag } from 'antd';
 import {
   Sparkles,
   ArrowRight,
@@ -165,17 +165,17 @@ export function DebtVisualizerModal({
         <Segmented
           options={[
             {
-              label: '1. Receipt & Pairwise Math',
+              label: isMobile ? '1. Math' : '1. Receipt & Pairwise Math',
               value: 'MATH',
               icon: <Calculator className="w-3.5 h-3.5 inline mr-1" />,
             },
             {
-              label: '2. Simplified Routes',
+              label: isMobile ? '2. Routes' : '2. Simplified Routes',
               value: 'ROUTES',
               icon: <Layers className="w-3.5 h-3.5 inline mr-1" />,
             },
             {
-              label: '3. Zero-Sum Proof',
+              label: isMobile ? '3. Proof' : '3. Zero-Sum Proof',
               value: 'ZEROSUM',
               icon: <Scale className="w-3.5 h-3.5 inline mr-1" />,
             },
@@ -233,10 +233,10 @@ export function DebtVisualizerModal({
                 </span>
 
                 {isPaidReceiptsExpanded && currentStory.receiptAccumulation.paidReceipts.length > 0 && (
-                  <div className="pt-2 mt-1 border-t border-border-subtle space-y-1 max-h-36 overflow-y-auto">
+                  <div className="pt-2 mt-1 border-t border-border-subtle space-y-1.5 max-h-40 overflow-y-auto">
                     {currentStory.receiptAccumulation.paidReceipts.map((r, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-[11px]">
-                        <span className="text-text-base truncate mr-1">{r.description}</span>
+                      <div key={idx} className="flex items-start justify-between gap-2 text-[11px] py-0.5">
+                        <span className="text-text-base break-words flex-1 leading-snug">{r.description}</span>
                         <span className="font-financial font-medium text-success-text shrink-0">+{formatCents(r.totalAmountCents)}</span>
                       </div>
                     ))}
@@ -272,10 +272,10 @@ export function DebtVisualizerModal({
                 </span>
 
                 {isConsumedReceiptsExpanded && currentStory.receiptAccumulation.consumedReceipts.length > 0 && (
-                  <div className="pt-2 mt-1 border-t border-border-subtle space-y-1 max-h-36 overflow-y-auto">
+                  <div className="pt-2 mt-1 border-t border-border-subtle space-y-1.5 max-h-40 overflow-y-auto">
                     {currentStory.receiptAccumulation.consumedReceipts.map((r, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-[11px]">
-                        <span className="text-text-base truncate mr-1">{r.description}</span>
+                      <div key={idx} className="flex items-start justify-between gap-2 text-[11px] py-0.5">
+                        <span className="text-text-base break-words flex-1 leading-snug">{r.description}</span>
                         <span className="font-financial font-medium text-error-text shrink-0">−{formatCents(r.yourShareCents)}</span>
                       </div>
                     ))}
@@ -353,9 +353,11 @@ export function DebtVisualizerModal({
                           size={32}
                         />
                         <div className="min-w-0">
-                          <span className="font-semibold text-xs text-text-base block truncate">
-                            {currentStory.userName} ⟷ {offset.friendName}
-                          </span>
+                          <div className="font-semibold text-xs text-text-base flex flex-wrap items-center gap-1">
+                            <span>{currentStory.userName}</span>
+                            <span className="text-text-muted font-normal text-[11px]">⟷</span>
+                            <span className="text-primary-600 font-bold">{offset.friendName}</span>
+                          </div>
                           <span className="text-[10px] text-text-muted block">
                             {offset.theyOweYouBills.length + offset.youOweThemBills.length} shared receipts
                           </span>
@@ -407,8 +409,8 @@ export function DebtVisualizerModal({
                             <span className="text-[10px] text-text-muted italic">No bills paid by you for them</span>
                           ) : (
                             offset.theyOweYouBills.map((b, i) => (
-                              <div key={i} className="flex justify-between text-text-base">
-                                <span className="truncate mr-1">{b.description}</span>
+                              <div key={i} className="flex items-start justify-between gap-2 text-text-base py-0.5">
+                                <span className="break-words flex-1 leading-snug">{b.description}</span>
                                 <span className="font-financial font-medium text-success-text shrink-0">+{formatCents(b.amountCents)}</span>
                               </div>
                             ))
@@ -424,8 +426,8 @@ export function DebtVisualizerModal({
                             <span className="text-[10px] text-text-muted italic">No bills paid by them for you</span>
                           ) : (
                             offset.youOweThemBills.map((b, i) => (
-                              <div key={i} className="flex justify-between text-text-base">
-                                <span className="truncate mr-1">{b.description}</span>
+                              <div key={i} className="flex items-start justify-between gap-2 text-text-base py-0.5">
+                                <span className="break-words flex-1 leading-snug">{b.description}</span>
                                 <span className="font-financial font-medium text-error-text shrink-0">−{formatCents(b.amountCents)}</span>
                               </div>
                             ))
@@ -467,14 +469,14 @@ export function DebtVisualizerModal({
                       size={36}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1 text-xs font-semibold text-text-base">
-                        <span className="truncate">{t.fromName}</span>
-                        <ArrowRight className="w-3.5 h-3.5 text-success-text shrink-0" />
-                        <span className="text-success-text font-bold truncate">
+                      <div className="flex flex-wrap items-center gap-1 text-xs font-semibold text-text-base">
+                        <span className="text-text-base font-bold">{t.fromName}</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-success-text shrink-0 inline" />
+                        <span className="text-success-text font-bold">
                           {selectedUserId === currentUserId ? 'You' : currentStory.userName}
                         </span>
                       </div>
-                      <span className="text-[11px] text-text-muted block">Direct simplified settlement</span>
+                      <span className="text-[10px] text-text-muted block">Direct simplified settlement</span>
                     </div>
                   </div>
 
@@ -501,14 +503,14 @@ export function DebtVisualizerModal({
                       size={36}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1 text-xs font-semibold text-text-base">
-                        <span className="text-error-text font-bold truncate">
+                      <div className="flex flex-wrap items-center gap-1 text-xs font-semibold text-text-base">
+                        <span className="text-error-text font-bold">
                           {selectedUserId === currentUserId ? 'You' : currentStory.userName}
                         </span>
-                        <ArrowRight className="w-3.5 h-3.5 text-error-text shrink-0" />
-                        <span className="truncate">{t.toName}</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-error-text shrink-0 inline" />
+                        <span className="text-text-base font-bold">{t.toName}</span>
                       </div>
-                      <span className="text-[11px] text-text-muted block">Direct simplified settlement</span>
+                      <span className="text-[10px] text-text-muted block">Direct simplified settlement</span>
                     </div>
                   </div>
 
@@ -610,43 +612,86 @@ export function DebtVisualizerModal({
               Individual Settlement Zeroing-Out
             </span>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {visualizationData.zeroSumBoard.tallies.map((tally) => (
                 <div
                   key={tally.userId}
-                  className="p-3 rounded-2xl bg-bg-surface border border-border-base flex items-center justify-between gap-2.5 text-xs shadow-xs"
+                  className="p-3.5 rounded-2xl bg-bg-surface border border-border-base space-y-2.5 text-xs shadow-xs"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <UserAvatar
-                      user={{ id: tally.userId, full_name: tally.userName, avatar_url: tally.avatarUrl }}
-                      size={32}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-text-base truncate">{tally.userName}</div>
-                      <div className="text-[10px] text-text-muted truncate">
-                        {tally.actions.join(' • ')}
+                  {/* Top Header: User Info & Balance Resolution */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <UserAvatar
+                        user={{ id: tally.userId, full_name: tally.userName, avatar_url: tally.avatarUrl }}
+                        size={32}
+                      />
+                      <div className="min-w-0">
+                        <div className="font-bold text-xs text-text-base truncate">{tally.userName}</div>
+                        <Tag
+                          color="borderless"
+                          className={`m-0 text-[10px] font-semibold px-1.5 py-0 rounded-md ${
+                            tally.startingNetBalanceCents > 0
+                              ? 'bg-[var(--color-success-bg)] text-success-text'
+                              : tally.startingNetBalanceCents < 0
+                              ? 'bg-[var(--color-danger-bg)] text-error-text'
+                              : 'bg-bg-subtle text-text-muted'
+                          }`}
+                        >
+                          {tally.startingNetBalanceCents > 0
+                            ? 'Net Creditor'
+                            : tally.startingNetBalanceCents < 0
+                            ? 'Net Debtor'
+                            : 'Settled'}
+                        </Tag>
                       </div>
+                    </div>
+
+                    <div className="text-right shrink-0 flex flex-col items-end">
+                      <div className="flex items-center gap-1.5 font-financial font-bold">
+                        <span
+                          className={
+                            tally.startingNetBalanceCents > 0
+                              ? 'text-success-text'
+                              : tally.startingNetBalanceCents < 0
+                              ? 'text-error-text'
+                              : 'text-text-muted'
+                          }
+                        >
+                          {tally.startingNetBalanceCents > 0 ? '+' : ''}
+                          {formatCents(tally.startingNetBalanceCents)}
+                        </span>
+                        <ArrowRight className="w-3 h-3 text-text-muted shrink-0" />
+                        <span className="text-success-text font-extrabold">₹0.00</span>
+                      </div>
+                      <span className="text-[10px] text-text-muted font-medium">Net Resolution</span>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <div className="flex items-center gap-1.5 justify-end">
-                      <span
-                        className={`font-financial font-bold ${
-                          tally.startingNetBalanceCents > 0
-                            ? 'text-success-text'
-                            : tally.startingNetBalanceCents < 0
-                            ? 'text-error-text'
-                            : 'text-text-muted'
-                        }`}
-                      >
-                        {tally.startingNetBalanceCents > 0 ? '+' : ''}
-                        {formatCents(tally.startingNetBalanceCents)}
-                      </span>
-                      <ArrowRight className="w-3 h-3 text-text-muted" />
-                      <span className="font-financial font-bold text-success-text">₹0.00</span>
-                    </div>
-                    <span className="text-[10px] text-success-text font-medium">Zeroed Out</span>
+                  {/* Actions List (Wrapped Pills / Badges - Zero Truncation!) */}
+                  <div className="pt-2 border-t border-border-subtle flex flex-col gap-1.5">
+                    {tally.actions.map((action, actIdx) => {
+                      const isPay = action.startsWith('Pays');
+                      const isReceive = action.startsWith('Receives');
+                      return (
+                        <div
+                          key={actIdx}
+                          className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-medium flex items-center justify-between gap-2 ${
+                            isPay
+                              ? 'bg-[var(--color-danger-bg)]/40 border-[var(--color-danger-500)]/20 text-error-text'
+                              : isReceive
+                              ? 'bg-[var(--color-success-bg)]/40 border-[var(--color-success-500)]/20 text-success-text'
+                              : 'bg-bg-subtle border-border-subtle text-text-muted'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-current" />
+                            <span className="leading-tight break-words">{action}</span>
+                          </div>
+                          {isPay && <span className="text-[10px] font-bold uppercase shrink-0">Outflow</span>}
+                          {isReceive && <span className="text-[10px] font-bold uppercase shrink-0">Inflow</span>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
