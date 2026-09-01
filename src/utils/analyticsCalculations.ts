@@ -50,10 +50,15 @@ export interface HybridTotals {
 export interface BurnRate {
   elapsedDays: number;
   totalDaysInPeriod: number;
+  daysRemainingInPeriod: number;
   dailyBurnCents: number;
+  actualSpentSoFarCents: number;
+  projectedRemainingSpendCents: number;
   projectedPeriodTotalCents: number;
   budgetVarianceCents: number | null;
   status: 'on-track' | 'warning' | 'overspend' | 'no-budget';
+  isCompletedPeriod: boolean;
+  incomeOffsetCents: number;
 }
 
 export interface OutlierItem {
@@ -242,7 +247,7 @@ export function calculateAnalyticsSummary({
 
   // 4. Daily Buckets (Current vs Previous)
   const buckets: DailyBucket[] = [];
-  const totalDays = period.mode === 'Monthly' ? currEnd.date() : 7;
+  const totalDays = period.mode === 'Monthly' ? currStart.daysInMonth() : 7;
   
   let cumCurr = 0;
   let cumPrev = 0;
@@ -398,22 +403,36 @@ export function calculateAnalyticsSummary({
   categoryStats.sort((a, b) => b.currentCents - a.currentCents);
 
   // 6. Burn Rate
+  const isCompletedPeriod = today.isAfter(currEnd);
+
   let elapsedDays = 0;
-  
   if (today.isBefore(currStart)) {
     elapsedDays = 0;
-  } else if (today.isAfter(currEnd)) {
+  } else if (isCompletedPeriod) {
     elapsedDays = totalDays;
   } else {
-    elapsedDays = today.diff(currStart, 'day') + 1;
+    elapsedDays = period.mode === 'Monthly' 
+      ? today.date() 
+      : Math.min(7, Math.max(1, today.diff(currStart, 'day') + 1));
   }
 
+  const daysRemainingInPeriod = Math.max(0, totalDays - elapsedDays);
+
+  const incomeOffsetCents = budget?.dynamic_budget_enabled ? currIncome : 0;
   const effectiveCost = budget?.dynamic_budget_enabled 
     ? Math.max(0, hybrid.totalTrueCostCents - currIncome)
     : hybrid.totalTrueCostCents;
 
-  const dailyBurnCents = Math.round(effectiveCost / Math.max(1, elapsedDays));
-  const projectedPeriodTotalCents = dailyBurnCents * totalDays;
+  const actualSpentSoFarCents = effectiveCost;
+  const dailyBurnCents = Math.round(actualSpentSoFarCents / Math.max(1, elapsedDays));
+  const projectedRemainingSpendCents = isCompletedPeriod
+    ? 0
+    : dailyBurnCents * daysRemainingInPeriod;
+
+  // Composite Formula: Exact Past Spent + Projected Future Outflow (Eliminating Rounding Drift)
+  const projectedPeriodTotalCents = isCompletedPeriod
+    ? actualSpentSoFarCents
+    : actualSpentSoFarCents + projectedRemainingSpendCents;
   
   let budgetAmountCents = null;
   let budgetVarianceCents: number | null = null;
@@ -425,7 +444,7 @@ export function calculateAnalyticsSummary({
     
     if (projectedPeriodTotalCents > budgetAmountCents) {
       status = 'overspend';
-    } else if (projectedPeriodTotalCents > budgetAmountCents * 0.9) {
+    } else if (!isCompletedPeriod && projectedPeriodTotalCents > budgetAmountCents * 0.9) {
       status = 'warning';
     } else {
       status = 'on-track';
@@ -435,10 +454,15 @@ export function calculateAnalyticsSummary({
   const burnRate: BurnRate = {
     elapsedDays,
     totalDaysInPeriod: totalDays,
+    daysRemainingInPeriod,
     dailyBurnCents,
+    actualSpentSoFarCents,
+    projectedRemainingSpendCents,
     projectedPeriodTotalCents,
     budgetVarianceCents,
     status,
+    isCompletedPeriod,
+    incomeOffsetCents,
   };
 
   // 7. Daily Safe Spend Limit
@@ -449,7 +473,7 @@ export function calculateAnalyticsSummary({
     
     const currentYear = today.year();
     const currentMonth = today.month() + 1;
-    const totalDaysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+    const totalDaysInMonth = currStart.daysInMonth();
 
     let daysRemaining = 0;
     if (targetYear === currentYear && targetMonth === currentMonth) {
