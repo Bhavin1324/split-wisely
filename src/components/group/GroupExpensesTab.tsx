@@ -75,7 +75,7 @@ export function GroupExpensesTab({
                         </strong>
                       </span>
                       <span className="hidden sm:inline">•</span>
-                      <span>{formatDate(expense.created_at)}</span>
+                      <span>{formatDate(expense.expense_date ?? expense.created_at)}</span>
                     </div>
                   </div>
                 </div>

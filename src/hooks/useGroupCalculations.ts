@@ -34,7 +34,7 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
     if (DEMO_MODE) {
       if (!groupId) return [];
       return MOCK_EXPENSES.filter((e) => e.group_id === groupId).sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        (a, b) => new Date(b.expense_date ?? b.created_at).getTime() - new Date(a.expense_date ?? a.created_at).getTime(),
       );
     }
     return liveExpenses || [];
@@ -50,7 +50,7 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
 
   const feedItems = useMemo(() => {
     const items: { type: 'expense' | 'settlement'; data: any; date: number }[] = [
-      ...groupExpenses.map((e) => ({ type: 'expense' as const, data: e, date: new Date(e.created_at).getTime() })),
+      ...groupExpenses.map((e) => ({ type: 'expense' as const, data: e, date: new Date(e.expense_date ?? e.created_at).getTime() })),
       ...groupSettlements.map((s) => ({ type: 'settlement' as const, data: s, date: new Date(s.created_at).getTime() })),
     ];
     return items.sort((a, b) => b.date - a.date);

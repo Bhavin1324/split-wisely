@@ -605,4 +605,178 @@ describe('Analytics Engine: Fuzz Testing (500 Randomized Runs)', () => {
     const card = result.personalBreakdown.paymentMethods.find(p => p.method === 'CARD');
     expect(card?.totalCents).toBe(2000);
   });
+
+  it('handles Completed Month (today > currEnd) where projected total strictly equals effectiveCost without rounding drift', () => {
+    const result = calculateAnalyticsSummary({
+      period: { mode: 'Monthly', monthYear: '2026-08', weekStart: '2026-08-01' },
+      liveExpenses: [],
+      personalTransactions: [
+        {
+          id: 'tx-1',
+          user_id: 'user-1',
+          type: 'EXPENSE',
+          amount: 1732560, // ₹17,325.60 (not divisible evenly by 31)
+          category: 'Food',
+          description: 'Monthly food total',
+          transaction_date: '2026-08-15',
+          created_at: '2026-08-15T12:00:00Z',
+        },
+      ],
+      budget: { user_id: 'user-1', month_year: '2026-08', budget_amount: 2000000, opening_balance: null },
+      categories: MOCK_CATEGORIES,
+      groups: MOCK_GROUPS,
+      userId: 'user-1',
+      today: '2026-09-01', // September 1 (Month completed!)
+    });
+
+    expect(result.burnRate.isCompletedPeriod).toBe(true);
+    expect(result.burnRate.daysRemainingInPeriod).toBe(0);
+    expect(result.burnRate.elapsedDays).toBe(31);
+    expect(result.burnRate.totalDaysInPeriod).toBe(31);
+    // Invariant: Projected Total must strictly equal exact actual spent without rounding drift!
+    expect(result.burnRate.projectedPeriodTotalCents).toBe(1732560);
+    expect(result.burnRate.projectedRemainingSpendCents).toBe(0);
+    expect(result.burnRate.status).toBe('on-track');
+    expect(result.burnRate.budgetVarianceCents).toBe(2000000 - 1732560);
+    expect(result.safeDailySpendCents).toBeNull();
+  });
+
+  it('handles Dynamic Calendar Month & Leap Year: February 2024 (29 days) vs February 2025 (28 days) vs September (30 days)', () => {
+    // 1. February 2024 (Leap Year) at Day 10
+    const febLeapResult = calculateAnalyticsSummary({
+      period: { mode: 'Monthly', monthYear: '2024-02', weekStart: '2024-02-01' },
+      liveExpenses: [],
+      personalTransactions: [
+        {
+          id: 'tx-1',
+          user_id: 'user-1',
+          type: 'EXPENSE',
+          amount: 10000, // ₹100.00 spent in 10 days = ₹10.00/day
+          category: 'Food',
+          description: 'Lunch',
+          transaction_date: '2024-02-10',
+          created_at: '2024-02-10T12:00:00Z',
+        },
+      ],
+      budget: null,
+      categories: MOCK_CATEGORIES,
+      groups: MOCK_GROUPS,
+      userId: 'user-1',
+      today: '2024-02-10',
+    });
+
+    expect(febLeapResult.burnRate.totalDaysInPeriod).toBe(29);
+    expect(febLeapResult.burnRate.elapsedDays).toBe(10);
+    expect(febLeapResult.burnRate.daysRemainingInPeriod).toBe(19); // 29 - 10 = 19
+    expect(febLeapResult.burnRate.dailyBurnCents).toBe(1000);
+    expect(febLeapResult.burnRate.projectedRemainingSpendCents).toBe(1000 * 19); // 19,000
+    expect(febLeapResult.burnRate.projectedPeriodTotalCents).toBe(10000 + 19000); // 29,000
+
+    // 2. February 2025 (Non-Leap Year) at Day 10
+    const febNonLeapResult = calculateAnalyticsSummary({
+      period: { mode: 'Monthly', monthYear: '2025-02', weekStart: '2025-02-01' },
+      liveExpenses: [],
+      personalTransactions: [
+        {
+          id: 'tx-1',
+          user_id: 'user-1',
+          type: 'EXPENSE',
+          amount: 10000,
+          category: 'Food',
+          description: 'Lunch',
+          transaction_date: '2025-02-10',
+          created_at: '2025-02-10T12:00:00Z',
+        },
+      ],
+      budget: null,
+      categories: MOCK_CATEGORIES,
+      groups: MOCK_GROUPS,
+      userId: 'user-1',
+      today: '2025-02-10',
+    });
+
+    expect(febNonLeapResult.burnRate.totalDaysInPeriod).toBe(28);
+    expect(febNonLeapResult.burnRate.elapsedDays).toBe(10);
+    expect(febNonLeapResult.burnRate.daysRemainingInPeriod).toBe(18); // 28 - 10 = 18
+    expect(febNonLeapResult.burnRate.projectedRemainingSpendCents).toBe(1000 * 18); // 18,000
+    expect(febNonLeapResult.burnRate.projectedPeriodTotalCents).toBe(10000 + 18000); // 28,000
+
+    // 3. September 2026 (30 days) at Day 10
+    const sepResult = calculateAnalyticsSummary({
+      period: { mode: 'Monthly', monthYear: '2026-09', weekStart: '2026-09-01' },
+      liveExpenses: [],
+      personalTransactions: [
+        {
+          id: 'tx-1',
+          user_id: 'user-1',
+          type: 'EXPENSE',
+          amount: 10000,
+          category: 'Food',
+          description: 'Lunch',
+          transaction_date: '2026-09-10',
+          created_at: '2026-09-10T12:00:00Z',
+        },
+      ],
+      budget: null,
+      categories: MOCK_CATEGORIES,
+      groups: MOCK_GROUPS,
+      userId: 'user-1',
+      today: '2026-09-10',
+    });
+
+    expect(sepResult.burnRate.totalDaysInPeriod).toBe(30);
+    expect(sepResult.burnRate.elapsedDays).toBe(10);
+    expect(sepResult.burnRate.daysRemainingInPeriod).toBe(20); // 30 - 10 = 20
+    expect(sepResult.burnRate.projectedRemainingSpendCents).toBe(1000 * 20); // 20,000
+    expect(sepResult.burnRate.projectedPeriodTotalCents).toBe(10000 + 20000); // 30,000
+  });
+
+  it('handles Dynamic Budget income offset properly in Barberrion King August scenario', () => {
+    const result = calculateAnalyticsSummary({
+      period: { mode: 'Monthly', monthYear: '2026-08', weekStart: '2026-08-01' },
+      liveExpenses: [],
+      personalTransactions: [
+        {
+          id: 'tx-exp-1',
+          user_id: 'user-barberrion',
+          type: 'EXPENSE',
+          amount: 2000000, // ₹20,000.00
+          category: 'Bills',
+          description: 'Rent',
+          transaction_date: '2026-08-05',
+          created_at: '2026-08-05T12:00:00Z',
+        },
+        {
+          id: 'tx-inc-1',
+          user_id: 'user-barberrion',
+          type: 'INCOME',
+          amount: 275434, // ₹2,754.34 income/refunds
+          category: 'Refund',
+          description: 'Roommate share return',
+          transaction_date: '2026-08-10',
+          created_at: '2026-08-10T12:00:00Z',
+        },
+      ],
+      budget: {
+        user_id: 'user-barberrion',
+        month_year: '2026-08',
+        budget_amount: 1800000, // ₹18,000.00
+        opening_balance: null,
+        dynamic_budget_enabled: true,
+      },
+      categories: MOCK_CATEGORIES,
+      groups: MOCK_GROUPS,
+      userId: 'user-barberrion',
+      today: '2026-09-01',
+    });
+
+    expect(result.burnRate.isCompletedPeriod).toBe(true);
+    expect(result.burnRate.incomeOffsetCents).toBe(275434);
+    // Effective cost = 2000000 - 275434 = 1724566 cents
+    expect(result.burnRate.actualSpentSoFarCents).toBe(1724566);
+    expect(result.burnRate.projectedPeriodTotalCents).toBe(1724566);
+    // 1800000 budget - 1724566 = 75434 variance (Saved ₹754.34)
+    expect(result.burnRate.budgetVarianceCents).toBe(75434);
+    expect(result.burnRate.status).toBe('on-track');
+  });
 });
