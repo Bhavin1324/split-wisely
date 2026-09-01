@@ -51,23 +51,57 @@ export function AnalyticsHeroKPIs({ summary }: Props) {
         </div>
       </Card>
 
-      {/* 2. Month-End Forecast */}
+      {/* 2. Month-End Forecast / Final Period Spend */}
       <Card className="rounded-2xl border-border-base shadow-sm h-full flex flex-col justify-between">
         <div>
           <div className="text-xs text-text-muted font-medium uppercase tracking-wider mb-1 flex items-center justify-between">
-            <span>Month-End Forecast</span>
-            <Tooltip title="Projected total spend for this month based on your current daily spending pace.">
+            <span>{burnRate.isCompletedPeriod ? 'Final Month Spend' : 'Month-End Forecast'}</span>
+            <Tooltip
+              title={
+                burnRate.isCompletedPeriod
+                  ? 'Total finalized spending for this completed period.'
+                  : 'Projected total spend combining your actual spending so far with expected spending for remaining days.'
+              }
+            >
               <HelpCircle className="w-3.5 h-3.5 text-text-muted cursor-pointer hover:text-text-base" />
             </Tooltip>
           </div>
           <div className="text-3xl font-bold font-financial text-primary-600">
             {formatCents(burnRate.projectedPeriodTotalCents)}
           </div>
+
+          {/* Subtitle Details Breakdown */}
+          <div className="mt-1.5 text-[11px] text-text-muted flex flex-col gap-0.5">
+            {!burnRate.isCompletedPeriod && burnRate.daysRemainingInPeriod > 0 ? (
+              <span>
+                {formatCents(burnRate.actualSpentSoFarCents)} spent + {formatCents(burnRate.projectedRemainingSpendCents)} forecast ({burnRate.daysRemainingInPeriod} days left)
+              </span>
+            ) : (
+              <span>
+                Month concluded ({burnRate.totalDaysInPeriod}/{burnRate.totalDaysInPeriod} days) • Avg {formatCents(burnRate.dailyBurnCents)}/day
+              </span>
+            )}
+            {burnRate.incomeOffsetCents > 0 && (
+              <span className="text-success-text font-medium">
+                Net after {formatCents(burnRate.incomeOffsetCents)} income offset
+              </span>
+            )}
+          </div>
         </div>
+
         <div className="mt-3 flex items-center gap-1.5">
           {burnRate.status === 'on-track' && (
             <Tag color="borderless" className="rounded-full bg-[var(--color-success-bg)] text-[var(--color-success-600)] m-0 flex items-center gap-1 px-2">
-              <CheckCircle className="w-3 h-3" /> <span className="font-semibold">On Track</span>
+              <CheckCircle className="w-3 h-3" />
+              <span className="font-semibold">
+                {burnRate.isCompletedPeriod ? (
+                  burnRate.budgetVarianceCents && burnRate.budgetVarianceCents > 0
+                    ? `Saved ${formatCents(burnRate.budgetVarianceCents)}`
+                    : 'Within Budget'
+                ) : (
+                  'On Track'
+                )}
+              </span>
             </Tag>
           )}
           {burnRate.status === 'warning' && (
@@ -77,7 +111,11 @@ export function AnalyticsHeroKPIs({ summary }: Props) {
           )}
           {burnRate.status === 'overspend' && (
             <Tag color="borderless" className="rounded-full bg-[var(--color-danger-bg)] text-[var(--color-danger-600)] m-0 flex items-center gap-1 px-2">
-              <TrendingUp className="w-3 h-3" /> <span className="font-semibold">Overspend by <span className="font-financial">{formatCents(Math.abs(burnRate.budgetVarianceCents || 0))}</span></span>
+              <TrendingUp className="w-3 h-3" />
+              <span className="font-semibold">
+                {burnRate.isCompletedPeriod ? 'Over Budget by ' : 'Overspend by '}
+                <span className="font-financial">{formatCents(Math.abs(burnRate.budgetVarianceCents || 0))}</span>
+              </span>
             </Tag>
           )}
           {burnRate.status === 'no-budget' && (
@@ -86,7 +124,7 @@ export function AnalyticsHeroKPIs({ summary }: Props) {
             </Tag>
           )}
         </div>
-        {summary.safeDailySpendCents !== null && (
+        {!burnRate.isCompletedPeriod && summary.safeDailySpendCents !== null && (
           <div className="mt-3 bg-[var(--color-success-bg)] text-[var(--color-success-600)] border border-[var(--color-success-border)] rounded-lg px-2.5 py-1.5 text-xs font-semibold inline-flex items-center self-start font-financial">
             Safe to spend: {formatCents(summary.safeDailySpendCents)} / day
           </div>
