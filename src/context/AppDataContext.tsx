@@ -14,6 +14,8 @@ interface AppDataContextType {
   refetchGroups: () => void;
   refetchProfile: () => void;
   refetchData: () => Promise<void>;
+  expenseRefreshSignal: number;
+  triggerExpenseRefresh: () => void;
 }
 
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
@@ -24,6 +26,11 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expenseRefreshSignal, setExpenseRefreshSignal] = useState(0);
+
+  const triggerExpenseRefresh = useCallback(() => {
+    setExpenseRefreshSignal((prev) => prev + 1);
+  }, []);
 
   const fetchProfile = useCallback(async (userId: string) => {
     if (DEMO_MODE) {
@@ -93,7 +100,8 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
         fetchCategories()
       ]);
     }
-  }, [user?.id, fetchProfile, fetchGroups, fetchCategories]);
+    triggerExpenseRefresh();
+  }, [user?.id, fetchProfile, fetchGroups, fetchCategories, triggerExpenseRefresh]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -145,6 +153,8 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
         refetchGroups,
         refetchProfile,
         refetchData,
+        expenseRefreshSignal,
+        triggerExpenseRefresh,
       }}
     >
       {children}

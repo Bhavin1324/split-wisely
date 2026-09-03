@@ -9,14 +9,14 @@ import type { Profile, Group } from '../types';
 
 export function useGroupCalculations(groupId: string | undefined, userId: string, group: Group | undefined) {
   const { data: liveMembers, loading: membersLoading, refetch: refetchMembers } = useGroupMembers(groupId);
-  const { data: liveExpenses, loading: expensesLoading, refetch: refetchExpenses } = useExpenses(groupId);
+  const { data: liveExpenses, loading: expensesLoading, refetch: refetchExpenses, addOptimisticExpense } = useExpenses(groupId);
   const { data: liveSettlements, loading: settlementsLoading, refetch: refetchSettlements } = useSettlements(groupId);
 
   const refetchAll = useCallback(async () => {
     await Promise.all([
       refetchMembers(),
-      refetchExpenses(),
-      refetchSettlements(),
+      refetchExpenses(true),
+      refetchSettlements(true),
     ]);
   }, [refetchMembers, refetchExpenses, refetchSettlements]);
 
@@ -110,11 +110,14 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
     return displayedDebts.filter(d => d.from === userId || d.to === userId);
   }, [displayedDebts, userId]);
 
-  const getProfile = (id: string) => {
+  const getProfile = useCallback((id: string) => {
     if (DEMO_MODE) return getProfileById(id) as Profile | undefined;
     const member = liveMembers?.find(m => m.user_id === id);
-    return member?.profile as Profile | undefined;
-  };
+    if (member?.profile) return member.profile as Profile;
+    const expensePayer = liveExpenses?.find(e => e.payer_id === id)?.payer;
+    if (expensePayer) return expensePayer as Profile;
+    return undefined;
+  }, [liveMembers, liveExpenses]);
 
   const memberLedgers = useMemo(() => {
     const ledgers = groupMembers.map(m => {
@@ -199,6 +202,7 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
     memberLedgers,
     groupExpenses,
     groupSettlements,
+    addOptimisticExpense,
     loading
   };
 }

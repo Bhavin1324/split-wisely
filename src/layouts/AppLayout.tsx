@@ -53,7 +53,7 @@ export function AppLayout() {
     useState(false);
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const { currentUser: contextUser, groups: contextGroups, refetchData } = useAppData();
+  const { currentUser: contextUser, groups: contextGroups, refetchData, triggerExpenseRefresh } = useAppData();
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearSeen } =
     useNotifications();
 
@@ -337,7 +337,10 @@ export function AppLayout() {
           setIsExpenseModalOpen(false);
           setSelectedExpenseGroupId(null);
         }}
-        onSuccess={refetchData}
+        onSuccess={async () => {
+          await refetchData();
+          triggerExpenseRefresh();
+        }}
       />
       <CreateGroupModal
         open={isCreateGroupOpen}

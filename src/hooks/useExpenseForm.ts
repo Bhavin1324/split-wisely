@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Form } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import type { SplitMode } from '../types';
@@ -33,6 +33,9 @@ export function useExpenseForm(
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  const prevGroupIdRef = useRef<string | undefined>(selectedGroupId);
+  const isInitializedRef = useRef(false);
+
   const { data: liveMembers } = useGroupMembers(selectedGroupId || '');
 
   const members = useMemo(() => {
@@ -42,53 +45,53 @@ export function useExpenseForm(
       : (liveMembers || []);
   }, [selectedGroupId, liveMembers]);
 
+  // Sync / initialize form state when modal opens or selected group changes
   useEffect(() => {
-    if (!existingExpense) {
-      const allIds = members.map((m) => m.user_id);
-      setSelectedUserIds(allIds);
-      setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
-      setPercentages(Object.fromEntries(allIds.map((id) => [id, null])));
-      setShares(Object.fromEntries(allIds.map((id) => [id, 1])));
-      setValidationError(null);
+    if (!open) {
+      isInitializedRef.current = false;
+      return;
     }
-  }, [members, splitMode, existingExpense]);
 
-  useEffect(() => {
-    if (open) {
-      if (existingExpense) {
-        setDescription(existingExpense.description);
-        setAmountValue(existingExpense.total_amount / 100);
-        setCategoryId(existingExpense.category_id || undefined);
-        setSelectedGroupId(existingExpense.group_id || undefined);
-        setPayerId(existingExpense.payer_id);
-        setExpenseDate(existingExpense.expense_date ? dayjs(existingExpense.expense_date) : dayjs());
-        setSplitMode('exact');
+    const groupChanged = selectedGroupId !== prevGroupIdRef.current;
+    prevGroupIdRef.current = selectedGroupId;
 
-        const allIds = members.map((m) => m.user_id);
-        setSelectedUserIds(allIds);
-        
-        if (existingExpense.splits && existingExpense.splits.length > 0) {
-          const exacts: Record<string, number | null> = {};
-          allIds.forEach(id => {
-            const split = existingExpense.splits?.find(s => s.user_id === id);
-            exacts[id] = split ? split.amount_owed / 100 : null;
-          });
-          setExactAmounts(exacts);
-        } else {
-          setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
-        }
+    if (existingExpense) {
+      setDescription(existingExpense.description);
+      setAmountValue(existingExpense.total_amount / 100);
+      setCategoryId(existingExpense.category_id || undefined);
+      setSelectedGroupId(existingExpense.group_id || undefined);
+      setPayerId(existingExpense.payer_id);
+      setExpenseDate(existingExpense.expense_date ? dayjs(existingExpense.expense_date) : dayjs());
+      setSplitMode('exact');
+
+      const allIds = Array.from(new Set(members.map((m) => m.user_id)));
+      setSelectedUserIds(allIds);
+      
+      if (existingExpense.splits && existingExpense.splits.length > 0) {
+        const exacts: Record<string, number | null> = {};
+        allIds.forEach(id => {
+          const split = existingExpense.splits?.find(s => s.user_id === id);
+          exacts[id] = split ? split.amount_owed / 100 : null;
+        });
+        setExactAmounts(exacts);
       } else {
-        if (groupId) setSelectedGroupId(groupId);
-        if (userId) setPayerId(userId);
-        
-        const allIds = members.map((m) => m.user_id);
+        setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
+      }
+      isInitializedRef.current = true;
+    } else if (!isInitializedRef.current || groupChanged) {
+      if (groupId && !selectedGroupId) setSelectedGroupId(groupId);
+      if (userId && !payerId) setPayerId(userId);
+      
+      const allIds = Array.from(new Set(members.map((m) => m.user_id)));
+      if (allIds.length > 0) {
         setSelectedUserIds(allIds);
         setExactAmounts(Object.fromEntries(allIds.map((id) => [id, null])));
         setPercentages(Object.fromEntries(allIds.map((id) => [id, null])));
         setShares(Object.fromEntries(allIds.map((id) => [id, 1])));
+        isInitializedRef.current = true;
       }
     }
-  }, [open, existingExpense, groupId, userId, members]);
+  }, [open, existingExpense, groupId, userId, members, selectedGroupId, payerId]);
 
   const totalCents = useMemo(() => {
     if (amountValue == null || amountValue <= 0) return 0;
@@ -96,8 +99,9 @@ export function useExpenseForm(
   }, [amountValue]);
 
   const equalPerPerson = useMemo(() => {
-    if (selectedUserIds.length === 0 || totalCents === 0) return 0;
-    return Math.floor(totalCents / selectedUserIds.length);
+    const uniqueIds = Array.from(new Set(selectedUserIds));
+    if (uniqueIds.length === 0 || totalCents === 0) return 0;
+    return Math.floor(totalCents / uniqueIds.length);
   }, [totalCents, selectedUserIds]);
 
   const exactSum = useMemo(() => {
@@ -118,6 +122,7 @@ export function useExpenseForm(
   }, [shares]);
 
   const resetForm = useCallback(() => {
+    isInitializedRef.current = false;
     setDescription('');
     setAmountValue(null);
     setCategoryId(undefined);
@@ -125,6 +130,7 @@ export function useExpenseForm(
     setExpenseDate(dayjs());
     setPayerId(userId);
     setSplitMode('equal');
+    setSelectedUserIds([]);
     setValidationError(null);
     setFieldErrors({});
     form.resetFields();

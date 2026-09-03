@@ -42,6 +42,7 @@ export interface ExpenseFormFieldsProps {
   splitMode: SplitMode;
   setSplitMode: (val: SplitMode) => void;
   selectedUserIds: string[];
+  setSelectedUserIds?: React.Dispatch<React.SetStateAction<string[]>>;
   toggleParticipant: (uid: string, checked: boolean) => void;
   exactAmounts: Record<string, number | null>;
   setExactAmounts: React.Dispatch<React.SetStateAction<Record<string, number | null>>>;
@@ -83,6 +84,7 @@ export function ExpenseFormFields({
   splitMode,
   setSplitMode,
   selectedUserIds,
+  setSelectedUserIds,
   toggleParticipant,
   exactAmounts,
   setExactAmounts,
@@ -127,6 +129,8 @@ export function ExpenseFormFields({
             equalPerPerson={equalPerPerson}
             memberName={memberName}
             toggleParticipant={toggleParticipant}
+            onSelectAll={setSelectedUserIds ? () => setSelectedUserIds(members.map((m) => m.user_id)) : undefined}
+            onDeselectAll={setSelectedUserIds ? () => setSelectedUserIds([]) : undefined}
           />
         );
       case 'exact':

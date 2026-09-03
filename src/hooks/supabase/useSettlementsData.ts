@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Settlement } from '../../types';
 
@@ -6,8 +6,10 @@ export function useSettlements(groupId: string | undefined) {
   const [data, setData] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const dataRef = useRef<Settlement[]>([]);
+  dataRef.current = data;
 
-  const fetchSettlements = useCallback(async () => {
+  const fetchSettlements = useCallback(async (isSilent = false) => {
     if (!groupId) {
       setData([]);
       setLoading(false);
@@ -15,7 +17,9 @@ export function useSettlements(groupId: string | undefined) {
     }
 
     try {
-      setLoading(true);
+      if (!isSilent && dataRef.current.length === 0) {
+        setLoading(true);
+      }
       setError(null);
       const { data: settlements, error: err } = await supabase
         .from('settlements')
@@ -43,7 +47,7 @@ export function useSettlements(groupId: string | undefined) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'settlements', filter: `group_id=eq.${groupId}` },
-        () => fetchSettlements(),
+        () => fetchSettlements(true),
       )
       .subscribe((_status, err) => {
         if (err) console.error(`Realtime error [${channelName}]:`, err);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Group, GroupMember } from '../../types';
 
@@ -38,7 +38,25 @@ export function useGroups(userId: string | undefined) {
 
   useEffect(() => {
     fetchGroups();
-  }, [fetchGroups]);
+
+    if (!userId) return;
+    const channelName = `realtime-groups-${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase.channel(channelName);
+
+    channel
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'group_members', filter: `user_id=eq.${userId}` },
+        () => fetchGroups(),
+      )
+      .subscribe((_status, err) => {
+        if (err) console.error(`Realtime error [${channelName}]:`, err);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, fetchGroups]);
 
   return { data, loading, error, refetch: fetchGroups };
 }
@@ -47,8 +65,10 @@ export function useGroupMembers(groupId: string | undefined) {
   const [data, setData] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const dataRef = useRef<GroupMember[]>([]);
+  dataRef.current = data;
 
-  const fetchMembers = useCallback(async () => {
+  const fetchMembers = useCallback(async (isSilent = false) => {
     if (!groupId) {
       setData([]);
       setLoading(false);
@@ -56,7 +76,9 @@ export function useGroupMembers(groupId: string | undefined) {
     }
 
     try {
-      setLoading(true);
+      if (!isSilent && dataRef.current.length === 0) {
+        setLoading(true);
+      }
       setError(null);
       const { data: members, error: err } = await supabase
         .from('group_members')
@@ -83,7 +105,7 @@ export function useGroupMembers(groupId: string | undefined) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'group_members', filter: `group_id=eq.${groupId}` },
-        () => fetchMembers(),
+        () => fetchMembers(true),
       )
       .subscribe((_status, err) => {
         if (err) console.error(`Realtime error [${channelName}]:`, err);

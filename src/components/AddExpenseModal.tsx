@@ -68,7 +68,15 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense, onSuc
   }, [categoryId, categories, setDescription, setCategoryId]);
 
   const toggleParticipant = useCallback((uid: string, checked: boolean) => {
-    setSelectedUserIds((prev) => (checked ? [...prev, uid] : prev.filter((id) => id !== uid)));
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(uid);
+      } else {
+        next.delete(uid);
+      }
+      return Array.from(next);
+    });
   }, [setSelectedUserIds]);
 
   const handleSave = useCallback(async () => {
@@ -99,7 +107,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense, onSuc
       messageApi.success(existingExpense ? 'Expense updated (Demo Mode)!' : 'Expense added successfully (Demo Mode)!');
       await refetchData();
       if (onSuccess) await onSuccess();
-      if (isMobile) triggerDismiss(); else handleCancel();
+      if (isMobile) triggerDismiss(handleCancel); else handleCancel();
     } else {
       setIsSubmitting(true);
       try {
@@ -118,7 +126,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense, onSuc
         }
         await refetchData();
         if (onSuccess) await onSuccess();
-        if (isMobile) triggerDismiss(); else handleCancel();
+        if (isMobile) triggerDismiss(handleCancel); else handleCancel();
       } catch (error: any) {
         setValidationError(error.message || 'Failed to save expense');
       } finally {
@@ -130,7 +138,7 @@ export function AddExpenseModal({ open, onClose, groupId, existingExpense, onSuc
   const formFieldsProps = {
     form, description, onDescriptionChange: handleDescriptionChange, amountValue, setAmountValue,
     categoryId, setCategoryId, categories, expenseDate, setExpenseDate, selectedGroupId, setSelectedGroupId,
-    groups, payerId, setPayerId, members, memberName, splitMode, setSplitMode, selectedUserIds, toggleParticipant,
+    groups, payerId, setPayerId, members, memberName, splitMode, setSplitMode, selectedUserIds, setSelectedUserIds, toggleParticipant,
     exactAmounts, setExactAmounts, percentages, setPercentages, shares, setShares, totalCents, equalPerPerson,
     exactRemaining, percentageSum, totalShares, fieldErrors, validationError, existingExpense: !!existingExpense,
     isMobile, currentUserName: currentUser?.full_name ?? MOCK_CURRENT_USER.full_name, currentUserId: userId,

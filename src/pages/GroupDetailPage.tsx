@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Segmented, Empty, Button, App } from "antd";
 import { Receipt, DollarSign, Activity } from "lucide-react";
@@ -12,7 +12,6 @@ import { SettleUpModal } from "../components/SettleUpModal";
 
 import { useAppData, DEMO_MODE } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
-import { useGroupMembers } from "../hooks/supabase/useGroupsData";
 import { useGroupCalculations } from "../hooks/useGroupCalculations";
 import type { Expense } from "../types";
 
@@ -51,11 +50,9 @@ export function GroupDetailPage() {
   const [visualizerUserId, setVisualizerUserId] = useState<string | undefined>(undefined);
 
   const { user } = useAuth();
-  const { currentUser, groups, loading: appLoading } = useAppData();
+  const { currentUser, groups, loading: appLoading, expenseRefreshSignal } = useAppData();
   
   const userId = currentUser?.id ?? user?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
-
-  useGroupMembers(groupId); // pre-fetch or trigger load for cache
 
   const group = useMemo(() => groups.find((g) => g.id === groupId), [groups, groupId]);
 
@@ -74,6 +71,13 @@ export function GroupDetailPage() {
     loading: groupLoading,
   } = useGroupCalculations(groupId, userId, group);
 
+  // Automatically refresh group calculations whenever an expense is created anywhere in the app
+  useEffect(() => {
+    if (expenseRefreshSignal > 0) {
+      refetchAll();
+    }
+  }, [expenseRefreshSignal, refetchAll]);
+
   const memberUserIds = useMemo(() => {
     return groupMembers.map((m: any) => m.user_id || m.id || m.profile?.id).filter(Boolean);
   }, [groupMembers]);
@@ -89,7 +93,7 @@ export function GroupDetailPage() {
     return map;
   }, [groupMembers, getProfile]);
 
-  if (appLoading || groupLoading) {
+  if (appLoading || (groupLoading && groupExpenses.length === 0 && groupMembers.length === 0)) {
     return <PageSkeleton layout="dashboard" />;
   }
 

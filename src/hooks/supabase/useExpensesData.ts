@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Expense, Category } from '../../types';
 
@@ -6,8 +6,10 @@ export function useExpenses(groupId: string | undefined) {
   const [data, setData] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const dataRef = useRef<Expense[]>([]);
+  dataRef.current = data;
 
-  const fetchExpenses = useCallback(async () => {
+  const fetchExpenses = useCallback(async (isSilent = false) => {
     if (!groupId) {
       setData([]);
       setLoading(false);
@@ -15,13 +17,16 @@ export function useExpenses(groupId: string | undefined) {
     }
 
     try {
-      setLoading(true);
+      if (!isSilent && dataRef.current.length === 0) {
+        setLoading(true);
+      }
       setError(null);
       const { data: expenses, error: err } = await supabase
         .from('expenses')
         .select('*, payer:profiles!payer_id(*), category:categories(*), splits:expense_splits(*, user:profiles(*))')
         .eq('group_id', groupId)
-        .order('expense_date', { ascending: false });
+        .order('expense_date', { ascending: false })
+        .order('created_at', { ascending: false });
 
       if (err) throw err;
       setData(expenses as unknown as Expense[]);
@@ -31,6 +36,13 @@ export function useExpenses(groupId: string | undefined) {
       setLoading(false);
     }
   }, [groupId]);
+
+  const addOptimisticExpense = useCallback((expense: Expense) => {
+    setData((prev) => {
+      if (prev.some((e) => e.id === expense.id)) return prev;
+      return [expense, ...prev];
+    });
+  }, []);
 
   useEffect(() => {
     fetchExpenses();
@@ -43,12 +55,12 @@ export function useExpenses(groupId: string | undefined) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
-        () => fetchExpenses(),
+        () => fetchExpenses(true),
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'expense_splits' },
-        () => fetchExpenses(),
+        () => fetchExpenses(true),
       )
       .subscribe((_status, err) => {
         if (err) console.error(`Realtime error [${channelName}]:`, err);
@@ -59,7 +71,7 @@ export function useExpenses(groupId: string | undefined) {
     };
   }, [groupId, fetchExpenses]);
 
-  return { data, loading, error, refetch: fetchExpenses };
+  return { data, loading, error, refetch: fetchExpenses, addOptimisticExpense };
 }
 
 export function useAllExpenses(userId: string | undefined) {
