@@ -1,10 +1,10 @@
-import { Card, Empty, Button, App } from "antd";
-import { Plus, DollarSign, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Card, Empty, Button } from "antd";
+import { Plus, DollarSign, ChevronRight } from "lucide-react";
 import { getCategoryIcon } from "../../utils/icons";
 import { formatDate } from "../../utils/date";
 import { formatCents } from "../../utils/currency";
-import { deleteSettlement } from "../../hooks/supabase/useMutations";
-import { DEMO_MODE, useAppData } from "../../context/AppDataContext";
+import { PaymentDetailsModal } from "./PaymentDetailsModal";
 import type { Expense } from "../../types";
 
 export function GroupExpensesTab({
@@ -13,6 +13,7 @@ export function GroupExpensesTab({
   getProfile,
   onSelectExpense,
   onOpenAddExpense,
+  groupName,
   onRefresh,
 }: {
   feedItems: any[];
@@ -20,10 +21,10 @@ export function GroupExpensesTab({
   getProfile: (id: string) => any;
   onSelectExpense: (expense: Expense) => void;
   onOpenAddExpense: () => void;
+  groupName?: string;
   onRefresh?: () => Promise<void> | void;
 }) {
-  const { modal, message } = App.useApp();
-  const { refetchData } = useAppData();
+  const [selectedSettlement, setSelectedSettlement] = useState<any | null>(null);
 
   return (
     <div className="space-y-3">
@@ -109,42 +110,8 @@ export function GroupExpensesTab({
             return (
               <div
                 key={`settlement-${settlement.id}`}
-                onClick={() => {
-                  if (!DEMO_MODE) {
-                    modal.confirm({
-                      title: "Delete Payment",
-                      content:
-                        "Are you sure you want to delete this payment record?",
-                      okText: "Delete",
-                      okButtonProps: { danger: true },
-                      onOk: async () => {
-                        try {
-                          await deleteSettlement(settlement.id, {
-                            group_id: settlement.group_id,
-                            actor_id: userId,
-                            payer_id: settlement.payer_id,
-                            payee_id: settlement.payee_id,
-                            amount: settlement.amount,
-                            payer_name: payer?.full_name,
-                            payee_name: payee?.full_name,
-                          });
-                          message.success("Payment deleted");
-                          await refetchData();
-                          if (onRefresh) {
-                            await onRefresh();
-                          }
-                        } catch (error: any) {
-                          message.error(
-                            error.message || "Failed to delete payment",
-                          );
-                        }
-                      },
-                    });
-                  } else {
-                    message.info("Cannot delete settlements in Demo Mode.");
-                  }
-                }}
-                className="flex items-center justify-between p-3 my-1 mx-auto w-full md:w-5/6 bg-bg-base border border-border-base rounded-full shadow-sm hover:border-error-border hover:bg-error-bg transition-all cursor-pointer group"
+                onClick={() => setSelectedSettlement(settlement)}
+                className="flex items-center justify-between p-3 my-1 mx-auto w-full md:w-5/6 bg-bg-base border border-border-base rounded-full shadow-sm hover:border-success-border hover:bg-success-bg/20 transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-3 ml-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success-bg text-success-text">
@@ -167,14 +134,25 @@ export function GroupExpensesTab({
                   </div>
                 </div>
 
-                <div className="mr-4 group-hover:opacity-100 transition-opacity flex items-center text-error-text bg-error-bg p-1.5 rounded-full">
-                  <Trash2 className="h-4 w-4" />
+                <div className="mr-3 text-text-muted group-hover:text-text-base transition-colors flex items-center">
+                  <ChevronRight className="h-4 w-4" />
                 </div>
               </div>
             );
           }
         })
       )}
+
+      {/* Payment Details / Dispute Modal */}
+      <PaymentDetailsModal
+        open={!!selectedSettlement}
+        onClose={() => setSelectedSettlement(null)}
+        settlement={selectedSettlement}
+        currentUserId={userId}
+        getProfile={getProfile}
+        groupName={groupName}
+        onRefresh={onRefresh}
+      />
     </div>
   );
 }

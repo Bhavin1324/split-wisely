@@ -588,6 +588,7 @@ export async function deleteSettlement(
     amount?: number;
     payer_name?: string;
     payee_name?: string;
+    is_dispute?: boolean;
   }
 ): Promise<void> {
   if (DEMO_MODE) {
@@ -599,12 +600,18 @@ export async function deleteSettlement(
       const payerName = activityMetadata.payer_name || (activityMetadata.payer_id ? getProfileById(activityMetadata.payer_id)?.full_name : null) || 'Someone';
       const payeeName = activityMetadata.payee_name || (activityMetadata.payee_id ? getProfileById(activityMetadata.payee_id)?.full_name : null) || 'someone';
       const actor = activityMetadata.actor_id ? getProfileById(activityMetadata.actor_id) : undefined;
+      const isDispute = !!activityMetadata.is_dispute;
+      const description = isDispute
+        ? `${payeeName} disputed the payment of ${formatCents(activityMetadata.amount || 0)} from ${payerName} (Money was not received)`
+        : `Payment from ${payerName} to ${payeeName} was deleted`;
+      const actionType = isDispute ? 'SETTLEMENT_DISPUTED' : 'SETTLEMENT_DELETED';
+
       const activity: GroupActivityItem = {
         id: `act-${Date.now()}`,
         group_id: activityMetadata.group_id,
         actor_id: activityMetadata.actor_id || null,
-        action_type: 'SETTLEMENT_DELETED',
-        description: `Payment from ${payerName} to ${payeeName} was deleted`,
+        action_type: actionType,
+        description,
         metadata: {
           settlement_id: settlementId,
           amount: activityMetadata.amount,
@@ -612,6 +619,7 @@ export async function deleteSettlement(
           payee_id: activityMetadata.payee_id,
           payer_name: payerName,
           payee_name: payeeName,
+          is_dispute: isDispute,
         },
         created_at: new Date().toISOString(),
         actor,
@@ -621,18 +629,34 @@ export async function deleteSettlement(
     return;
   }
 
+  // Permission guard: Only the payer or payee can delete this payment record
+  if (
+    activityMetadata?.actor_id &&
+    activityMetadata?.payer_id &&
+    activityMetadata?.payee_id &&
+    activityMetadata.actor_id !== activityMetadata.payer_id &&
+    activityMetadata.actor_id !== activityMetadata.payee_id
+  ) {
+    throw new Error("Permission denied: Only the payer or payee can delete this payment record.");
+  }
+
   const { error } = await supabase.from('settlements').delete().eq('id', settlementId);
   if (error) throw error;
 
   if (activityMetadata?.group_id) {
     const payerName = activityMetadata.payer_name || 'Someone';
     const payeeName = activityMetadata.payee_name || 'someone';
-    const description = `Payment from ${payerName} to ${payeeName} was deleted`;
+    const isDispute = !!activityMetadata.is_dispute;
+    const description = isDispute
+      ? `${payeeName} disputed the payment of ${formatCents(activityMetadata.amount || 0)} from ${payerName} (Money was not received)`
+      : `Payment from ${payerName} to ${payeeName} was deleted`;
+    const actionType = isDispute ? 'SETTLEMENT_DISPUTED' : 'SETTLEMENT_DELETED';
+
     try {
       await supabase.from('group_activities').insert([{
         group_id: activityMetadata.group_id,
         actor_id: activityMetadata.actor_id || null,
-        action_type: 'SETTLEMENT_DELETED',
+        action_type: actionType,
         description,
         metadata: {
           settlement_id: settlementId,
@@ -641,6 +665,7 @@ export async function deleteSettlement(
           payee_id: activityMetadata.payee_id,
           payer_name: payerName,
           payee_name: payeeName,
+          is_dispute: isDispute,
         }
       }]);
     } catch (actErr) {

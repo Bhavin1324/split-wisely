@@ -170,6 +170,7 @@ export function GroupDetailPage() {
           feedItems={feedItems}
           userId={userId}
           getProfile={getProfile}
+          groupName={group?.name}
           onSelectExpense={setSelectedExpense}
           onOpenAddExpense={() => setIsAddExpenseOpen(true)}
           onRefresh={refetchAll}

@@ -9,6 +9,7 @@ import {
   FileEdit,
   UserMinus,
   UserPlus,
+  ShieldAlert,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useGroupActivities } from '../../hooks/supabase/useGroupActivities';
@@ -93,6 +94,12 @@ export function GroupActivityTab({
         return (
           <div className="w-10 h-10 rounded-xl bg-error-bg text-error-text border border-error-border flex items-center justify-center shrink-0">
             <Trash2 className="w-5 h-5" />
+          </div>
+        );
+      case 'SETTLEMENT_DISPUTED':
+        return (
+          <div className="w-10 h-10 rounded-xl bg-error-bg text-error-text border border-error-border flex items-center justify-center shrink-0">
+            <ShieldAlert className="w-5 h-5" />
           </div>
         );
       case 'MEMBER_ADDED':
