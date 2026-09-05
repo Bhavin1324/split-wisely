@@ -76,11 +76,30 @@ export function useAllSettlements(userId: string | undefined) {
     try {
       setLoading(true);
       setError(null);
-      const { data: settlements, error: err } = await supabase
+
+      // 1. Fetch all groups the user belongs to
+      const { data: members, error: memberErr } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', userId);
+
+      if (memberErr) throw memberErr;
+
+      const groupIds = (members || []).map((m: any) => m.group_id).filter(Boolean);
+
+      // 2. Fetch all settlements in user's groups OR direct 1-on-1 settlements
+      let query = supabase
         .from('settlements')
         .select('*, payer:profiles!payer_id(*), payee:profiles!payee_id(*)')
-        .or(`payer_id.eq.${userId},payee_id.eq.${userId}`)
         .order('created_at', { ascending: false });
+
+      if (groupIds.length > 0) {
+        query = query.or(`group_id.in.(${groupIds.join(',')}),payer_id.eq.${userId},payee_id.eq.${userId}`);
+      } else {
+        query = query.or(`payer_id.eq.${userId},payee_id.eq.${userId}`);
+      }
+
+      const { data: settlements, error: err } = await query;
 
       if (err) throw err;
       setData(settlements as unknown as Settlement[]);

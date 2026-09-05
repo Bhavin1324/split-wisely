@@ -52,10 +52,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('data-scheme', scheme);
     
     // 2. Update the PWA Mobile Status Bar Color
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', scheme === 'dark' ? '#0f131a' : themeHexMap[theme]);
-    }
+    const statusBarColor = scheme === 'dark' ? '#0f131a' : '#f1f5f9';
+    document.querySelectorAll('meta[name="theme-color"]').forEach((tag) => {
+      tag.setAttribute('content', statusBarColor);
+    });
   }, [theme, scheme]);
 
   const setTheme = (newTheme: ThemeType) => {

@@ -4,10 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#10b981" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f1f5f9" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f131a" />
     <link rel="apple-touch-icon" href="/pwa-icon.jpg">
     <meta name="application-name" content="Centfolio" />
     <meta name="apple-mobile-web-app-title" content="Centfolio" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="description" content="Split expenses fairly with friends and groups. Track balances, simplify debts, and settle up effortlessly with Centfolio." />
     <title>Centfolio — Smart Expense Splitting</title>
     <script>
@@ -20,6 +23,11 @@
         var theme = localStorage.getItem('centfolio_theme') || localStorage.getItem('splitwisely_theme');
         if (theme && theme !== 'green') {
           document.documentElement.setAttribute('data-theme', theme);
+        }
+        var statusBarColor = scheme === 'dark' ? '#0f131a' : '#f1f5f9';
+        var metaTags = document.querySelectorAll('meta[name="theme-color"]');
+        for (var i = 0; i < metaTags.length; i++) {
+          metaTags[i].setAttribute('content', statusBarColor);
         }
       })();
     </script>
