@@ -44,13 +44,24 @@ This document serves as the master architectural reference, domain knowledge bas
 * **Encrypted UPI Storage (`profiles_base` & `public.profiles`)**: UPI IDs are encrypted at rest using `pgcrypto` (`pgp_sym_encrypt`).
 * **`SECURITY INVOKER` View (`public.profiles`)**: Configured with `with (security_invoker = true)` to ensure all client queries strictly respect Row Level Security (RLS) policies on `profiles_base`.
 
+### F. Standalone Native SMS Sync Companion & Staging Engine
+* **Decoupled Architecture**: Instead of running Capacitor hybrid wrappers, SMS extraction is delegated to a standalone native Android app (`CentfolioSMSSync` at `C:\PersonalWork\Projects\CentfolioSMSSync`).
+* **Hardware-Level Anti-OTP / Privacy Guard**: All 10-digit personal phone numbers and verification codes (OTP, 2FA, PIN) are dropped immediately on the client device.
+* **₹200 Automation Threshold**:
+  * Transactions $\le$ ₹200 are auto-approved directly to `public.personal_transactions` (no prompt).
+  * Transactions $>$ ₹200 or credits are staged in `public.staged_expenses` for 1-tap review via `<StagedTransactionsBanner />` on the Dashboard.
+* **1-Click Pairing**: Generated under Settings (`PairCompanionModal.tsx`), passing encrypted payload (`supabaseUrl`, `supabaseAnonKey`, `userId`) to the Android app.
+* **Group Split Prefill**: Tapping **Split** pre-fills `<AddExpenseModal />` with merchant and amount, and auto-updates the staged record status to `APPROVED_GROUP`.
+* **Master Reference Doc**: See [`docs/SMS_COMPANION_INTEGRATION.md`](file:///C:/PersonalWork/Projects/expense-tracker/split-wisely/docs/SMS_COMPANION_INTEGRATION.md).
+
 ---
 
-## 3. Database Schema (24 Tables & Views)
+## 3. Database Schema (25 Tables & Views)
 
 ```
 public.profiles_base (id, full_name, avatar_url, default_currency, upi_id_encrypted, created_at)
   └── public.profiles (VIEW: with transparent pgp_sym_decrypt and security_invoker = true)
+public.staged_expenses (id, user_id, amount_cents, transaction_type, merchant_name, bank_short_code, account_last4, upi_ref, raw_sms_hash, status, created_at, transaction_date)
 public.groups (id, name, type, currency_code, created_by, simplify_debts, created_at, updated_at)
 public.group_members (id, group_id, user_id, joined_at)
 public.group_invitations (id, group_id, invited_by, email, token, status, created_at)

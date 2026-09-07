@@ -179,5 +179,11 @@ export interface PersonalTransaction {
   description: string;
   transaction_date: string;
   created_at: string;
+  source?: 'PERSONAL' | 'GROUP';
+  group_id?: string;
+  group_name?: string;
+  expense_id?: string;
+  raw_expense?: Expense;
+  total_expense_amount?: number;
 }
 

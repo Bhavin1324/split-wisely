@@ -22,7 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-*.env.*
+*.env.local
 mcp_config.json
 migrations
 supabase/.temp

@@ -8,7 +8,7 @@ import { formatCents, getStoredCurrency } from '../utils/currency';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { createExpenseWithSplits, updateExpenseWithSplits } from '../hooks/supabase/useMutations';
-import { useExpenseForm } from '../hooks/useExpenseForm';
+import { useExpenseForm, type ExpenseFormInitialValues } from '../hooks/useExpenseForm';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useBottomSheetDismiss } from '../hooks/useBottomSheetDismiss';
 import { matchCategoryByDescription } from '../utils/categoryKeywords';
@@ -22,16 +22,17 @@ interface AddExpenseModalProps {
   onClose: () => void;
   groupId?: string;
   existingExpense?: Expense;
+  initialValues?: ExpenseFormInitialValues;
   onSuccess?: () => Promise<void> | void;
 }
 
-export function AddExpenseModal({ open, onClose, groupId, existingExpense, onSuccess }: AddExpenseModalProps) {
+export function AddExpenseModal({ open, onClose, groupId, existingExpense, initialValues, onSuccess }: AddExpenseModalProps) {
   const isMobile = useIsMobile(640);
   const { user } = useAuth();
   const { currentUser, groups, categories, refetchData } = useAppData();
   const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
-  const formState = useExpenseForm(groupId, existingExpense, open, userId, categories);
+  const formState = useExpenseForm(groupId, existingExpense, open, userId, categories, initialValues);
   const {
     form, description, setDescription, amountValue, setAmountValue, categoryId, setCategoryId,
     selectedGroupId, setSelectedGroupId, expenseDate, setExpenseDate, payerId, setPayerId,

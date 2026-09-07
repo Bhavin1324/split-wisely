@@ -630,3 +630,83 @@ describe('Currency Utility Precision & Formatting', () => {
     expect(formatCents(0, 'INR')).toContain('0.00');
   });
 });
+
+describe('calculateLedgerSummary with Group Shares & True Cost', () => {
+  it('correctly calculates soloExpense, groupShareExpense, and combined totalExpense', () => {
+    const transactions: PersonalTransaction[] = [
+      {
+        id: 'tx-solo-1',
+        user_id: 'user-1',
+        type: 'EXPENSE',
+        amount: 25000, // ₹250.00
+        category: 'Food',
+        description: 'Solo Lunch',
+        transaction_date: '2026-09-05T12:00:00Z',
+        created_at: '2026-09-05T12:00:00Z',
+        source: 'PERSONAL',
+      },
+      {
+        id: 'tx-solo-2',
+        user_id: 'user-1',
+        type: 'EXPENSE',
+        amount: 15000, // ₹150.00 (legacy/no source defined)
+        category: 'Transport',
+        description: 'Taxi',
+        transaction_date: '2026-09-06T10:00:00Z',
+        created_at: '2026-09-06T10:00:00Z',
+      },
+      {
+        id: 'tx-group-1',
+        user_id: 'user-1',
+        type: 'EXPENSE',
+        amount: 8000, // ₹80.00 (e.g. Pau Bhaji group share)
+        category: 'Food',
+        description: 'Pau Bhaji',
+        transaction_date: '2026-09-05T20:00:00Z',
+        created_at: '2026-09-05T20:00:00Z',
+        source: 'GROUP',
+        group_id: 'grp-flat',
+        group_name: 'Flat expenses',
+      },
+      {
+        id: 'tx-income-1',
+        user_id: 'user-1',
+        type: 'INCOME',
+        amount: 500000, // ₹5,000.00
+        category: 'Salary',
+        description: 'Stipend',
+        transaction_date: '2026-09-01T09:00:00Z',
+        created_at: '2026-09-01T09:00:00Z',
+      },
+    ];
+
+    const budget: PersonalBudget = {
+      user_id: 'user-1',
+      month_year: '2026-09',
+      budget_amount: 100000, // ₹1,000.00 target budget
+      opening_balance: 50000,
+    };
+
+    const summary = calculateLedgerSummary({
+      transactions,
+      budget,
+      monthYear: '2026-09',
+      today: new Date(2026, 8, 10), // Sep 10, 2026
+    });
+
+    // Solo: 25000 + 15000 = 40000 (₹400.00)
+    expect(summary.soloExpense).toBe(40000);
+    // Group: 8000 (₹80.00)
+    expect(summary.groupShareExpense).toBe(8000);
+    // Combined Total True Cost: 48000 (₹480.00)
+    expect(summary.totalExpense).toBe(48000);
+    expect(summary.totalExpense).toBe(summary.soloExpense + summary.groupShareExpense);
+
+    // Budget remaining is calculated against True Cost (100000 - 48000 = 52000)
+    expect(summary.remainingBudgetStrict).toBe(52000);
+    expect(summary.remainingBudget).toBe(52000);
+
+    // Income is untouched
+    expect(summary.totalIncome).toBe(500000);
+  });
+});

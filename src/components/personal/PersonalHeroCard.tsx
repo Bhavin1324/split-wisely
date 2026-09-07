@@ -1,14 +1,19 @@
 import { formatCents } from "../../utils/currency";
 import type { PersonalLedgerSummary } from "../../hooks/usePersonalLedger";
-import { ArrowDownLeft, ArrowUpRight, Wallet, Target, Sparkles, Pencil } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Wallet, Target, Sparkles, Pencil, ChevronRight } from "lucide-react";
 import { Button } from "antd";
 
 interface PersonalHeroCardProps {
   summary: PersonalLedgerSummary;
   onOpenSetBudget: () => void;
+  onOpenMoneyOutBreakdown?: () => void;
 }
 
-export function PersonalHeroCard({ summary, onOpenSetBudget }: PersonalHeroCardProps) {
+export function PersonalHeroCard({
+  summary,
+  onOpenSetBudget,
+  onOpenMoneyOutBreakdown,
+}: PersonalHeroCardProps) {
   const {
     openingBalance,
     totalIncome,
@@ -192,11 +197,24 @@ export function PersonalHeroCard({ summary, onOpenSetBudget }: PersonalHeroCardP
             </div>
           </div>
 
-          {/* Total Expense */}
-          <div className="p-3.5 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger-border)] space-y-1">
-            <div className="text-xs text-[var(--color-danger-500)] font-semibold flex items-center gap-1">
-              <ArrowUpRight className="w-3.5 h-3.5" />
-              Money Out
+          {/* Total Expense (Money Out) */}
+          <div
+            onClick={onOpenMoneyOutBreakdown}
+            className={`p-3.5 rounded-xl bg-[var(--color-danger-bg)] border border-[var(--color-danger-border)] space-y-1 transition-all ${
+              onOpenMoneyOutBreakdown
+                ? "cursor-pointer hover:border-[var(--color-danger-500)]/60 hover:shadow-xs active:scale-[0.99] group"
+                : ""
+            }`}
+            title={onOpenMoneyOutBreakdown ? "Click to view True Cost breakdown" : undefined}
+          >
+            <div className="text-xs text-[var(--color-danger-500)] font-semibold flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                Money Out
+              </span>
+              {onOpenMoneyOutBreakdown && (
+                <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              )}
             </div>
             <div className="text-base sm:text-lg font-bold text-[var(--color-danger-500)] whitespace-nowrap truncate font-financial">
               -{formatCents(totalExpense)}

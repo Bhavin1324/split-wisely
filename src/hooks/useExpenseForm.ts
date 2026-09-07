@@ -7,12 +7,18 @@ import { MOCK_GROUP_MEMBERS } from '../lib/mockData';
 import { DEMO_MODE } from '../context/AppDataContext';
 import { useGroupMembers } from './supabase/useGroupsData';
 
+export interface ExpenseFormInitialValues {
+  amount?: number;
+  description?: string;
+}
+
 export function useExpenseForm(
   groupId: string | undefined,
   existingExpense: Expense | undefined,
   open: boolean,
   userId: string,
   _categories: any[],
+  initialValues?: ExpenseFormInitialValues,
 ) {
   const [form] = Form.useForm();
 
@@ -81,6 +87,8 @@ export function useExpenseForm(
     } else if (!isInitializedRef.current || groupChanged) {
       if (groupId && !selectedGroupId) setSelectedGroupId(groupId);
       if (userId && !payerId) setPayerId(userId);
+      if (initialValues?.amount != null) setAmountValue(initialValues.amount);
+      if (initialValues?.description) setDescription(initialValues.description);
       
       const allIds = Array.from(new Set(members.map((m) => m.user_id)));
       if (allIds.length > 0) {
@@ -91,7 +99,7 @@ export function useExpenseForm(
         isInitializedRef.current = true;
       }
     }
-  }, [open, existingExpense, groupId, userId, members, selectedGroupId, payerId]);
+  }, [open, existingExpense, groupId, userId, members, selectedGroupId, payerId, initialValues?.amount, initialValues?.description]);
 
   const totalCents = useMemo(() => {
     if (amountValue == null || amountValue <= 0) return 0;
@@ -123,8 +131,8 @@ export function useExpenseForm(
 
   const resetForm = useCallback(() => {
     isInitializedRef.current = false;
-    setDescription('');
-    setAmountValue(null);
+    setDescription(initialValues?.description || '');
+    setAmountValue(initialValues?.amount ?? null);
     setCategoryId(undefined);
     setSelectedGroupId(groupId);
     setExpenseDate(dayjs());
@@ -134,7 +142,7 @@ export function useExpenseForm(
     setValidationError(null);
     setFieldErrors({});
     form.resetFields();
-  }, [form, groupId, userId]);
+  }, [form, groupId, userId, initialValues]);
 
   return {
     form,

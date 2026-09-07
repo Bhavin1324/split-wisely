@@ -4,7 +4,9 @@ import type { PersonalTransaction, PersonalBudget } from '../types';
 export interface PersonalLedgerSummary {
   openingBalance: number | null; // in cents, or null if unconfigured
   totalIncome: number;    // in cents
-  totalExpense: number;   // in cents
+  totalExpense: number;   // in cents: soloExpense + groupShareExpense (True Cost)
+  soloExpense: number;    // in cents: solo out-of-pocket expenses
+  groupShareExpense: number; // in cents: share of group expenses
   netExpense: number;     // in cents: Math.max(0, totalExpense - totalIncome)
   effectiveExpense: number; // in cents: dynamicBudgetEnabled ? netExpense : totalExpense
   netCashFlow: number;    // in cents: totalIncome - totalExpense
@@ -118,10 +120,20 @@ export function calculateLedgerSummary(input: LedgerInput): PersonalLedgerSummar
   );
   let totalIncome = 0;
   let totalExpense = 0;
+  let soloExpense = 0;
+  let groupShareExpense = 0;
 
   monthTransactions.forEach((tx) => {
-    if (tx.type === 'INCOME') totalIncome += tx.amount;
-    if (tx.type === 'EXPENSE') totalExpense += tx.amount;
+    if (tx.type === 'INCOME') {
+      totalIncome += tx.amount;
+    } else if (tx.type === 'EXPENSE') {
+      totalExpense += tx.amount;
+      if (tx.source === 'GROUP') {
+        groupShareExpense += tx.amount;
+      } else {
+        soloExpense += tx.amount;
+      }
+    }
   });
 
   // 3. Cash Flow, Balances & Budgets
@@ -158,6 +170,8 @@ export function calculateLedgerSummary(input: LedgerInput): PersonalLedgerSummar
     openingBalance,
     totalIncome,
     totalExpense,
+    soloExpense,
+    groupShareExpense,
     netExpense,
     effectiveExpense,
     netCashFlow,

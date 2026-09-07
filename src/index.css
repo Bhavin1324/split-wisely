@@ -580,4 +580,13 @@
 
 .animate-backdrop-fade-out {
   animation: backdrop-fade-out 200ms ease-out forwards;
+}
+
+/* Utility for hiding scrollbar in horizontal carousels and pill tabs */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

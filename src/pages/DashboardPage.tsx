@@ -27,14 +27,25 @@ import { GroupCard } from '../components/dashboard/GroupCard';
 import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
+import { StagedTransactionsBanner } from '../components/expenses/StagedTransactionsBanner';
+import { useStagedExpenses } from '../hooks/useStagedExpenses';
+import type { StagedExpense } from '../types/stagedExpense';
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | undefined>(undefined);
+  const [stagedToSplit, setStagedToSplit] = useState<StagedExpense | null>(null);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [hideSettledGroups, setHideSettledGroups] = useState(true);
+
+  const {
+    pendingExpenses,
+    approveAsPersonal,
+    dismissStaged,
+    markAsGroupSplit,
+  } = useStagedExpenses();
 
   const { user } = useAuth();
   const { currentUser, groups: contextGroups, loading: appLoading } = useAppData();
@@ -70,6 +81,18 @@ export function DashboardPage() {
           Welcome back, {displayName}
         </p>
       </div>
+
+      {/* ── Auto-Synced SMS Transactions Banner ─────────────────── */}
+      <StagedTransactionsBanner
+        pendingExpenses={pendingExpenses}
+        onApprovePersonal={approveAsPersonal}
+        onDismiss={dismissStaged}
+        onSplitInGroup={(staged) => {
+          setExpenseToEdit(undefined);
+          setStagedToSplit(staged);
+          setIsAddExpenseOpen(true);
+        }}
+      />
 
       {/* ── Balance Summary Cards ────────────────────────────── */}
       <section className="grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -219,8 +242,23 @@ export function DashboardPage() {
         onClose={() => {
           setIsAddExpenseOpen(false);
           setExpenseToEdit(undefined);
+          setStagedToSplit(null);
         }}
         existingExpense={expenseToEdit}
+        initialValues={
+          stagedToSplit
+            ? {
+                amount: stagedToSplit.amount_cents / 100,
+                description: stagedToSplit.merchant_name,
+              }
+            : undefined
+        }
+        onSuccess={async () => {
+          if (stagedToSplit) {
+            await markAsGroupSplit(stagedToSplit.id);
+            setStagedToSplit(null);
+          }
+        }}
       />
 
       <ExpenseStatementModal

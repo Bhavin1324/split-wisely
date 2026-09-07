@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Card, Button, Select, Divider, message, Input, Switch, QRCode } from 'antd';
-import { Download, User, Globe, Palette, QrCode, Copy, Check, ShieldCheck, Share2, Camera } from 'lucide-react';
+import { Download, User, Globe, Palette, QrCode, Copy, Check, ShieldCheck, Share2, Camera, Smartphone } from 'lucide-react';
 import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS } from '../lib/mockData';
 import { CurrencyAdapter } from '../adapters/CurrencyAdapter';
 import { ExportAdapter } from '../adapters/ExportAdapter';
@@ -16,6 +16,7 @@ import type { ThemeType } from '../context/ThemeContext';
 import { UserAvatar } from '../components/ui/UserAvatar';
 import { AvatarPickerModal } from '../components/settings/AvatarPickerModal';
 import { PushNotificationsCard } from '../components/settings/PushNotificationsCard';
+import { PairCompanionModal } from '../components/settings/PairCompanionModal';
 
 export function SettingsPage() {
   const { currentUser: contextUser, refetchData } = useAppData();
@@ -25,6 +26,7 @@ export function SettingsPage() {
   const [isSavingUpi, setIsSavingUpi] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
+  const [isPairCompanionOpen, setIsPairCompanionOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   const handleSaveAvatar = async (newAvatarUrl: string | null) => {
@@ -352,6 +354,28 @@ export function SettingsPage() {
       {/* Push Notifications Section */}
       <PushNotificationsCard />
 
+      {/* Centfolio SMS Sync Companion Section */}
+      <Card className="rounded-2xl border-border-base shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Smartphone className="w-5 h-5 text-primary-500 flex-shrink-0" />
+            <div>
+              <h2 className="text-base font-semibold text-text-base mb-0">Centfolio SMS Sync (Android)</h2>
+              <p className="text-xs text-text-muted mt-0.5">
+                Automatically sync banking debit/credit SMS to your ledger with on-device privacy.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="primary"
+            onClick={() => setIsPairCompanionOpen(true)}
+            className="rounded-xl font-bold bg-primary-500 hover:bg-primary-600 border-none shadow-xs"
+          >
+            Pair Companion App
+          </Button>
+        </div>
+      </Card>
+
       {/* Export Section */}
       <Card className="rounded-2xl border-border-base shadow-sm">
         <div className="flex items-center gap-4">
@@ -378,6 +402,11 @@ export function SettingsPage() {
         onClose={() => setIsAvatarPickerOpen(false)}
         currentUser={currentUser}
         onSave={handleSaveAvatar}
+      />
+
+      <PairCompanionModal
+        open={isPairCompanionOpen}
+        onClose={() => setIsPairCompanionOpen(false)}
       />
     </>
   );
