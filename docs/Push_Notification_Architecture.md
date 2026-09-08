@@ -240,8 +240,39 @@ sequenceDiagram
 | **Add Direct Friend** | [`AddFriendModal.tsx`](file:///C:/PersonalWork/Projects/expense-tracker/split-wisely/src/components/AddFriendModal.tsx) | Friend Added | `New Friend Added 🤝` — *"Barberrion added you as a friend."* |
 | **Add Group Member** | [`GroupMembersDrawer.tsx`](file:///C:/PersonalWork/Projects/expense-tracker/split-wisely/src/components/group/GroupMembersDrawer.tsx) | New Member | `Added to Group 👥` — *"Barberrion added you to the group 'bhago'."* |
 | **Join via Invite Link** | [`JoinGroupPage.tsx`](file:///C:/PersonalWork/Projects/expense-tracker/split-wisely/src/pages/JoinGroupPage.tsx) | Group Inviter | `New Member Joined 👥` — *"Mr. Project joined 'bhago'."* |
+| **Auto-Synced SMS (Staged Review)** | [`TransactionSyncRepositoryImpl.kt`](file:///C:/PersonalWork/Projects/CentfolioSMSSync/app/src/main/java/com/centfolio/centfoliosmssync/data/repository/TransactionSyncRepositoryImpl.kt) | Active Account Devices (`user_id`) | `New Bank Transaction Staged 💳` — *"₹450.00 at SWIGGY auto-synced. Tap to review or split."* |
+| **Auto-Synced SMS (Personal Ledger)** | [`TransactionSyncRepositoryImpl.kt`](file:///C:/PersonalWork/Projects/CentfolioSMSSync/app/src/main/java/com/centfolio/centfoliosmssync/data/repository/TransactionSyncRepositoryImpl.kt) | Active Account Devices (`user_id`) | `Personal Expense Recorded ⚡` — *"₹120.00 at CHAI POINT auto-recorded in your personal ledger."* |
 
 ---
+
+### Lifecycle 3: Automated SMS Companion Sync (Multi-Device Broadcast)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Bank as Bank SMS Gateway
+    participant Mobile as CentfolioSMSSync (Android)
+    participant DB as Supabase PostgreSQL
+    participant EF as Edge Function (send-push)
+    participant FCM as Google FCM / Apple APNs
+    actor User as User (PWA / Phone / Laptop)
+
+    Bank->>Mobile: Cellular SMS Broadcast (e.g. ₹450 at Swiggy)
+    Mobile->>Mobile: Parse transaction, verify deduplication hash
+    Mobile->>DB: POST /rest/v1/staged_expenses (Status: PENDING)
+    
+    par In-App Bell Notification
+        Mobile->>DB: POST /rest/v1/notifications (Inserts bell record)
+    and Web Push Dispatch
+        Mobile->>EF: Invokes send-push with user_ids: [user_id]
+    end
+
+    EF->>DB: SELECT * FROM push_subscriptions WHERE user_id = user_id
+    DB-->>EF: Returns user's subscribed device endpoints
+    EF->>FCM: Dispatches payload with Urgency: high (RFC 8030)
+    FCM-->>User: 🔔 Phone/Laptop screen wakes, vibrates & shows lock-screen banner!
+    User->>User: Taps banner -> Focuses PWA dashboard directly to StagedTransactionsBanner
+```
 
 ## 7. Key Invariants & Troubleshooting Reference
 

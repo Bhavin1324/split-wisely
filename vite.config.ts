@@ -28,8 +28,8 @@ export default defineConfig({
         name: 'Centfolio',
         short_name: 'Centfolio',
         description: 'Split expenses fairly with friends and groups with Centfolio.',
-        theme_color: '#10b981',
-        background_color: '#ffffff',
+        theme_color: '#0f131a',
+        background_color: '#0f131a',
         display: 'standalone',
         orientation: 'portrait-primary',
         icons: [

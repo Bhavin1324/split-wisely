@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   Users,
 } from 'lucide-react';
-import { getCurrencySymbol } from '../../utils/currency';
 import { AppConfig } from '../../config/AppConfig';
 import { useAuth } from '../../context/AuthContext';
 
@@ -38,7 +37,6 @@ export function PairCompanionModal({ open, onClose }: PairCompanionModalProps) {
   );
 
   const apkDownloadUrl = AppConfig.companion.apkUrl;
-  const currencySymbol = getCurrencySymbol();
 
   const pairDeepLink = useMemo(() => {
     let token = session?.refresh_token;
@@ -182,13 +180,13 @@ export function PairCompanionModal({ open, onClose }: PairCompanionModalProps) {
               <div className="flex items-center gap-2 text-text-main">
                 <Zap className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>
-                  <strong>Hands-free:</strong> Spends ≤ {currencySymbol}200 are logged automatically.
+                  <strong>Full Control:</strong> All bank expenses appear on your Dashboard for 1-tap review.
                 </span>
               </div>
               <div className="flex items-center gap-2 text-text-main">
                 <Users className="w-4 h-4 text-primary-500 shrink-0" />
                 <span>
-                  <strong>Easy Splitting:</strong> Spends &gt; {currencySymbol}200 appear on Dashboard to split.
+                  <strong>Easy Splitting:</strong> Confirm as Personal or split in a Group with 1 tap.
                 </span>
               </div>
               <div className="flex items-center gap-2 text-text-main">

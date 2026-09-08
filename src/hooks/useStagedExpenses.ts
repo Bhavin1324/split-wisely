@@ -4,6 +4,23 @@ import { useAuth } from '../context/AuthContext';
 import { DEMO_MODE } from '../context/AppDataContext';
 import type { StagedExpense } from '../types/stagedExpense';
 
+const MOCK_PENDING_STAGED: StagedExpense[] = [
+  {
+    id: 'mock-staged-1',
+    user_id: 'mock-user',
+    amount_cents: 45000,
+    transaction_type: 'DEBIT',
+    merchant_name: 'SWIGGY',
+    bank_short_code: 'HDFC',
+    account_last4: '4821',
+    upi_ref: '429182749102',
+    raw_sms_hash: 'mock-hash-1',
+    status: 'PENDING',
+    created_at: new Date().toISOString(),
+    transaction_date: new Date().toISOString(),
+  },
+];
+
 export function useStagedExpenses() {
   const { user } = useAuth();
   const userId = user?.id;
@@ -12,7 +29,12 @@ export function useStagedExpenses() {
   const [loading, setLoading] = useState(true);
 
   const fetchPendingExpenses = useCallback(async () => {
-    if (DEMO_MODE || !userId) {
+    if (DEMO_MODE) {
+      setPendingExpenses(MOCK_PENDING_STAGED);
+      setLoading(false);
+      return;
+    }
+    if (!userId) {
       setLoading(false);
       return;
     }
@@ -66,6 +88,10 @@ export function useStagedExpenses() {
 
   // Action: Approve as Personal Expense
   const approveAsPersonal = async (staged: StagedExpense, category: string = 'General') => {
+    if (DEMO_MODE) {
+      setPendingExpenses((prev) => prev.filter((item) => item.id !== staged.id));
+      return true;
+    }
     if (!userId) return;
 
     try {
@@ -100,6 +126,10 @@ export function useStagedExpenses() {
 
   // Action: Dismiss (Ignore transfer / self-deposit)
   const dismissStaged = async (stagedId: string) => {
+    if (DEMO_MODE) {
+      setPendingExpenses((prev) => prev.filter((item) => item.id !== stagedId));
+      return;
+    }
     try {
       await supabase
         .from('staged_expenses')
@@ -114,6 +144,10 @@ export function useStagedExpenses() {
 
   // Action: Mark as Split in Group
   const markAsGroupSplit = async (stagedId: string) => {
+    if (DEMO_MODE) {
+      setPendingExpenses((prev) => prev.filter((item) => item.id !== stagedId));
+      return;
+    }
     try {
       await supabase
         .from('staged_expenses')

@@ -1,6 +1,16 @@
 import { useState } from 'react';
-import { Button, Tag } from 'antd';
-import { Sparkles, User, Users, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from 'antd';
+import {
+  Sparkles,
+  User,
+  Users,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Utensils,
+  Car,
+  ShoppingBag,
+} from 'lucide-react';
 import { formatCents } from '../../utils/currency';
 import type { StagedExpense } from '../../types/stagedExpense';
 import { formatDate } from '../../utils/date';
@@ -12,126 +22,212 @@ interface StagedTransactionsBannerProps {
   onSplitInGroup: (staged: StagedExpense) => void;
 }
 
+function getMerchantCategoryIcon(merchant: string) {
+  const m = merchant.toLowerCase();
+  if (
+    /swiggy|zomato|starbucks|mcdonald|subway|cafe|coffee|restaurant|food|burger|pizza|diner|kitchen|bakery/i.test(
+      m
+    )
+  ) {
+    return Utensils;
+  }
+  if (
+    /uber|ola|rapido|metro|fuel|petrol|shell|indianoil|hpcl|bpcl|auto|taxi/i.test(
+      m
+    )
+  ) {
+    return Car;
+  }
+  if (
+    /amazon|flipkart|zara|myntra|h&m|blinkit|zepto|instamart|grocery|mart|store|retail|supermarket/i.test(
+      m
+    )
+  ) {
+    return ShoppingBag;
+  }
+  return Sparkles;
+}
+
 export function StagedTransactionsBanner({
   pendingExpenses,
   onApprovePersonal,
   onDismiss,
   onSplitInGroup,
 }: StagedTransactionsBannerProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isBatchApproving, setIsBatchApproving] = useState(false);
 
   if (pendingExpenses.length === 0) return null;
 
-  const firstItem = pendingExpenses[0];
-  const remainingCount = pendingExpenses.length - 1;
+  const safeIndex = Math.min(
+    currentIndex,
+    Math.max(0, pendingExpenses.length - 1)
+  );
+  const item = pendingExpenses[safeIndex];
+  const IconComponent = getMerchantCategoryIcon(item.merchant_name);
+
+  const handleApproveAllPersonal = async () => {
+    if (isBatchApproving) return;
+    setIsBatchApproving(true);
+    try {
+      for (const exp of pendingExpenses) {
+        await onApprovePersonal(exp);
+      }
+    } finally {
+      setIsBatchApproving(false);
+    }
+  };
 
   return (
-    <div className="bg-gradient-to-r from-primary-500/10 via-primary-500/5 to-transparent border border-primary-500/30 rounded-2xl p-4 shadow-sm space-y-3">
-      {/* Header Row */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 flex items-center gap-1.5">
-              Bank Transactions to Review
-              <Tag color="orange" className="m-0 rounded-full font-bold px-2 py-0.2 text-[10px]">
-                {pendingExpenses.length} new
-              </Tag>
-            </div>
-            <div className="text-xs text-text-muted">
-              Auto-synced from your phone. Confirm personal or split with friends.
-            </div>
-          </div>
+    <div className="space-y-2.5">
+      {/* Deck Header Bar (Global Queue Level) */}
+      <div className="flex items-center justify-between text-xs px-1">
+        <div className="flex items-center gap-1.5 font-bold text-text-main">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>SMS Decision Queue</span>
         </div>
 
         {pendingExpenses.length > 1 && (
-          <Button
-            type="text"
-            size="small"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-xs font-semibold text-text-muted hover:text-text-main flex items-center gap-1"
+          <button
+            type="button"
+            disabled={isBatchApproving}
+            onClick={handleApproveAllPersonal}
+            className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer disabled:opacity-50"
+            title="Approve all remaining expenses as personal"
           >
-            {isExpanded ? (
-              <>
-                Less <ChevronUp className="w-3.5 h-3.5" />
-              </>
-            ) : (
-              <>
-                +{remainingCount} more <ChevronDown className="w-3.5 h-3.5" />
-              </>
-            )}
-          </Button>
+            {isBatchApproving ? 'Approving...' : 'Approve all as Personal'}
+          </button>
         )}
       </div>
 
-      {/* Items List */}
-      <div className="space-y-2.5 pt-1">
-        {(isExpanded ? pendingExpenses : [firstItem]).map((item) => (
-          <div
-            key={item.id}
-            className="bg-bg-surface border border-border-subtle rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
-          >
-            {/* Details */}
-            <div className="flex items-center gap-3">
-              <div className="text-left">
-                <div className="font-bold text-sm text-text-main flex items-center gap-1.5 flex-wrap">
-                  <span>{item.merchant_name}</span>
+      {/* Card Stack Representation */}
+      <div className="relative pt-1">
+        {/* Back Deck Layer 2 (Deep shadow card) */}
+        {pendingExpenses.length > 2 && (
+          <div className="absolute inset-x-3 top-0 h-10 rounded-2xl bg-slate-200/70 dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 transform -translate-y-2 scale-[0.94] opacity-50 pointer-events-none" />
+        )}
+
+        {/* Back Deck Layer 1 (Middle shadow card) */}
+        {pendingExpenses.length > 1 && (
+          <div className="absolute inset-x-1.5 top-0 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-300/80 dark:border-slate-700/80 transform -translate-y-1 scale-[0.97] opacity-80 pointer-events-none" />
+        )}
+
+        {/* Active Top Decision Card */}
+        <div className="relative z-10 p-4 rounded-2xl bg-bg-surface border border-emerald-500/40 shadow-lg space-y-3.5 transition-all">
+          {/* In-Card Stepper Header Strip (Option 3) */}
+          <div className="flex items-center justify-between pb-2.5 border-b border-border-subtle text-xs">
+            <div className="flex items-center gap-1.5 text-text-muted text-[10px] uppercase font-bold tracking-wider">
+              <Sparkles className="w-3 h-3 text-emerald-500" />
+              <span>SMS Confirmation</span>
+            </div>
+
+            {pendingExpenses.length > 1 ? (
+              <div className="inline-flex items-center gap-0.5 bg-bg-subtle px-1.5 py-0.5 rounded-lg border border-border-subtle">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentIndex((prev) =>
+                      prev > 0 ? prev - 1 : pendingExpenses.length - 1
+                    )
+                  }
+                  className="p-0.5 rounded hover:bg-bg-surface text-text-muted hover:text-text-main transition-colors cursor-pointer active:scale-90"
+                  title="Previous transaction"
+                  aria-label="Previous transaction"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-[10px] font-bold text-text-main font-mono px-1 select-none">
+                  {safeIndex + 1} of {pendingExpenses.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentIndex((prev) =>
+                      prev < pendingExpenses.length - 1 ? prev + 1 : 0
+                    )
+                  }
+                  className="p-0.5 rounded hover:bg-bg-surface text-text-muted hover:text-text-main transition-colors cursor-pointer active:scale-90"
+                  title="Next transaction"
+                  aria-label="Next transaction"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <span className="text-[10px] text-text-muted font-medium">
+                1 of 1
+              </span>
+            )}
+          </div>
+
+          {/* Card Meta Header */}
+          <div className="flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                <IconComponent className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-extrabold text-sm text-text-main truncate">
+                  {item.merchant_name}
+                </h3>
+                <div className="text-[10px] text-text-muted flex items-center gap-1 mt-0.5">
                   {item.bank_short_code && (
-                    <span className="text-[10px] bg-bg-subtle border border-border-subtle px-1.5 py-0.5 rounded font-medium text-text-muted">
+                    <span className="px-1.5 py-0.2 rounded bg-bg-subtle border border-border-subtle font-semibold">
                       {item.bank_short_code}
                       {item.account_last4 ? ` ••${item.account_last4}` : ''}
                     </span>
                   )}
-                </div>
-                <div className="text-xs text-text-muted">
-                  {formatDate(item.transaction_date)} {item.upi_ref ? `• UPI Ref: ${item.upi_ref}` : ''}
+                  <span>•</span>
+                  <span>{formatDate(item.transaction_date)}</span>
                 </div>
               </div>
             </div>
 
-            {/* Actions & Amount */}
-            <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-              <div className="text-right font-financial font-extrabold text-base text-text-main">
+            <div className="text-right shrink-0">
+              <div className="font-financial font-extrabold text-lg text-text-main">
                 {formatCents(item.amount_cents)}
               </div>
-
-              <div className="flex items-center gap-1.5">
-                <Button
-                  size="small"
-                  onClick={() => onApprovePersonal(item)}
-                  icon={<User className="w-3.5 h-3.5" />}
-                  className="rounded-lg text-xs font-semibold"
-                  title="Keep as Personal Expense"
-                >
-                  Personal
-                </Button>
-
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={() => onSplitInGroup(item)}
-                  icon={<Users className="w-3.5 h-3.5" />}
-                  className="rounded-lg text-xs font-semibold bg-primary-500 hover:bg-primary-600 border-none text-white shadow-xs"
-                  title="Split in a Group"
-                >
-                  Split
-                </Button>
-
-                <Button
-                  type="text"
-                  size="small"
-                  onClick={() => onDismiss(item.id)}
-                  icon={<X className="w-3.5 h-3.5 text-text-muted" />}
-                  className="rounded-lg hover:bg-bg-subtle"
-                  title="Dismiss (Transfer or CC Bill)"
-                />
-              </div>
+              <span className="text-[9px] text-text-muted">Auto-detected SMS</span>
             </div>
           </div>
-        ))}
+
+          {/* Decision Guidance Question */}
+          <div className="p-2 rounded-xl bg-bg-subtle/70 text-center text-[11px] text-text-muted">
+            How would you like to categorize this expense?
+          </div>
+
+          {/* 3-Button Balanced Action Row (Style 2) */}
+          <div className="grid grid-cols-12 gap-2 pt-0.5">
+            <Button
+              onClick={() => onApprovePersonal(item)}
+              icon={<User className="w-3.5 h-3.5 text-text-muted" />}
+              className="col-span-5 h-10 rounded-xl font-bold text-xs bg-bg-surface hover:bg-bg-subtle border border-border-base text-text-main flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+              title="Keep as Personal Expense"
+            >
+              Personal
+            </Button>
+
+            <Button
+              type="primary"
+              onClick={() => onSplitInGroup(item)}
+              icon={<Users className="w-3.5 h-3.5" />}
+              className="col-span-5 h-10 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-600 border-none text-white shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              title="Split in a Group"
+            >
+              Split
+            </Button>
+
+            <Button
+              onClick={() => onDismiss(item.id)}
+              icon={<X className="w-4 h-4 text-text-muted hover:text-rose-500 transition-colors" />}
+              className="col-span-2 h-10 rounded-xl border border-border-base bg-bg-subtle/50 hover:bg-rose-500/10 hover:border-rose-500/30 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95"
+              title="Dismiss (Self-transfer, CC Bill, or Non-Expense)"
+              aria-label="Dismiss transaction"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
