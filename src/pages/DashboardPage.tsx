@@ -85,11 +85,17 @@ export function DashboardPage() {
       {/* ── Auto-Synced SMS Transactions Banner ─────────────────── */}
       <StagedTransactionsBanner
         pendingExpenses={pendingExpenses}
-        onApprovePersonal={approveAsPersonal}
+        onApprovePersonal={(staged, customData) =>
+          approveAsPersonal(staged, customData)
+        }
         onDismiss={dismissStaged}
-        onSplitInGroup={(staged) => {
+        onSplitInGroup={(staged, customData) => {
           setExpenseToEdit(undefined);
-          setStagedToSplit(staged);
+          setStagedToSplit({
+            ...staged,
+            merchant_name:
+              customData?.description?.trim() || staged.merchant_name,
+          });
           setIsAddExpenseOpen(true);
         }}
       />

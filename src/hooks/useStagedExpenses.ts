@@ -4,6 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import { DEMO_MODE } from '../context/AppDataContext';
 import type { StagedExpense } from '../types/stagedExpense';
 
+export interface CustomStagedExpenseData {
+  description?: string;
+  category?: string;
+  paymentMethod?: 'UPI' | 'CARD' | 'CASH' | 'BANK';
+  type?: 'EXPENSE' | 'INCOME';
+}
+
 const MOCK_PENDING_STAGED: StagedExpense[] = [
   {
     id: 'mock-staged-1',
@@ -87,7 +94,10 @@ export function useStagedExpenses() {
   }, [userId, fetchPendingExpenses]);
 
   // Action: Approve as Personal Expense
-  const approveAsPersonal = async (staged: StagedExpense, category: string = 'General') => {
+  const approveAsPersonal = async (
+    staged: StagedExpense,
+    customData?: CustomStagedExpenseData | string
+  ) => {
     if (DEMO_MODE) {
       setPendingExpenses((prev) => prev.filter((item) => item.id !== staged.id));
       return true;
@@ -95,13 +105,26 @@ export function useStagedExpenses() {
     if (!userId) return;
 
     try {
+      const isCustomObj = typeof customData === 'object' && customData !== null;
+      const category = (isCustomObj ? customData.category : customData) || 'Other';
+      const paymentMethod = (isCustomObj && customData.paymentMethod)
+        ? customData.paymentMethod
+        : (staged.upi_ref ? 'UPI' : (staged.bank_short_code ? 'BANK' : 'UPI'));
+      const rawDesc = (isCustomObj && customData.description?.trim())
+        ? customData.description.trim()
+        : staged.merchant_name;
+      const finalDescription = `[${paymentMethod}] ${rawDesc}`;
+      const txType = (isCustomObj && customData.type)
+        ? customData.type
+        : (staged.transaction_type === 'DEBIT' ? 'EXPENSE' : 'INCOME');
+
       // 1. Insert into personal_transactions
       const { error: txError } = await supabase.from('personal_transactions').insert({
         user_id: userId,
         amount: staged.amount_cents,
-        type: staged.transaction_type === 'DEBIT' ? 'EXPENSE' : 'INCOME',
+        type: txType,
         category,
-        description: `[${staged.bank_short_code || 'BANK'}] ${staged.merchant_name}`,
+        description: finalDescription,
         transaction_date: staged.transaction_date,
       });
 
