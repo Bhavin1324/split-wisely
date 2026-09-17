@@ -83,22 +83,24 @@ export function DashboardPage() {
       </div>
 
       {/* ── Auto-Synced SMS Transactions Banner ─────────────────── */}
-      <StagedTransactionsBanner
-        pendingExpenses={pendingExpenses}
-        onApprovePersonal={(staged, customData) =>
-          approveAsPersonal(staged, customData)
-        }
-        onDismiss={dismissStaged}
-        onSplitInGroup={(staged, customData) => {
-          setExpenseToEdit(undefined);
-          setStagedToSplit({
-            ...staged,
-            merchant_name:
-              customData?.description?.trim() || staged.merchant_name,
-          });
-          setIsAddExpenseOpen(true);
-        }}
-      />
+      {pendingExpenses.length > 0 && (
+        <StagedTransactionsBanner
+          pendingExpenses={pendingExpenses}
+          onApprovePersonal={(staged, customData) =>
+            approveAsPersonal(staged, customData)
+          }
+          onDismiss={dismissStaged}
+          onSplitInGroup={(staged, customData) => {
+            setExpenseToEdit(undefined);
+            setStagedToSplit({
+              ...staged,
+              merchant_name:
+                customData?.description?.trim() || staged.merchant_name,
+            });
+            setIsAddExpenseOpen(true);
+          }}
+        />
+      )}
 
       {/* ── Balance Summary Cards ────────────────────────────── */}
       <section className="grid grid-cols-1 gap-5 sm:grid-cols-3">

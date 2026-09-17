@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { queryKeys } from '../../lib/queryKeys';
@@ -23,11 +23,55 @@ const MOCK_PENDING_STAGED: StagedExpense[] = [
   },
 ];
 
+// Short-lived in-memory tombstone map to prevent in-flight server GET responses from resurrecting actioned items (5s TTL)
+const tombstoneMap = new Map<string, number>();
+const TOMBSTONE_TTL_MS = 5000;
+
+export function registerStagedTombstone(id: string) {
+  tombstoneMap.set(id, Date.now() + TOMBSTONE_TTL_MS);
+}
+
+export function evictStagedTombstone(id: string) {
+  tombstoneMap.delete(id);
+}
+
+export function isStagedTombstoned(id: string): boolean {
+  const expiresAt = tombstoneMap.get(id);
+  if (!expiresAt) return false;
+  if (Date.now() > expiresAt) {
+    tombstoneMap.delete(id);
+    return false;
+  }
+  return true;
+}
+
 /**
  * Fetch pending staged SMS expenses for a user with real-time sync.
+ * Incorporates 0ms cache reactivity, Map-based deduplication, deterministic date sorting,
+ * and debounced background reconciliation to prevent burst race conditions.
  */
 export function usePendingStagedExpensesQuery(userId: string | undefined) {
   const queryClient = useQueryClient();
+  const reconcileTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Consolidated debounced background reconciliation (1,500ms debounce window)
+  const scheduleDebouncedReconciliation = useCallback(() => {
+    if (reconcileTimeoutRef.current) {
+      clearTimeout(reconcileTimeoutRef.current);
+    }
+    reconcileTimeoutRef.current = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.all });
+    }, 1500);
+  }, [queryClient]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (reconcileTimeoutRef.current) {
+        clearTimeout(reconcileTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const query = useQuery({
     queryKey: queryKeys.stagedExpenses.pending(userId),
@@ -48,7 +92,30 @@ export function usePendingStagedExpensesQuery(userId: string | undefined) {
         console.warn('Failed to fetch staged expenses:', error.message);
         return [];
       }
-      return (data || []) as StagedExpense[];
+
+      // Bi-directional merge: preserve any pending items received via WebSocket while queryFn was in-flight
+      // Filter out any tombstoned IDs to guarantee that in-flight GETs never resurrect actioned items
+      const currentCached =
+        queryClient.getQueryData<StagedExpense[]>(
+          queryKeys.stagedExpenses.pending(userId)
+        ) || [];
+
+      const map = new Map(
+        (data || [])
+          .filter((item) => !isStagedTombstoned(item.id))
+          .map((item) => [item.id, item as StagedExpense])
+      );
+      for (const item of currentCached) {
+        if (!map.has(item.id) && item.status === 'PENDING' && !isStagedTombstoned(item.id)) {
+          map.set(item.id, item);
+        }
+      }
+
+      return Array.from(map.values()).sort(
+        (a, b) =>
+          new Date(b.transaction_date).getTime() -
+          new Date(a.transaction_date).getTime()
+      );
     },
     enabled: Boolean(userId) || DEMO_MODE,
   });
@@ -74,52 +141,68 @@ export function usePendingStagedExpensesQuery(userId: string | undefined) {
 
             if (eventType === 'INSERT') {
               const newStaged = payload.new as StagedExpense;
-              if (newStaged && newStaged.status === 'PENDING') {
-                // Immediate 0ms cache injection: mounts StagedTransactionsBanner with 0ms latency
+              if (newStaged && newStaged.status === 'PENDING' && !isStagedTombstoned(newStaged.id)) {
+                // Immediate 0ms cache injection with Map deduplication & date sorting
                 queryClient.setQueryData<StagedExpense[]>(
                   queryKeys.stagedExpenses.pending(userId),
                   (prev = []) => {
-                    if (prev.some((item) => item.id === newStaged.id)) return prev;
-                    return [newStaged, ...prev];
+                    const map = new Map(prev.map((item) => [item.id, item]));
+                    map.set(newStaged.id, newStaged);
+                    return Array.from(map.values()).sort(
+                      (a, b) =>
+                        new Date(b.transaction_date).getTime() -
+                        new Date(a.transaction_date).getTime()
+                    );
                   }
                 );
+                // Schedule debounced reconciliation (resets 1.5s timer per packet)
+                scheduleDebouncedReconciliation();
               }
             } else if (eventType === 'UPDATE') {
               const updated = payload.new as StagedExpense;
               if (updated) {
+                if (updated.status !== 'PENDING') {
+                  registerStagedTombstone(updated.id);
+                }
                 queryClient.setQueryData<StagedExpense[]>(
                   queryKeys.stagedExpenses.pending(userId),
                   (prev = []) => {
                     if (updated.status !== 'PENDING') {
                       return prev.filter((item) => item.id !== updated.id);
                     }
-                    return prev.map((item) => (item.id === updated.id ? updated : item));
+                    const map = new Map(prev.map((item) => [item.id, item]));
+                    map.set(updated.id, updated);
+                    return Array.from(map.values()).sort(
+                      (a, b) =>
+                        new Date(b.transaction_date).getTime() -
+                        new Date(a.transaction_date).getTime()
+                    );
                   }
                 );
+                scheduleDebouncedReconciliation();
               }
             } else if (eventType === 'DELETE') {
               const deletedId = (payload.old as any)?.id;
               if (deletedId) {
+                registerStagedTombstone(deletedId);
                 queryClient.setQueryData<StagedExpense[]>(
                   queryKeys.stagedExpenses.pending(userId),
                   (prev = []) => prev.filter((item) => item.id !== deletedId)
                 );
+                scheduleDebouncedReconciliation();
               }
             }
-
-            // Invalidate in background to ensure perfect eventual consistency
-            queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.all });
           }
         );
       },
       (status) => {
-        // When channel successfully connects or recovers from phone sleep/doze mode, refresh staged queue
+        // When channel successfully connects or recovers from phone sleep/doze mode, debounce reconciliation
         if (status === 'SUBSCRIBED') {
-          queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.pending(userId) });
+          scheduleDebouncedReconciliation();
         }
       }
     );
-  }, [userId, queryClient]);
+  }, [userId, queryClient, scheduleDebouncedReconciliation]);
 
   return {
     data: query.data ?? [],

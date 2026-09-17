@@ -1,67 +1,28 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from 'antd';
 import {
-  Sparkles,
-  User,
-  Users,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Utensils,
-  Car,
-  ShoppingBag,
-  PenLine,
-  Tag,
-  CreditCard,
+  Sparkles, User, Users, X, ChevronLeft, ChevronRight, Utensils, Car, ShoppingBag,
 } from 'lucide-react';
 import { formatCents } from '../../utils/currency';
 import type { StagedExpense } from '../../types/stagedExpense';
 import { formatDate } from '../../utils/date';
 import {
-  detectExpenseDetails,
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
-  PAYMENT_INSTRUMENTS,
-  type DetectedExpenseDetails,
-  type PaymentInstrument,
+  detectExpenseDetails, EXPENSE_CATEGORIES, INCOME_CATEGORIES, type DetectedExpenseDetails,
 } from '../../utils/stagedExpenseParser';
+import { StagedItemForm } from './StagedItemForm';
 
 interface StagedTransactionsBannerProps {
   pendingExpenses: StagedExpense[];
-  onApprovePersonal: (
-    staged: StagedExpense,
-    customData?: DetectedExpenseDetails
-  ) => Promise<boolean | void>;
+  onApprovePersonal: (staged: StagedExpense, customData?: DetectedExpenseDetails) => Promise<boolean | void>;
   onDismiss: (stagedId: string) => Promise<void>;
-  onSplitInGroup: (
-    staged: StagedExpense,
-    customData?: DetectedExpenseDetails
-  ) => void;
+  onSplitInGroup: (staged: StagedExpense, customData?: DetectedExpenseDetails) => void;
 }
 
 function getMerchantCategoryIcon(merchant: string) {
   const m = merchant.toLowerCase();
-  if (
-    /swiggy|zomato|starbucks|mcdonald|subway|cafe|coffee|restaurant|food|burger|pizza|diner|kitchen|bakery/i.test(
-      m
-    )
-  ) {
-    return Utensils;
-  }
-  if (
-    /uber|ola|rapido|metro|fuel|petrol|shell|indianoil|hpcl|bpcl|auto|taxi/i.test(
-      m
-    )
-  ) {
-    return Car;
-  }
-  if (
-    /amazon|flipkart|zara|myntra|h&m|blinkit|zepto|instamart|grocery|mart|store|retail|supermarket/i.test(
-      m
-    )
-  ) {
-    return ShoppingBag;
-  }
+  if (/swiggy|zomato|starbucks|mcdonald|subway|cafe|coffee|restaurant|food|burger|pizza|diner|kitchen|bakery/i.test(m)) return Utensils;
+  if (/uber|ola|rapido|metro|fuel|petrol|shell|indianoil|hpcl|bpcl|auto|taxi/i.test(m)) return Car;
+  if (/amazon|flipkart|zara|myntra|h&m|blinkit|zepto|instamart|grocery|mart|store|retail|supermarket/i.test(m)) return ShoppingBag;
   return Sparkles;
 }
 
@@ -71,18 +32,30 @@ export function StagedTransactionsBanner({
   onDismiss,
   onSplitInGroup,
 }: StagedTransactionsBannerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [isBatchApproving, setIsBatchApproving] = useState(false);
-  const [customItemStates, setCustomItemStates] = useState<
-    Record<string, DetectedExpenseDetails>
-  >({});
+  const [inFlightActionId, setInFlightActionId] = useState<string | null>(null);
+  const [customItemStates, setCustomItemStates] = useState<Record<string, DetectedExpenseDetails>>({});
+
+  // Stable ID-based index resolution with boundary clamping
+  const safeIndex = useMemo(() => {
+    if (!activeId || pendingExpenses.length === 0) return 0;
+    const idx = pendingExpenses.findIndex((exp) => exp.id === activeId);
+    return idx !== -1 ? idx : Math.min(0, pendingExpenses.length - 1);
+  }, [activeId, pendingExpenses]);
+
+  // Reactive focus preservation: if active item vanished externally, advance to nearest card
+  useEffect(() => {
+    if (activeId && !pendingExpenses.some((exp) => exp.id === activeId)) {
+      const nextId = pendingExpenses.length > 0
+        ? pendingExpenses[Math.min(safeIndex, pendingExpenses.length - 1)]?.id || null
+        : null;
+      setActiveId(nextId);
+    }
+  }, [pendingExpenses, activeId, safeIndex]);
 
   if (pendingExpenses.length === 0) return null;
 
-  const safeIndex = Math.min(
-    currentIndex,
-    Math.max(0, pendingExpenses.length - 1)
-  );
   const item = pendingExpenses[safeIndex];
   const IconComponent = getMerchantCategoryIcon(item.merchant_name);
 
@@ -95,27 +68,62 @@ export function StagedTransactionsBanner({
     baseExp: StagedExpense,
     partial: Partial<DetectedExpenseDetails>
   ) => {
-    setCustomItemStates((prev) => {
-      const current = prev[id] || detectExpenseDetails(baseExp);
-      return {
-        ...prev,
-        [id]: {
-          ...current,
-          ...partial,
-        },
-      };
-    });
+    setCustomItemStates((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || detectExpenseDetails(baseExp)), ...partial },
+    }));
   };
 
   const currentDetails = getItemDetails(item);
   const availableCategories =
     currentDetails.type === 'INCOME' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
-  const handleApproveAllPersonal = async () => {
-    if (isBatchApproving) return;
-    setIsBatchApproving(true);
+  const handleStep = (direction: 'prev' | 'next') => {
+    const nextIdx =
+      direction === 'prev'
+        ? safeIndex > 0 ? safeIndex - 1 : pendingExpenses.length - 1
+        : safeIndex < pendingExpenses.length - 1 ? safeIndex + 1 : 0;
+    setActiveId(pendingExpenses[nextIdx].id);
+  };
+
+  const transitionToNextCard = (currentId: string) => {
+    const remaining = pendingExpenses.filter((e) => e.id !== currentId);
+    if (remaining.length === 0) {
+      setActiveId(null);
+    } else {
+      const nextIdx = Math.min(safeIndex, remaining.length - 1);
+      setActiveId(remaining[nextIdx].id);
+    }
+  };
+
+  const handleApprovePersonal = async () => {
+    if (inFlightActionId || isBatchApproving) return;
+    setInFlightActionId(item.id);
+    transitionToNextCard(item.id);
     try {
-      for (const exp of pendingExpenses) {
+      await onApprovePersonal(item, currentDetails);
+    } finally {
+      setInFlightActionId(null);
+    }
+  };
+
+  const handleDismiss = async () => {
+    if (inFlightActionId || isBatchApproving) return;
+    setInFlightActionId(item.id);
+    transitionToNextCard(item.id);
+    try {
+      await onDismiss(item.id);
+    } finally {
+      setInFlightActionId(null);
+    }
+  };
+
+  const handleApproveAllPersonal = async () => {
+    if (isBatchApproving || inFlightActionId) return;
+    setIsBatchApproving(true);
+    const snapshot = [...pendingExpenses];
+    try {
+      for (const exp of snapshot) {
         await onApprovePersonal(exp, getItemDetails(exp));
       }
     } finally {
@@ -130,6 +138,11 @@ export function StagedTransactionsBanner({
         <div className="flex items-center gap-1.5 font-bold text-text-main">
           <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
           <span>SMS Decision Queue</span>
+          {pendingExpenses.length > 1 && (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-primary-500/10 text-primary-500 border border-primary-500/20">
+              {pendingExpenses.length} Unreviewed
+            </span>
+          )}
         </div>
 
         {pendingExpenses.length > 1 && (
@@ -159,7 +172,7 @@ export function StagedTransactionsBanner({
 
         {/* Active Top Decision Card */}
         <div className="relative z-10 p-4 rounded-2xl bg-bg-surface border border-primary-500/30 shadow-lg shadow-primary-500/5 space-y-3.5 transition-all">
-          {/* In-Card Stepper Header Strip (Option 3) */}
+          {/* In-Card Stepper Header Strip */}
           <div className="flex items-center justify-between pb-2.5 border-b border-border-subtle text-xs">
             <div className="flex items-center gap-1.5 text-text-muted text-[10px] uppercase font-bold tracking-wider">
               <Sparkles className="w-3 h-3 text-primary-500" />
@@ -170,11 +183,7 @@ export function StagedTransactionsBanner({
               <div className="inline-flex items-center gap-0.5 bg-bg-subtle px-1.5 py-0.5 rounded-lg border border-border-subtle">
                 <button
                   type="button"
-                  onClick={() =>
-                    setCurrentIndex((prev) =>
-                      prev > 0 ? prev - 1 : pendingExpenses.length - 1
-                    )
-                  }
+                  onClick={() => handleStep('prev')}
                   className="p-0.5 rounded hover:bg-bg-surface text-text-muted hover:text-text-main transition-colors cursor-pointer active:scale-90"
                   title="Previous transaction"
                   aria-label="Previous transaction"
@@ -186,11 +195,7 @@ export function StagedTransactionsBanner({
                 </span>
                 <button
                   type="button"
-                  onClick={() =>
-                    setCurrentIndex((prev) =>
-                      prev < pendingExpenses.length - 1 ? prev + 1 : 0
-                    )
-                  }
+                  onClick={() => handleStep('next')}
                   className="p-0.5 rounded hover:bg-bg-surface text-text-muted hover:text-text-main transition-colors cursor-pointer active:scale-90"
                   title="Next transaction"
                   aria-label="Next transaction"
@@ -236,93 +241,20 @@ export function StagedTransactionsBanner({
             </div>
           </div>
 
-          {/* Style 2 Inline Micro-Grid: Description, Category & Payment Mode */}
-          <div className="space-y-2 pt-0.5">
-            {/* Row 1: Editable Custom Description */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[10px] font-bold text-text-muted px-0.5">
-                <span className="flex items-center gap-1">
-                  <PenLine className="w-3 h-3 text-primary-500" />
-                  <span>Description</span>
-                </span>
-                <span className="text-[9px] text-primary-600 dark:text-primary-400 font-semibold">
-                  Editable
-                </span>
-              </div>
-              <input
-                type="text"
-                value={currentDetails.description}
-                onChange={(e) =>
-                  updateItemState(item.id, item, {
-                    description: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-1.5 rounded-xl bg-bg-subtle border border-border-base text-xs font-bold text-text-main focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30 focus:outline-none transition-colors"
-                placeholder="Description / Merchant name"
-              />
-            </div>
+          {/* Extracted Modular Form: Description, Category & Payment Mode */}
+          <StagedItemForm
+            currentDetails={currentDetails}
+            availableCategories={availableCategories}
+            onUpdateDetails={(partial) => updateItemState(item.id, item, partial)}
+          />
 
-            {/* Row 2: Category & Payment Mode Selectors */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-text-muted px-0.5 flex items-center gap-1">
-                  <Tag className="w-3 h-3 text-primary-500" />
-                  <span>Category</span>
-                </label>
-                <select
-                  value={currentDetails.category}
-                  onChange={(e) =>
-                    updateItemState(item.id, item, {
-                      category: e.target.value,
-                    })
-                  }
-                  className="w-full px-2.5 py-1.5 rounded-xl bg-bg-subtle border border-border-base text-[11px] font-bold text-text-main focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30 focus:outline-none cursor-pointer"
-                >
-                  {availableCategories.map((c) => (
-                    <option
-                      key={c.name}
-                      value={c.name}
-                      className="bg-bg-surface text-text-main"
-                    >
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-text-muted px-0.5 flex items-center gap-1">
-                  <CreditCard className="w-3 h-3 text-primary-500" />
-                  <span>Payment Mode</span>
-                </label>
-                <select
-                  value={currentDetails.paymentMethod}
-                  onChange={(e) =>
-                    updateItemState(item.id, item, {
-                      paymentMethod: e.target.value as PaymentInstrument,
-                    })
-                  }
-                  className="w-full px-2.5 py-1.5 rounded-xl bg-bg-subtle border border-border-base text-[11px] font-bold text-text-main focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30 focus:outline-none cursor-pointer"
-                >
-                  {PAYMENT_INSTRUMENTS.map((inst) => (
-                    <option
-                      key={inst.id}
-                      value={inst.id}
-                      className="bg-bg-surface text-text-main"
-                    >
-                      {inst.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* 3-Button Balanced Action Row (Style 2) */}
+          {/* 3-Button Balanced Action Row */}
           <div className="grid grid-cols-12 gap-2 pt-0.5">
             <Button
-              onClick={() => onApprovePersonal(item, currentDetails)}
-              icon={<User className="w-3.5 h-3.5 text-text-muted" />}
+              onClick={handleApprovePersonal}
+              disabled={Boolean(inFlightActionId) || isBatchApproving}
+              loading={inFlightActionId === item.id}
+              icon={inFlightActionId !== item.id && <User className="w-3.5 h-3.5 text-text-muted" />}
               className="col-span-5 h-10 rounded-xl font-bold text-xs bg-bg-surface hover:bg-bg-subtle border border-border-base text-text-main flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
               title="Keep as Personal Expense"
             >
@@ -332,6 +264,7 @@ export function StagedTransactionsBanner({
             <Button
               type="primary"
               onClick={() => onSplitInGroup(item, currentDetails)}
+              disabled={Boolean(inFlightActionId) || isBatchApproving}
               icon={<Users className="w-3.5 h-3.5" />}
               className="col-span-5 h-10 rounded-xl font-bold text-xs bg-primary-500 hover:bg-primary-600 border-none text-white shadow-xs shadow-primary-500/20 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
               title="Split in a Group"
@@ -340,10 +273,9 @@ export function StagedTransactionsBanner({
             </Button>
 
             <Button
-              onClick={() => onDismiss(item.id)}
-              icon={
-                <X className="w-4 h-4 text-text-muted hover:text-error-text transition-colors" />
-              }
+              onClick={handleDismiss}
+              disabled={Boolean(inFlightActionId) || isBatchApproving}
+              icon={<X className="w-4 h-4 text-text-muted hover:text-error-text transition-colors" />}
               className="col-span-2 h-10 rounded-xl border border-border-base bg-bg-subtle/50 hover:bg-error-bg hover:border-error-border flex items-center justify-center shadow-2xs cursor-pointer active:scale-95"
               title="Dismiss (Self-transfer, CC Bill, or Non-Expense)"
               aria-label="Dismiss transaction"
@@ -354,4 +286,3 @@ export function StagedTransactionsBanner({
     </div>
   );
 }
-
