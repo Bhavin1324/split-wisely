@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Modal } from 'antd';
-import { Download, X, Share, PlusSquare, Sparkles, Zap, Bell, WifiOff, MoreVertical } from 'lucide-react';
+import { Download, X, Share, PlusSquare, Sparkles, Zap, Bell, MoreVertical } from 'lucide-react';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { APP_ASSETS } from '../../constants/assets';
 
@@ -81,10 +81,6 @@ export function PwaInstallPrompt() {
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <Bell className="w-3 h-3 text-primary-500" /> Push Alerts
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <WifiOff className="w-3 h-3 text-blue-500" /> Offline
                 </span>
               </div>
 

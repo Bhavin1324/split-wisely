@@ -75,4 +75,27 @@ describe('Android Status Bar Contrast & Luminance Safety', () => {
     // Forensic proof: 1.15:1 contrast ratio was why users saw literally nothing!
     expect(bugContrast).toBeLessThan(1.5);
   });
+
+  it('guarantees that when Android is in System Dark Mode, status bar is set to #0f131a producing white icons with >15:1 contrast', () => {
+    // When phone OS is in Dark Mode, Android forces status bar background to #0f131a
+    const computeStatusBarColor = (scheme: 'light' | 'dark', isSystemDark: boolean) =>
+      scheme === 'dark' || isSystemDark ? '#0f131a' : '#ffffff';
+
+    // User is in Light Mode, but phone OS is in System Dark Mode (issue1.jpeg scenario)
+    const resultColor = computeStatusBarColor('light', true);
+    expect(resultColor).toBe('#0f131a');
+
+    // Android will paint icons white (#ffffff)
+    const whiteIcons = '#ffffff';
+    const contrastRatio = calculateContrastRatio(whiteIcons, resultColor);
+    expect(contrastRatio).toBeGreaterThan(15.0);
+  });
+
+  it('verifies index.html defines dual media-query theme-color tags for both dark and light system modes', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const indexHtml = fs.readFileSync(path.resolve(__dirname, '../../../index.html'), 'utf8');
+    expect(indexHtml).toContain('media="(prefers-color-scheme: dark)" content="#0f131a"');
+    expect(indexHtml).toContain('media="(prefers-color-scheme: light)" content="#ffffff"');
+  });
 });

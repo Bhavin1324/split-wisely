@@ -52,9 +52,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('data-scheme', scheme);
     
     // 2. Update the PWA Mobile Status Bar Color
-    // #ffffff in light mode activates dark system icons (clock, battery) with maximum contrast.
-    // #0f131a in dark mode activates crisp white system icons with maximum contrast.
-    const statusBarColor = scheme === 'dark' ? '#0f131a' : '#ffffff';
+    // If Android OS is in System Dark Mode, Android locks the native status bar window background to #0f131a.
+    // Setting #0f131a forces Android to paint status bar icons (clock, battery, Wi-Fi) in crisp white (>15:1 contrast).
+    // If both the OS and app scheme are light, #ffffff is applied so Android paints dark icons on a light bar.
+    const isSystemDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const statusBarColor = (scheme === 'dark' || isSystemDark) ? '#0f131a' : '#ffffff';
     const metaTags = document.querySelectorAll('meta[name="theme-color"]');
     if (metaTags.length > 0) {
       metaTags.forEach((tag) => {
@@ -67,6 +69,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       document.head.appendChild(meta);
     }
   }, [theme, scheme]);
+
+  // Dynamically respond if user toggles phone System Dark/Light Mode at the OS level
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemThemeChange = () => {
+      const isSysDark = mediaQuery.matches;
+      const statusBarColor = (scheme === 'dark' || isSysDark) ? '#0f131a' : '#ffffff';
+      document.querySelectorAll('meta[name="theme-color"]').forEach((tag) => {
+        tag.setAttribute('content', statusBarColor);
+      });
+    };
+    mediaQuery.addEventListener?.('change', handleSystemThemeChange);
+    return () => {
+      mediaQuery.removeEventListener?.('change', handleSystemThemeChange);
+    };
+  }, [scheme]);
 
   const setTheme = (newTheme: ThemeType) => {
     localStorage.setItem('centfolio_theme', newTheme);
