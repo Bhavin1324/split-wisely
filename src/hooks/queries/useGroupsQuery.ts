@@ -18,7 +18,18 @@ export function useUserGroupsQuery(userId: string | undefined) {
     queryFn: async (): Promise<Group[]> => {
       if (!userId) return [];
       if (DEMO_MODE) {
-        return MOCK_GROUPS;
+        return MOCK_GROUPS.map((g) => {
+          const gMembers = MOCK_GROUP_MEMBERS.filter((gm) => gm.group_id === g.id);
+          return {
+            ...g,
+            member_count: g.member_count ?? gMembers.length,
+            members_preview: gMembers.slice(0, 3).map((gm) => ({
+              id: gm.user_id,
+              full_name: gm.profile?.full_name,
+              avatar_url: gm.profile?.avatar_url,
+            })),
+          };
+        });
       }
 
       try {
@@ -32,7 +43,7 @@ export function useUserGroupsQuery(userId: string | undefined) {
           return [];
         }
 
-        const groups = (members || [])
+        const rawGroups = (members || [])
           .map((m: any) => (Array.isArray(m?.groups) ? m.groups[0] : m?.groups))
           .filter((g): g is Group => Boolean(g && typeof g === 'object' && g.id))
           .map((g: any) => ({
@@ -40,7 +51,49 @@ export function useUserGroupsQuery(userId: string | undefined) {
             name: typeof g.name === 'string' && g.name.trim().length > 0 ? g.name : 'Untitled Group',
           })) as Group[];
 
-        return groups;
+        const groupIds = rawGroups.map((g) => g.id);
+        if (groupIds.length === 0) return [];
+
+        // Batch-fetch all co-members to accurately compute member_count and prime member cache
+        const { data: allMembers, error: membersErr } = await supabase
+          .from('group_members')
+          .select('group_id, user_id, profile:profiles(id, full_name, avatar_url)')
+          .in('group_id', groupIds);
+
+        if (!membersErr && allMembers) {
+          const countMap = new Map<string, number>();
+          const membersByGroup = new Map<string, GroupMember[]>();
+
+          for (const gm of allMembers) {
+            countMap.set(gm.group_id, (countMap.get(gm.group_id) || 0) + 1);
+            const list = membersByGroup.get(gm.group_id) || [];
+            list.push(gm as unknown as GroupMember);
+            membersByGroup.set(gm.group_id, list);
+          }
+
+          // Prime the cache for individual groups (0ms cold start for GroupDetailPage)
+          for (const [gId, gmList] of membersByGroup.entries()) {
+            queryClient.setQueryData(queryKeys.groups.members(gId), gmList);
+          }
+
+          return rawGroups.map((g) => {
+            const gMembers = membersByGroup.get(g.id) || [];
+            return {
+              ...g,
+              member_count: countMap.get(g.id) ?? 1,
+              members_preview: gMembers.slice(0, 3).map((m) => ({
+                id: m.user_id,
+                full_name: m.profile?.full_name,
+                avatar_url: m.profile?.avatar_url,
+              })),
+            };
+          });
+        }
+
+        return rawGroups.map((g) => ({
+          ...g,
+          member_count: g.member_count ?? 1,
+        }));
       } catch (err) {
         console.error('Unexpected error fetching user groups:', err);
         return [];

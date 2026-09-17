@@ -1,21 +1,21 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Expense, Group } from '../../types';
+import type { Expense } from '../../types';
 import { DEMO_MODE } from '../../context/AppDataContext';
 import { getProfileById } from '../../lib/mockData';
 import { formatCents } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
-
 import { getCategoryIcon } from '../../utils/icons';
 
-export function ActivityItem({
+export const ActivityItem = React.memo(function ActivityItem({
   expense,
   userId,
-  groups: groupsList,
+  groupName,
   onClick,
 }: {
   expense: Expense;
   userId: string;
-  groups: Group[];
+  groupName?: string;
   onClick?: (expense: Expense) => void;
 }) {
   const navigate = useNavigate();
@@ -25,22 +25,28 @@ export function ActivityItem({
     'Unknown';
 
   const isCurrentUserPayer = expense.payer_id === userId;
-  const userSplit = (expense.splits ?? []).find(
-    (s) => s.user_id === userId,
-  );
+  const userSplit = (expense.splits ?? []).find((s) => s.user_id === userId);
+  const isParticipant = (expense.splits ?? []).some((s) => s.user_id === userId);
+  const isSoloPayer = isCurrentUserPayer && (!expense.splits?.length || (expense.splits.length === 1 && expense.splits[0].user_id === userId));
 
-  // If the current user paid, they are owed (total - their share).
-  // If someone else paid, the current user owes their share.
   let userAmount = 0;
-  if (isCurrentUserPayer) {
+  let statusLabel = 'settled';
+
+  if (isSoloPayer) {
+    userAmount = expense.base_currency_amount;
+    statusLabel = 'personal';
+  } else if (isCurrentUserPayer) {
     userAmount = expense.base_currency_amount - (userSplit?.amount_owed ?? 0);
-  } else {
+    statusLabel = userAmount > 0 ? 'you lent' : 'settled';
+  } else if (isParticipant) {
     userAmount = -(userSplit?.amount_owed ?? 0);
+    statusLabel = 'your share';
+  } else {
+    userAmount = 0;
+    statusLabel = 'not involved';
   }
 
   const CatIcon = getCategoryIcon(expense.category);
-
-  const groupName = groupsList.find((g) => g.id === expense.group_id)?.name;
 
   return (
     <button
@@ -53,56 +59,64 @@ export function ActivityItem({
         }
       }}
       className="
-        flex w-full items-center gap-4 rounded-xl bg-bg-surface/70 px-4 py-3.5
-        text-left transition-all duration-200
-        hover:bg-bg-surface hover:shadow-md cursor-pointer
-        border border-transparent hover:border-border-base
+        flex w-full items-center gap-3.5 sm:gap-4 rounded-2xl bg-bg-surface p-3.5 sm:p-4
+        text-left transition-[transform,border-color,box-shadow] duration-200
+        hover:shadow-xs hover:border-border-base cursor-pointer
+        border border-border-subtle group active:scale-[0.99]
       "
     >
       {/* Category icon */}
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-500/10 text-primary-500">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-500">
         <CatIcon className="h-5 w-5" strokeWidth={1.8} />
       </div>
 
       {/* Description & payer */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-text-base">
+        <p className="truncate text-xs sm:text-sm font-bold text-text-main group-hover:text-primary-500 transition-colors">
           {expense.description}
         </p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs text-text-muted">
           <span>
             {isCurrentUserPayer ? 'You' : payerName} paid{' '}
-            <span className="font-financial font-medium text-text-muted">
+            <span className="font-financial font-medium text-text-main">
               {formatCents(expense.base_currency_amount)}
             </span>
           </span>
           {groupName && (
             <>
-              <span className="hidden sm:inline text-gray-300">·</span>
-              <span className="truncate">{groupName}</span>
+              <span className="hidden sm:inline text-text-muted">·</span>
+              <span className="text-primary-500 font-medium truncate">{groupName}</span>
             </>
           )}
+          <span className="hidden sm:inline text-text-muted">·</span>
+          <span>{formatDate(expense.expense_date ?? expense.created_at)}</span>
         </div>
       </div>
 
-      {/* Amount & date */}
+      {/* Amount & delta status */}
       <div className="flex flex-shrink-0 flex-col items-end gap-0.5">
-        <span
-          className={`font-financial text-sm font-bold px-2.5 py-0.5 rounded-full ${
-            userAmount > 0
-              ? 'bg-success-bg text-success-text border border-success-border'
-              : userAmount < 0
-                ? 'bg-error-bg text-error-text border border-error-border'
-                : 'bg-bg-base text-text-muted border border-border-base'
-          }`}
-        >
-          {userAmount > 0 ? '+' : ''}
-          {formatCents(userAmount)}
-        </span>
-        <span className="text-[11px] text-text-muted">
-          {formatDate(expense.expense_date ?? expense.created_at)}
+        {statusLabel === 'not involved' ? (
+          <span className="font-financial text-xs sm:text-sm font-semibold px-2.5 py-0.5 rounded-full bg-bg-subtle text-text-muted border border-border-base">
+            —
+          </span>
+        ) : (
+          <span
+            className={`font-financial text-xs sm:text-sm font-bold px-2.5 py-0.5 rounded-full ${
+              userAmount > 0
+                ? 'bg-success-bg text-success-text border border-success-border'
+                : userAmount < 0
+                  ? 'bg-error-bg text-error-text border border-error-border'
+                  : 'bg-bg-subtle text-text-muted border border-border-base'
+            }`}
+          >
+            {userAmount > 0 ? '+' : ''}
+            {formatCents(userAmount)}
+          </span>
+        )}
+        <span className="text-[10px] text-text-muted font-medium">
+          {statusLabel}
         </span>
       </div>
     </button>
   );
-}
+});

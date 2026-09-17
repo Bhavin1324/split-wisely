@@ -14,7 +14,21 @@ interface UserAvatarProps {
   fallbackToInitials?: boolean;
 }
 
-export function UserAvatar({
+const AVATAR_COLORS = [
+  '#10b981', '#3b82f6', '#8b5cf6', '#f59e0b',
+  '#ef4444', '#ec4899', '#14b8a6', '#6366f1',
+];
+
+function getBackgroundColor(name?: string) {
+  if (!name) return AVATAR_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+export const UserAvatar = React.memo(function UserAvatar({
   user,
   size = 40,
   className = '',
@@ -25,20 +39,6 @@ export function UserAvatar({
 
   const avatarUrl = !hasError ? getUserAvatarUrl(user) : null;
   const initials = getInitials(user?.full_name);
-
-  // Deterministic fallback color for initials
-  const getBackgroundColor = (name?: string) => {
-    const colors = [
-      '#10b981', '#3b82f6', '#8b5cf6', '#f59e0b',
-      '#ef4444', '#ec4899', '#14b8a6', '#6366f1',
-    ];
-    if (!name) return colors[0];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-  };
 
   if (!avatarUrl || fallbackToInitials) {
     return (
@@ -70,4 +70,4 @@ export function UserAvatar({
       {initials}
     </Avatar>
   );
-}
+});

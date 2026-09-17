@@ -121,9 +121,11 @@ export function useDashboardData(userId: string, groups: Group[], allExpenses: E
   }, [userId, groups, allExpenses, allSettlements]);
 
   const expensesByMonth = useMemo(() => {
-    const sorted = [...allExpenses].sort(
-      (a, b) => new Date(b.expense_date ?? b.created_at).getTime() - new Date(a.expense_date ?? a.created_at).getTime(),
-    );
+    const sorted = [...allExpenses].sort((a, b) => {
+      const dateA = a.expense_date || a.created_at || '';
+      const dateB = b.expense_date || b.created_at || '';
+      return dateB.localeCompare(dateA);
+    });
 
     const monthMap = new Map<string, Expense[]>();
 

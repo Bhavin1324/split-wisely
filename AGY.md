@@ -30,6 +30,12 @@
 - **Error Handling**: Use React Error Boundaries globally. Avoid silent failures; surface errors gracefully using Ant Design's `App.useApp().message` API.
 - **TypeScript**: Enforce strict typings. Minimize the use of `any`.
 - **Hybrid Data Pipelines**: For full-stack intelligence and cross-ledger metrics, mathematically combine and normalize Personal Tracked transactions with explicit Group Split liabilities (`ExpenseSplit.amount_owed`) into unified interfaces. Prevent data silos by treating net group shares and standalone personal transactions identically downstream.
+- **External Data Ingestion & Import Gating**:
+  - Do NOT design or propose import/ingestion pipelines under the assumption that "because export exists, import must follow."
+  - Before planning external financial ingestion (e.g. bank CSVs, statement parsers):
+    1. **Canonical Schema Requirement**: Verify if a standardized input specification exists. Heterogeneous schemas (like multi-bank CSV formats) must not be hand-waved into a generic parser without explicit format adapters or AI classification.
+    2. **Taxonomy & Categorization Fidelity**: If incoming descriptions are raw machine narrations (e.g. `NEFT/HDFC...`) that produce lossy, unverified categories, question the feature's value proposition rather than generating unvetted plans.
+    3. **Existing Staging Reuse**: If ingestion is justified, it MUST route through the existing `staged_expenses` review queue (`status = 'PENDING'`) rather than writing unconfirmed records directly to `personal_transactions`.
 
 ## 3. UI/UX & Design System Guidelines
 - **Centralized Theming**: 
@@ -70,6 +76,8 @@
   - Avoid styling actionable buttons like informational tags/badges (e.g., flat `py-1 rounded-full bg-primary/10` without hover states).
   - Ensure all primary buttons provide distinct tactile micro-interactions (`active:scale-[0.97]`), clear hover transitions (`transition-all duration-150`), and accessibility rings (`focus:ring-2 focus:outline-none`).
   - Avoid raw text characters for icons (e.g., `+` or `<`); strictly import and use SVG icons from `lucide-react`.
+- **Export & Actionable Button States**:
+  - Export cards and asynchronous action triggers must provide tactile micro-interactions (`active:scale-[0.97]`), distinct semantic hover bindings (using semantic tokens like `var(--color-success-500)`, never generic palette names like `emerald-500`), and an animated spinner indicator (e.g., Lucide `Loader2`) during preparation.
 - **Responsiveness**: Rely on Tailwind's `sm:`, `md:`, and `lg:` breakpoints. Use `<Drawer placement="top">` for mobile overlays instead of cramped `<Popover>` or `<Dropdown>` menus to avoid spatial clipping.
 - **Mobile Navigation Architecture**:
   - Bottom dock (`< 768px`): Strict 5-slot balanced grid `[ Dashboard | Friends | Central FAB | Personal | Analytics ]`.
@@ -100,4 +108,15 @@
 - **Historical Ledger Queries**: Do NOT derive opening balances or historical metrics by fetching unbounded transaction histories to the client. Always rely on snapshotted ledger boundaries (e.g., an explicit `opening_balance` database column) to prevent O(n) performance degradation and memory bloat.
 - **No Serial HTTP Request Loops**: Never execute serial `await supabase.from(...).insert(...)` calls inside a loop (`for`, `for...of`, `forEach`). Always collect payloads and execute a single array batch insert (e.g., `createSettlementsBatch`).
 - **Safe Realtime Subscription Lifecycle**: Never call `supabase.channel().on().subscribe()` directly in component or hook lifecycles. Always use `createSafeRealtimeSubscription` (`src/utils/realtime.ts`) to prevent fatal Supabase `cannot add postgres_changes callbacks after subscribe()` runtime crashes.
+- **Financial Data Export & Reporting Invariants**: When exporting or generating financial reports (CSV, JSON, or PDF):
+  1. **True User Reality vs. Total Bill**: Never output raw `total_amount` as the user's personal expense. Shared expenses must be explicitly decomposed into:
+     - `Paid by You`: Out-of-pocket cash outlay (`total_amount` if payer, else `0`).
+     - `Your Share`: Actual liability (`ExpenseSplit.amount_owed / 100`).
+     - `Net Impact`: Outlay minus liability (`Paid by You - Your Share`; positive = lent, negative = owe).
+  2. **Transaction Date Priority**: Always prioritize transaction occurrence dates (`expense_date` or `transaction_date`) over database insertion timestamps (`created_at`).
+  3. **Multi-Domain Completeness**: Never omit or stub active ledger domains in full system archives. Backups must include personal transactions, shared group expenses with splits, and live settlement records (never hardcoded `[]`).
+  4. **Human-Readable Export Amounts**: Always convert raw integer cents/paise (`BIGINT`) to standard decimal currency units (`amount / 100`) before file generation.
+- **Mutation & Staging Boundary Invariant**:
+  - All database write operations must reside in `src/hooks/supabase/useMutations.ts`. Never propose or create ad-hoc hooks that execute direct `supabase.from(...).insert()` calls.
+  - When referencing TanStack Query caches, inspect the exact factory parameter signature in `src/lib/queryKeys.ts` (e.g., checking if `monthYear` or sub-keys are required) to prevent silent cache misses.
 

@@ -1,35 +1,33 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tag, Segmented } from 'antd';
-import {
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  Receipt,
-  Plus,
-} from 'lucide-react';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useAllExpenses } from '../hooks/supabase/useExpensesData';
 import { useAllSettlements } from '../hooks/supabase/useSettlementsData';
+import { useFriends } from '../hooks/supabase/useProfileData';
 import { CreateGroupModal } from '../components/CreateGroupModal';
 import {
   MOCK_CURRENT_USER,
   MOCK_GROUPS,
   MOCK_EXPENSES,
+  getFriendsForUser,
 } from '../lib/mockData';
-import type { Expense, SimplifiedTransaction } from '../types';
+import type { Expense, Settlement, SimplifiedTransaction } from '../types';
 import { useDashboardData } from '../hooks/useDashboardData';
 
-import { BalanceCard } from '../components/dashboard/BalanceCard';
-import { ActivityItem } from '../components/dashboard/ActivityItem';
-import { GroupCard } from '../components/dashboard/GroupCard';
+import { DashboardHeroCard } from '../components/dashboard/DashboardHeroCard';
+import { DashboardGroupsSection } from '../components/dashboard/DashboardGroupsSection';
+import { DashboardActivitySection } from '../components/dashboard/DashboardActivitySection';
 import { ExpenseStatementModal } from '../components/ExpenseStatementModal';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { StagedTransactionsBanner } from '../components/expenses/StagedTransactionsBanner';
 import { useStagedExpenses } from '../hooks/useStagedExpenses';
 import type { StagedExpense } from '../types/stagedExpense';
+
+const EMPTY_SETTLEMENTS: Settlement[] = [];
+const EMPTY_EXPENSES: Expense[] = [];
+const ACTIVITY_DISPLAY_LIMIT = 20;
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -39,16 +37,23 @@ export function DashboardPage() {
   const [stagedToSplit, setStagedToSplit] = useState<StagedExpense | null>(null);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [hideSettledGroups, setHideSettledGroups] = useState(true);
+  const [avatarError, setAvatarError] = useState(false);
 
   const { user } = useAuth();
   const { currentUser, groups: contextGroups, loading: appLoading } = useAppData();
-  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
-  const { data: liveSettlements, loading: settlementsLoading } = useAllSettlements(user?.id);
 
   const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
   const displayName = currentUser?.full_name || user?.user_metadata?.full_name || (DEMO_MODE ? MOCK_CURRENT_USER.full_name : 'User');
+  const avatarUrl = currentUser?.avatar_url || user?.user_metadata?.avatar_url || (DEMO_MODE ? MOCK_CURRENT_USER.avatar_url : null);
   const groups = DEMO_MODE ? MOCK_GROUPS : contextGroups;
-  const allExpenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses || []);
+
+  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(userId);
+  const { data: liveSettlements, loading: settlementsLoading } = useAllSettlements(userId);
+  const { data: liveFriends } = useFriends(userId);
+
+  const allExpenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses ?? EMPTY_EXPENSES);
+  const settlements = liveSettlements ?? EMPTY_SETTLEMENTS;
+  const friends = DEMO_MODE ? getFriendsForUser(MOCK_CURRENT_USER.id) : (liveFriends || []);
 
   const {
     pendingExpenses,
@@ -57,32 +62,141 @@ export function DashboardPage() {
     markAsGroupSplit,
   } = useStagedExpenses(userId);
 
-  const { balances, expensesByMonth } = useDashboardData(userId, groups, allExpenses, liveSettlements || []);
-  const displayedGroups = groups.filter((g) => {
-    if (!hideSettledGroups) return true;
-    const bal = balances.groupBalances[g.id] ?? 0;
-    const debts = balances.groupDebtsMap?.[g.id] ?? [];
-    const myDebts = debts.filter((d: SimplifiedTransaction) => d.from === userId || d.to === userId);
-    return bal !== 0 || myDebts.length > 0;
-  });
+  const { balances, expensesByMonth } = useDashboardData(userId, groups, allExpenses, settlements);
+
+  const activeGroupsCount = useMemo(() => {
+    return groups.filter((g) => {
+      const bal = balances.groupBalances[g.id] ?? 0;
+      const debts = balances.groupDebtsMap?.[g.id] ?? [];
+      const myDebts = debts.filter((d: SimplifiedTransaction) => d.from === userId || d.to === userId);
+      return bal !== 0 || myDebts.length > 0;
+    }).length;
+  }, [groups, balances, userId]);
+
+  const displayedGroups = useMemo(() => {
+    if (!hideSettledGroups) return groups;
+    return groups.filter((g) => {
+      const bal = balances.groupBalances[g.id] ?? 0;
+      const debts = balances.groupDebtsMap?.[g.id] ?? [];
+      const myDebts = debts.filter((d: SimplifiedTransaction) => d.from === userId || d.to === userId);
+      return bal !== 0 || myDebts.length > 0;
+    });
+  }, [groups, hideSettledGroups, balances, userId]);
+
+  const memberMap = useMemo<Map<string, { full_name: string; avatar_url?: string | null }>>(() => {
+    const map = new Map<string, { full_name: string; avatar_url?: string | null }>();
+
+    if (currentUser?.id) {
+      map.set(currentUser.id, { full_name: currentUser.full_name || 'You', avatar_url: currentUser.avatar_url });
+    }
+    for (const f of friends) {
+      if (f.id) map.set(f.id, { full_name: f.full_name, avatar_url: f.avatar_url });
+    }
+    for (const expense of allExpenses) {
+      if (expense.payer?.id && expense.payer?.full_name) {
+        map.set(expense.payer.id, { full_name: expense.payer.full_name, avatar_url: expense.payer.avatar_url });
+      }
+      for (const split of expense.splits ?? []) {
+        if (split.user?.id && split.user?.full_name) {
+          map.set(split.user.id, { full_name: split.user.full_name, avatar_url: split.user.avatar_url });
+        }
+      }
+    }
+    for (const g of groups) {
+      for (const m of g.members_preview ?? []) {
+        if (m.id && m.full_name) map.set(m.id, { full_name: m.full_name, avatar_url: m.avatar_url });
+      }
+    }
+
+    return map;
+  }, [currentUser, friends, allExpenses, groups]);
+
+  const groupNameMap = useMemo<Map<string, string>>(() => {
+    const map = new Map<string, string>();
+    for (const g of groups) {
+      map.set(g.id, g.name);
+    }
+    return map;
+  }, [groups]);
+
+  const recentActivity = useMemo(() => {
+    let count = 0;
+    const result: typeof expensesByMonth = [];
+    for (const monthGroup of expensesByMonth) {
+      if (count >= ACTIVITY_DISPLAY_LIMIT) break;
+      const remaining = ACTIVITY_DISPLAY_LIMIT - count;
+      result.push({
+        month: monthGroup.month,
+        expenses: monthGroup.expenses.slice(0, remaining),
+      });
+      count += Math.min(monthGroup.expenses.length, remaining);
+    }
+    return result;
+  }, [expensesByMonth]);
+
+  const handleNavigateSpending = useCallback(() => navigate('/spending'), [navigate]);
+  const handleNavigateYouOwe = useCallback(() => navigate('/friends?filter=you_owe'), [navigate]);
+  const handleNavigateYouAreOwed = useCallback(() => navigate('/friends?filter=owes_you'), [navigate]);
+  const handleOpenAddExpense = useCallback(() => {
+    setExpenseToEdit(undefined);
+    setStagedToSplit(null);
+    setIsAddExpenseOpen(true);
+  }, []);
+  const handleOpenCreateGroup = useCallback(() => setIsCreateGroupOpen(true), []);
+  const handleSelectExpense = useCallback((e: Expense) => setSelectedExpense(e), []);
 
   if (appLoading || expensesLoading || settlementsLoading) {
     return <PageSkeleton layout="dashboard" />;
   }
 
+  const initials = displayName.split(' ').filter(Boolean).map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
+
   return (
-    <div className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6 lg:px-8 pb-32 md:pb-8">
-      {/* ── Page header ──────────────────────────────────────── */}
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-text-base">
-          Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Welcome back, {displayName}
-        </p>
+    <div className="mx-auto max-w-5xl space-y-7 px-3 sm:px-6 lg:px-8 py-5 sm:py-8 pb-32 md:pb-8">
+      {/* ── Page Header: Greeting & Active Groups Status ──────────── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-2xl overflow-hidden shadow-xs shrink-0 select-none">
+            {avatarUrl && !avatarError ? (
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                onError={() => setAvatarError(true)}
+                className="w-full h-full object-cover rounded-2xl"
+              />
+            ) : (
+              <div className="w-full h-full rounded-2xl bg-gradient-to-tr from-primary-600 to-primary-400 text-text-inverse font-black text-sm sm:text-base flex items-center justify-center">
+                {initials}
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Welcome back</div>
+            <h1 className="text-base sm:text-lg font-bold text-text-base leading-tight">
+              {displayName}
+            </h1>
+          </div>
+        </div>
+
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-success-bg text-success-text border border-success-border">
+          <span className="w-2 h-2 rounded-full bg-success-text animate-pulse"></span>
+          {activeGroupsCount} Active {activeGroupsCount === 1 ? 'Group' : 'Groups'}
+        </span>
       </div>
 
-      {/* ── Auto-Synced SMS Transactions Banner ─────────────────── */}
+      {/* ── Revolut Ultra Hero Card (Always first to prevent CLS) ── */}
+      <DashboardHeroCard
+        totalBalance={balances.totalBalance}
+        youOwe={balances.youOwe}
+        youAreOwed={balances.youAreOwed}
+        onNavigateSpending={handleNavigateSpending}
+        onNavigateYouOwe={handleNavigateYouOwe}
+        onNavigateYouAreOwed={handleNavigateYouAreOwed}
+        onOpenAddExpense={handleOpenAddExpense}
+        onOpenCreateGroup={handleOpenCreateGroup}
+      />
+
+      {/* ── Auto-Synced SMS Transactions Banner (Below Hero to prevent CLS) ── */}
       {pendingExpenses.length > 0 && (
         <StagedTransactionsBanner
           pendingExpenses={pendingExpenses}
@@ -102,143 +216,26 @@ export function DashboardPage() {
         />
       )}
 
-      {/* ── Balance Summary Cards ────────────────────────────── */}
-      <section className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <BalanceCard
-          title="Total Balance"
-          amount={balances.totalBalance}
-          icon={Wallet}
-          colorClass={
-            balances.totalBalance >= 0
-              ? 'text-success-text'
-              : 'text-error-text'
-          }
-          bgGradient={
-            balances.totalBalance >= 0
-              ? 'bg-success-bg'
-              : 'bg-error-bg'
-          }
-          iconBgClass={
-            balances.totalBalance >= 0
-              ? 'bg-success-bg'
-              : 'bg-error-bg'
-          }
-          subtitle={
-            balances.totalBalance >= 0
-              ? 'You are in the green'
-              : 'Net amount you owe across all groups'
-          }
-          onClick={() => navigate('/spending')}
-        />
-
-        <BalanceCard
-          title="You have to pay"
-          amount={-balances.youOwe}
-          icon={TrendingDown}
-          colorClass="text-error-text"
-          bgGradient="bg-error-bg"
-          iconBgClass="bg-error-bg"
-          subtitle="Total amount you have to pay others"
-          onClick={() => navigate('/friends?filter=you_owe')}
-        />
-
-        <BalanceCard
-          title="You will receive"
-          amount={balances.youAreOwed}
-          icon={TrendingUp}
-          colorClass="text-success-text"
-          bgGradient="bg-emerald-400"
-          iconBgClass="bg-success-bg"
-          subtitle="Total amount owed to you"
-          onClick={() => navigate('/friends?filter=owes_you')}
-        />
-      </section>
-
       {/* ── Groups Overview ──────────────────────────────────── */}
-      <section>
-        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-text-base mb-0">Your Groups</h2>
-            <Tag className="rounded-full">
-              {displayedGroups.length} of {groups.length}
-            </Tag>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <Segmented
-              options={[
-                { label: 'Hide Settled', value: true },
-                { label: 'Show All', value: false },
-              ]}
-              value={hideSettledGroups}
-              onChange={(val) => setHideSettledGroups(val as boolean)}
-              className="bg-bg-subtle p-1 self-start rounded-xl border border-border-base"
-            />
-            <button
-              type="button"
-              onClick={() => setIsCreateGroupOpen(true)}
-              className="group inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-400 bg-primary-500/10 hover:bg-primary-500/20 active:bg-primary-500/25 border border-primary-500/30 hover:border-primary-500/50 rounded-xl transition-all duration-150 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-primary-500/40 shadow-sm cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-primary-400 transition-transform duration-150 group-hover:scale-110" />
-              <span>Create Group</span>
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {displayedGroups.map((group) => (
-            <GroupCard
-              key={group.id}
-              group={group}
-              balance={balances.groupBalances[group.id] ?? 0}
-              userId={userId}
-              groupDebts={balances.groupDebtsMap?.[group.id]}
-            />
-          ))}
-        </div>
-      </section>
+      <DashboardGroupsSection
+        groups={groups}
+        displayedGroups={displayedGroups}
+        hideSettledGroups={hideSettledGroups}
+        onToggleHideSettled={setHideSettledGroups}
+        onOpenCreateGroup={handleOpenCreateGroup}
+        balances={balances}
+        userId={userId}
+        memberMap={memberMap}
+      />
 
       {/* ── Recent Activity Timeline ─────────────────────────── */}
-      <section>
-        <h2 className="mb-5 text-lg font-bold text-text-base">
-          Recent Activity
-        </h2>
-
-        <div className="space-y-8">
-          {expensesByMonth.map(({ month, expenses }) => (
-            <div key={month}>
-              {/* Month header */}
-              <div className="mb-3 flex items-center gap-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-                  {month}
-                </h3>
-                <div className="h-px flex-1 bg-bg-subtle" />
-                <span className="font-financial text-[11px] text-text-muted">
-                  {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-
-              {/* Expense items */}
-              <div className="space-y-1.5">
-                {expenses.map((expense) => (
-                  <ActivityItem
-                    key={expense.id}
-                    expense={expense}
-                    userId={userId}
-                    groups={groups}
-                    onClick={(e) => setSelectedExpense(e)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {expensesByMonth.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-border-base py-16 text-center">
-              <Receipt className="mx-auto h-10 w-10 text-text-muted" />
-              <p className="mt-3 text-sm text-text-muted">No recent activity</p>
-            </div>
-          )}
-        </div>
-      </section>
+      <DashboardActivitySection
+        recentActivity={recentActivity}
+        userId={userId}
+        groupNameMap={groupNameMap}
+        onSelectExpense={handleSelectExpense}
+        onNavigateSpending={handleNavigateSpending}
+      />
 
       <CreateGroupModal
         open={isCreateGroupOpen}

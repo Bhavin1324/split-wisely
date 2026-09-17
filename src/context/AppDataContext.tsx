@@ -29,9 +29,11 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   const categoriesQuery = useCategoriesQuery();
 
   const currentUser = profileQuery.data ?? null;
-  const groups = Array.isArray(groupsQuery.data)
-    ? groupsQuery.data.filter((g): g is Group => Boolean(g && typeof g === 'object' && g.id))
-    : [];
+  const groups = useMemo(() => {
+    return Array.isArray(groupsQuery.data)
+      ? groupsQuery.data.filter((g): g is Group => Boolean(g && typeof g === 'object' && g.id))
+      : [];
+  }, [groupsQuery.data]);
   const categories = Array.isArray(categoriesQuery.data) ? categoriesQuery.data : [];
 
   const loading = authLoading || profileQuery.isLoading || groupsQuery.loading || categoriesQuery.isLoading;

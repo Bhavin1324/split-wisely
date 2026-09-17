@@ -1,68 +1,95 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Button, Segmented, Switch } from 'antd';
-import { UserPlus, ChevronRight } from 'lucide-react';
 import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUPS, MOCK_GROUP_MEMBERS, getFriendsForUser } from '../lib/mockData';
-import { formatCents, getBalanceColorClass } from '../utils/currency';
 import type { Profile } from '../types';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
-import { useFriends } from '../hooks/supabase/useProfileData';
-import { useAllExpenses } from '../hooks/supabase/useExpensesData';
-import { useAllSettlements } from '../hooks/supabase/useSettlementsData';
+import { useFriendsQuery } from '../hooks/queries/useFriendsQuery';
+import { useAllExpensesQuery } from '../hooks/queries/useExpensesQuery';
+import { useAllSettlementsQuery } from '../hooks/queries/useSettlementsQuery';
+import { computeFriendNetBalance } from '../utils/friendCalculations';
 import { AddFriendModal } from '../components/AddFriendModal';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
-import { UserAvatar } from '../components/ui/UserAvatar';
-import { computeFriendNetBalance } from '../utils/friendCalculations';
 
-function getBalanceLabel(balance: number, friendName: string): string {
-  if (balance > 0) return `${friendName} owes you`;
-  if (balance < 0) return `You owe ${friendName}`;
-  return 'Settled up';
-}
+// Modular UI components
+import { FriendsHeroCard } from '../components/friends/FriendsHeroCard';
+import { FriendsFilterBar, type FriendFilterType } from '../components/friends/FriendsFilterBar';
+import { FriendListItem } from '../components/friends/FriendListItem';
+import { FriendsEmptyState } from '../components/friends/FriendsEmptyState';
 
-type FilterType = 'all' | 'outstanding' | 'you_owe' | 'owes_you';
+const VALID_FILTERS: FriendFilterType[] = ['all', 'outstanding', 'owes_you', 'you_owe', 'settled'];
 
 export function FriendsPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialFilter = (searchParams.get('filter') as FilterType) || 'all';
+  const rawUrlFilter = searchParams.get('filter') as FriendFilterType;
+  const initialFilter = VALID_FILTERS.includes(rawUrlFilter) ? rawUrlFilter : 'all';
 
+  const [activeFilter, setActiveFilter] = useState<FriendFilterType>(initialFilter);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<FilterType>(
-    ['all', 'outstanding', 'you_owe', 'owes_you'].includes(initialFilter) ? initialFilter : 'all'
-  );
-  const [showSettled, setShowSettled] = useState(false);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
+  // Sync state from URL (handles Back/Forward navigation cleanly)
   useEffect(() => {
-    const urlFilter = searchParams.get('filter') as FilterType;
-    if (urlFilter && ['all', 'outstanding', 'you_owe', 'owes_you'].includes(urlFilter)) {
+    const urlFilter = searchParams.get('filter') as FriendFilterType;
+    if (urlFilter && VALID_FILTERS.includes(urlFilter)) {
       setActiveFilter(urlFilter);
+    } else if (!urlFilter) {
+      setActiveFilter('all');
     }
   }, [searchParams]);
 
-  const handleFilterChange = (val: FilterType) => {
+  // Non-destructive URL updates preserving external search params
+  const handleFilterChange = useCallback((val: FriendFilterType) => {
     setActiveFilter(val);
-    if (val === 'all') {
-      setSearchParams({});
-    } else {
-      setSearchParams({ filter: val });
-    }
-  };
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (val === 'all') {
+        next.delete('filter');
+      } else {
+        next.set('filter', val);
+      }
+      return next;
+    });
+  }, [setSearchParams]);
 
-  const navigate = useNavigate();
+  // Stable callbacks preventing memoized child re-renders
+  const handleSelectFriend = useCallback((friendId: string) => {
+    navigate(`/friends/${friendId}`);
+  }, [navigate]);
+
+  const handleOpenAddFriend = useCallback(() => {
+    setIsAddFriendOpen(true);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setSearchQuery('');
+    handleFilterChange('all');
+  }, [handleFilterChange]);
+
+  // Auth and Supabase Data
   const { user } = useAuth();
-  const { currentUser, groups: contextGroups } = useAppData();
-  
+  const { currentUser, groups: contextGroups, loading: appLoading } = useAppData();
   const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : '');
 
-  const { loading: appLoading } = useAppData();
-  const { data: liveFriends, loading: friendsLoading } = useFriends(userId);
-  const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(userId);
-  const { data: liveSettlements } = useAllSettlements(userId);
+  const { data: liveFriends, loading: friendsLoading, refetch: refetchFriends } = useFriendsQuery(userId);
+  const { data: liveExpenses, loading: expensesLoading } = useAllExpensesQuery(userId);
+  const { data: liveSettlements, loading: settlementsLoading } = useAllSettlementsQuery(userId);
 
-  const friends = DEMO_MODE ? getFriendsForUser(MOCK_CURRENT_USER.id) : (liveFriends || []);
+  const friends = useMemo(() => {
+    return DEMO_MODE ? getFriendsForUser(MOCK_CURRENT_USER.id) : (liveFriends || []);
+  }, [liveFriends]);
 
-  const { friendsWithBalances, totalBalance } = useMemo(() => {
+  // Compute 1-on-1 net balance with every friend
+  const { friendsWithBalances, totalBalance, totalOwedToYou, totalYouOwe, counts } = useMemo(() => {
+    let total = 0;
+    let owedToYouSum = 0;
+    let youOweSum = 0;
+    let owesYouCount = 0;
+    let youOweCount = 0;
+    let settledCount = 0;
+
     const list: { profile: Profile; balance: number }[] = friends.map((friend) => {
       const { totalNetBalance } = computeFriendNetBalance({
         userId,
@@ -73,151 +100,120 @@ export function FriendsPage() {
         allGroupMembers: DEMO_MODE ? (MOCK_GROUP_MEMBERS as any) : [],
       });
 
-      return {
-        profile: friend,
-        balance: totalNetBalance,
-      };
+      total += totalNetBalance;
+      if (totalNetBalance > 0) {
+        owedToYouSum += totalNetBalance;
+        owesYouCount++;
+      } else if (totalNetBalance < 0) {
+        youOweSum += Math.abs(totalNetBalance);
+        youOweCount++;
+      } else {
+        settledCount++;
+      }
+
+      return { profile: friend, balance: totalNetBalance };
     });
 
-    list.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
-    const total = list.reduce((sum, f) => sum + f.balance, 0);
+    // Deterministic sort: magnitude first, alphabetical tie-breaker
+    list.sort((a, b) => {
+      const diff = Math.abs(b.balance) - Math.abs(a.balance);
+      if (diff !== 0) return diff;
+      return (a.profile.full_name || '').localeCompare(b.profile.full_name || '');
+    });
 
-    return { friendsWithBalances: list, totalBalance: total };
+    return {
+      friendsWithBalances: list,
+      totalBalance: total,
+      totalOwedToYou: owedToYouSum,
+      totalYouOwe: youOweSum,
+      counts: {
+        all: list.length,
+        owes_you: owesYouCount,
+        you_owe: youOweCount,
+        settled: settledCount,
+      },
+    };
   }, [friends, userId, contextGroups, liveExpenses, liveSettlements]);
 
-  const filteredFriends = friendsWithBalances.filter(({ balance }) => {
-    if (activeFilter === 'outstanding') return balance !== 0;
-    if (activeFilter === 'you_owe') return balance < 0;
-    if (activeFilter === 'owes_you') return balance > 0;
-    if (!showSettled && balance === 0) return false;
-    return true;
-  });
+  // Apply active filter and deferred search with hoisted query
+  const filteredFriends = useMemo(() => {
+    const query = deferredSearchQuery.trim().toLowerCase();
 
-  if (appLoading || friendsLoading || expensesLoading) {
-    return <PageSkeleton layout="list" />;
+    return friendsWithBalances.filter(({ profile, balance }) => {
+      // Filter tab check
+      if (activeFilter === 'outstanding' && balance === 0) return false;
+      if (activeFilter === 'owes_you' && balance <= 0) return false;
+      if (activeFilter === 'you_owe' && balance >= 0) return false;
+      if (activeFilter === 'settled' && balance !== 0) return false;
+
+      // Deferred search text check (hoisted query comparison)
+      if (query) {
+        const name = (profile.full_name || '').toLowerCase();
+        const upi = (profile.upi_id || '').toLowerCase();
+        return name.includes(query) || upi.includes(query);
+      }
+
+      return true;
+    });
+  }, [friendsWithBalances, activeFilter, deferredSearchQuery]);
+
+  // Guard all data layers including settlementsLoading to prevent gross debt flashes
+  if (appLoading || friendsLoading || expensesLoading || settlementsLoading) {
+    return <PageSkeleton layout="friends" />;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-base mb-0">Friends</h1>
-          <p className="text-sm text-text-muted mt-0.5 mb-0">
-            {friends.length} friend{friends.length !== 1 ? 's' : ''}
-          </p>
+    <div className="space-y-6 pb-32 md:pb-6">
+      {/* Calm Conversational Hero Summary Card (hidden on 0 friends to avoid redundancy) */}
+      {friends.length > 0 && (
+        <FriendsHeroCard
+          totalBalance={totalBalance}
+          totalOwedToYou={totalOwedToYou}
+          totalYouOwe={totalYouOwe}
+          countOwedToYou={counts.owes_you}
+          countYouOwe={counts.you_owe}
+          onAddFriend={handleOpenAddFriend}
+        />
+      )}
+
+      {/* Filter and Search Pill */}
+      {friends.length > 0 && (
+        <FriendsFilterBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          activeFilter={activeFilter}
+          onFilterChange={handleFilterChange}
+          counts={counts}
+        />
+      )}
+
+      {/* Friends List or Empty State */}
+      {filteredFriends.length > 0 ? (
+        <div className="rounded-2xl border border-border-base bg-bg-surface overflow-hidden shadow-xs">
+          {filteredFriends.map(({ profile, balance }, index) => (
+            <FriendListItem
+              key={profile.id}
+              friend={profile}
+              balance={balance}
+              isLast={index === filteredFriends.length - 1}
+              onSelectFriend={handleSelectFriend}
+            />
+          ))}
         </div>
+      ) : (
+        <FriendsEmptyState
+          hasFriends={friends.length > 0}
+          searchQuery={searchQuery}
+          onClearFilters={handleClearFilters}
+          onAddFriend={handleOpenAddFriend}
+        />
+      )}
 
-        <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
-          <div className="text-left sm:text-right">
-            <p className="text-xs text-text-muted uppercase tracking-wide mb-0">Overall balance</p>
-            <p className={`text-lg sm:text-xl font-bold font-financial mb-0 ${getBalanceColorClass(totalBalance)}`}>
-              {totalBalance > 0 ? '+' : ''}{formatCents(totalBalance)}
-            </p>
-          </div>
-          <Button
-            type="primary"
-            icon={<UserPlus className="w-4 h-4" />}
-            onClick={() => setIsAddFriendOpen(true)}
-            className="bg-primary-500 hover:bg-primary-600 rounded-xl font-semibold border-none text-white shadow-sm flex items-center gap-1.5 shrink-0"
-          >
-            Add Friend
-          </Button>
-        </div>
-      </div>
-
-      {/* Filter Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-base pb-3">
-        <div className="overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-          <Segmented
-            options={[
-              { label: 'All', value: 'all' },
-              { label: 'Outstanding', value: 'outstanding' },
-              { label: 'You Owe', value: 'you_owe' },
-              { label: 'Owes You', value: 'owes_you' },
-            ]}
-            value={activeFilter}
-            onChange={(val) => handleFilterChange(val as any)}
-            className="bg-bg-subtle p-1 text-xs self-start rounded-xl border border-border-base"
-          />
-        </div>
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          <span className="text-xs text-text-muted font-medium">Show Settled Friends</span>
-          <Switch
-            size="default"
-            checked={showSettled}
-            onChange={setShowSettled}
-          />
-        </div>
-      </div>
-
-      {/* Friends list */}
-      <div className="grid gap-3">
-        {filteredFriends.map(({ profile, balance }) => (
-          <Card
-            key={profile.id}
-            size="small"
-            onClick={() => navigate(`/friends/${profile.id}`)}
-            className="group hover:shadow-md transition-shadow cursor-pointer rounded-xl border-border-base bg-bg-surface"
-          >
-            <div className="flex items-center gap-4">
-              <UserAvatar user={profile} size={48} />
-
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-text-base truncate mb-0.5">
-                  {profile.full_name}
-                </p>
-                <p className="text-xs text-text-muted mb-0">
-                  {getBalanceLabel(balance, profile.full_name.split(' ')[0])}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="text-right">
-                  <p className={`text-base sm:text-lg font-bold font-financial mb-0 ${getBalanceColorClass(balance)}`}>
-                    {balance === 0
-                      ? formatCents(0)
-                      : `${balance > 0 ? '+' : ''}${formatCents(balance)}`}
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-text-muted transition-transform group-hover:translate-x-0.5" />
-              </div>
-            </div>
-          </Card>
-        ))}
-
-        {filteredFriends.length === 0 && (
-          <Card className="rounded-2xl border-dashed border-2 border-border-base bg-bg-surface">
-            <div className="text-center py-12 text-text-muted">
-              <div className="mx-auto w-12 h-12 bg-bg-base rounded-full flex items-center justify-center mb-4">
-                <UserPlus className="w-6 h-6 text-text-muted" />
-              </div>
-              <p className="text-lg font-medium text-text-base">
-                {friends.length === 0 ? "No friends yet" : "No friends match this filter"}
-              </p>
-              <p className="text-sm mt-1 mb-6">
-                {friends.length === 0
-                  ? "Add friends by creating a group together or inviting them directly"
-                  : "Try clearing filters or enabling 'Show Settled Friends'"}
-              </p>
-              {friends.length === 0 && (
-                <Button
-                  type="primary"
-                  icon={<UserPlus className="w-4 h-4" />}
-                  onClick={() => setIsAddFriendOpen(true)}
-                  className="bg-primary-500 hover:bg-primary-600 rounded-xl font-semibold border-none text-white shadow-sm"
-                >
-                  Add Friend
-                </Button>
-              )}
-            </div>
-          </Card>
-        )}
-      </div>
-
+      {/* Add Friend Modal with refetch hook */}
       <AddFriendModal
         open={isAddFriendOpen}
         onClose={() => setIsAddFriendOpen(false)}
+        onSuccess={refetchFriends}
       />
     </div>
   );
