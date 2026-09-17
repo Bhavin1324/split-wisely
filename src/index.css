@@ -260,6 +260,19 @@
 
 /* Component utilities */
 @layer utilities {
+  /* Mobile Safe Area & Inset Alignment */
+  .mobile-header-safe {
+    padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  }
+
+  .mobile-main-safe {
+    padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
+  }
+
+  .mobile-dock-safe {
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
   .glass-card {
     @apply bg-bg-surface/80 backdrop-blur-xl border border-border-base/50 shadow-lg;
   }

@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { Button, Tooltip, Popover, Drawer } from "antd";
+import { Button, Tooltip, Popover } from "antd";
 import {
   LayoutDashboard,
   Users,
@@ -12,7 +12,6 @@ import {
   Plus,
   UserPlus,
   Bell,
-  Menu,
 } from "lucide-react";
 
 // Code-split heavy modals out of the initial root entry chunk
@@ -31,6 +30,7 @@ import { OfflineBanner } from "../components/ui/OfflineBanner";
 import { PwaInstallPrompt } from "../components/pwa/PwaInstallPrompt";
 import { MobileBottomNav } from "../components/navigation/MobileBottomNav";
 import { SidebarDrawer } from "../components/navigation/SidebarDrawer";
+import { MobileHeader } from "../components/navigation/MobileHeader";
 import { useNotifications } from "../hooks/supabase/useNotifications";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
@@ -58,8 +58,6 @@ export function AppLayout() {
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false);
-  const [mobileNotificationPopoverOpen, setMobileNotificationPopoverOpen] =
-    useState(false);
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { currentUser: contextUser, groups: contextGroups, refetchData } = useAppData();
@@ -261,61 +259,18 @@ export function AppLayout() {
       </aside>
 
       {/* ── Mobile Header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-nav-bg text-nav-text border-b border-nav-border backdrop-blur-xl flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center overflow-hidden shadow-sm transition-colors duration-200">
-            <img src="/brand-logo.png" alt="Centfolio" className="w-full h-full object-contain" />
-          </div>
-          <span className="font-bold text-lg">Centfolio</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            className="relative p-1.5 bg-nav-icon-bg hover:bg-nav-icon-hover rounded-lg transition-colors text-nav-text"
-            onClick={() => setMobileNotificationPopoverOpen(true)}
-          >
-            <Bell className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <div className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-surface-900" />
-            )}
-          </button>
-
-          <Drawer
-            placement="top"
-            closable={false}
-            onClose={() => setMobileNotificationPopoverOpen(false)}
-            open={mobileNotificationPopoverOpen}
-            height="70vh"
-            styles={{ body: { padding: 0 } }}
-            className="rounded-b-3xl overflow-hidden shadow-2xl"
-          >
-            <NotificationList
-              notifications={notifications}
-              loading={loading}
-              unreadCount={unreadCount}
-              markAsRead={markAsRead}
-              markAllAsRead={markAllAsRead}
-              clearSeen={clearSeen}
-              onClose={() => setMobileNotificationPopoverOpen(false)}
-            />
-
-          </Drawer>
-          <NavLink
-            to="/search"
-            className="!p-1.5 !bg-nav-icon-bg !hover:bg-nav-icon-hover !rounded-lg !transition-colors !text-nav-text"
-          >
-            <Search className="w-5 h-5" />
-          </NavLink>
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="p-1.5 bg-nav-icon-bg hover:bg-nav-icon-hover rounded-lg transition-colors text-nav-text"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+      <MobileHeader
+        unreadCount={unreadCount}
+        notifications={notifications}
+        loading={loading}
+        markAsRead={markAsRead}
+        markAllAsRead={markAllAsRead}
+        clearSeen={clearSeen}
+        onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+      />
 
       {/* ── Main Content ── */}
-      <main className="flex-1 overflow-y-auto md:pt-0 pt-14">
+      <main className="flex-1 overflow-y-auto md:pt-0 mobile-main-safe">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:pb-6">
           <Outlet />
         </div>

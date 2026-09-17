@@ -52,10 +52,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('data-scheme', scheme);
     
     // 2. Update the PWA Mobile Status Bar Color
-    const statusBarColor = scheme === 'dark' ? '#0f131a' : '#f1f5f9';
-    document.querySelectorAll('meta[name="theme-color"]').forEach((tag) => {
-      tag.setAttribute('content', statusBarColor);
-    });
+    // #ffffff in light mode activates dark system icons (clock, battery) with maximum contrast.
+    // #0f131a in dark mode activates crisp white system icons with maximum contrast.
+    const statusBarColor = scheme === 'dark' ? '#0f131a' : '#ffffff';
+    const metaTags = document.querySelectorAll('meta[name="theme-color"]');
+    if (metaTags.length > 0) {
+      metaTags.forEach((tag) => {
+        tag.setAttribute('content', statusBarColor);
+      });
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      meta.content = statusBarColor;
+      document.head.appendChild(meta);
+    }
   }, [theme, scheme]);
 
   const setTheme = (newTheme: ThemeType) => {

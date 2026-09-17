@@ -49,6 +49,13 @@ export function usePwaInstall(): UsePwaInstallResult {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // 1. Consume early captured beforeinstallprompt from index.html if available
+    if ((window as any).__deferredPrompt) {
+      const earlyPrompt = (window as any).__deferredPrompt as BeforeInstallPromptEvent;
+      setDeferredPrompt(earlyPrompt);
+      setIsInstallable(true);
+    }
+
     // Check standalone matchMedia changes
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
     const handleDisplayModeChange = (e: MediaQueryListEvent) => {
@@ -63,6 +70,7 @@ export function usePwaInstall(): UsePwaInstallResult {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       const installEvent = e as BeforeInstallPromptEvent;
+      (window as any).__deferredPrompt = installEvent;
       setDeferredPrompt(installEvent);
       setIsInstallable(true);
 
@@ -76,18 +84,23 @@ export function usePwaInstall(): UsePwaInstallResult {
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
+      (window as any).__deferredPrompt = null;
       setShowPrompt(false);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // For iOS Safari (which doesn't fire beforeinstallprompt), show prompt on first visit if not installed
-    if (isIOS && !isInstalled && !isDismissed()) {
-      setShowPrompt(true);
+    // Online web visitor visibility: if not installed & not dismissed, display banner smoothly after short delay
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (!isInstalled && !isDismissed()) {
+      timer = setTimeout(() => {
+        setShowPrompt(true);
+      }, 1500);
     }
 
     return () => {
+      if (timer) clearTimeout(timer);
       mediaQuery.removeEventListener('change', handleDisplayModeChange);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
@@ -106,6 +119,9 @@ export function usePwaInstall(): UsePwaInstallResult {
         setIsInstalled(true);
         setShowPrompt(false);
         setDeferredPrompt(null);
+        if (typeof window !== 'undefined') {
+          (window as any).__deferredPrompt = null;
+        }
         return true;
       }
       return false;

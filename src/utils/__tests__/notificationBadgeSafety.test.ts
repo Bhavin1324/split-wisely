@@ -137,4 +137,29 @@ describe('Android PWA Notification Badge & Status Bar Safety', () => {
     expect(queryContent).toContain("APP_ASSETS.notifications.badge");
     expect(queryContent).not.toContain("badge: '/pwa-icon.jpg'");
   });
+
+  it('7. Service worker enforces immediate activation with skipWaiting and clientsClaim', () => {
+    const swPath = path.resolve(__dirname, '../../sw.ts');
+    const swContent = fs.readFileSync(swPath, 'utf8');
+    expect(swContent).toContain("self.skipWaiting()");
+    expect(swContent).toContain("clientsClaim()");
+  });
+
+  it('8. Service worker strictly sanitizes remote push payload badge to prevent JPEG square bug', () => {
+    const swPath = path.resolve(__dirname, '../../sw.ts');
+    const swContent = fs.readFileSync(swPath, 'utf8');
+    expect(swContent).toContain("getSafeNotificationBadge");
+    expect(swContent).toContain("!candidateBadge.endsWith('.jpg')");
+    expect(swContent).toContain("!candidateBadge.includes('pwa-icon')");
+  });
+
+  it('9. Manifest in vite.config.ts excludes pwa-icon.jpg to prevent Android JPEG fallback', () => {
+    const viteConfigPath = path.resolve(__dirname, '../../../vite.config.ts');
+    const content = fs.readFileSync(viteConfigPath, 'utf8');
+    // Ensure manifest icons do not contain pwa-icon.jpg
+    const manifestIconsMatch = content.match(/icons:\s*\[([\s\S]*?)\]/);
+    expect(manifestIconsMatch).not.toBeNull();
+    const manifestIconsBlock = manifestIconsMatch![1];
+    expect(manifestIconsBlock).not.toContain("src: '/pwa-icon.jpg'");
+  });
 });

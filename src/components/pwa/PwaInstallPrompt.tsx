@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Button, Modal } from 'antd';
-import { Download, X, Share, PlusSquare, Sparkles, Zap, Bell, WifiOff } from 'lucide-react';
+import { Download, X, Share, PlusSquare, Sparkles, Zap, Bell, WifiOff, MoreVertical } from 'lucide-react';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { APP_ASSETS } from '../../constants/assets';
 
 export function PwaInstallPrompt() {
   const { isInstallable, isInstalled, isIOS, showPrompt, promptInstall, dismissPrompt } =
     usePwaInstall();
-  const [isIosModalOpen, setIsIosModalOpen] = useState(false);
+  const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
 
   // If already installed in standalone mode, never render prompt
@@ -17,20 +17,25 @@ export function PwaInstallPrompt() {
 
   const handleInstallClick = async () => {
     if (isIOS) {
-      setIsIosModalOpen(true);
+      setIsGuideModalOpen(true);
       return;
     }
 
     if (isInstallable) {
       setIsInstalling(true);
       try {
-        await promptInstall();
+        const accepted = await promptInstall();
+        if (!accepted) {
+          setIsGuideModalOpen(true);
+        }
+      } catch {
+        setIsGuideModalOpen(true);
       } finally {
         setIsInstalling(false);
       }
     } else {
-      // Fallback for browsers that don't support programmatic install
-      dismissPrompt();
+      // Fallback for browsers that don't support 1-tap programmatic install
+      setIsGuideModalOpen(true);
     }
   };
 
@@ -109,16 +114,16 @@ export function PwaInstallPrompt() {
         </div>
       </aside>
 
-      {/* iOS Safari Install Guide Modal */}
+      {/* Universal Browser Install Guide Modal */}
       <Modal
-        open={isIosModalOpen}
-        onCancel={() => setIsIosModalOpen(false)}
+        open={isGuideModalOpen}
+        onCancel={() => setIsGuideModalOpen(false)}
         footer={[
           <Button
             key="ok"
             type="primary"
             onClick={() => {
-              setIsIosModalOpen(false);
+              setIsGuideModalOpen(false);
               dismissPrompt();
             }}
             className="bg-primary-500 font-semibold rounded-lg w-full"
@@ -129,7 +134,9 @@ export function PwaInstallPrompt() {
         title={
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary-500" />
-            <span className="font-bold text-base">Install on iPhone / iPad</span>
+            <span className="font-bold text-base">
+              {isIOS ? 'Install on iPhone / iPad' : 'Install Centfolio App'}
+            </span>
           </div>
         }
         centered
@@ -137,7 +144,9 @@ export function PwaInstallPrompt() {
       >
         <div className="space-y-4 py-2 text-sm text-text-base">
           <p className="text-text-muted text-xs">
-            To install Centfolio on iOS, follow these quick steps in Safari:
+            {isIOS
+              ? 'To install Centfolio on iOS, follow these quick steps in Safari:'
+              : 'To install Centfolio on your device, follow these quick steps in your browser:'}
           </p>
 
           <div className="space-y-3">
@@ -146,9 +155,19 @@ export function PwaInstallPrompt() {
                 1
               </div>
               <div className="text-xs">
-                <span className="font-semibold text-text-base">Tap the Share button</span>
+                <span className="font-semibold text-text-base">
+                  {isIOS ? 'Tap the Share button' : 'Tap the browser menu'}
+                </span>
                 <p className="text-text-muted mt-0.5 mb-0">
-                  Tap the <Share className="w-3.5 h-3.5 inline mx-0.5 text-primary-500" /> Share icon at the bottom of Safari's toolbar.
+                  {isIOS ? (
+                    <>
+                      Tap the <Share className="w-3.5 h-3.5 inline mx-0.5 text-primary-500" /> Share icon at the bottom of Safari's toolbar.
+                    </>
+                  ) : (
+                    <>
+                      Tap the <MoreVertical className="w-3.5 h-3.5 inline mx-0.5 text-primary-500" /> 3-dots menu in Chrome's top right toolbar.
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -158,9 +177,19 @@ export function PwaInstallPrompt() {
                 2
               </div>
               <div className="text-xs">
-                <span className="font-semibold text-text-base">Select "Add to Home Screen"</span>
+                <span className="font-semibold text-text-base">
+                  {isIOS ? 'Select "Add to Home Screen"' : 'Select "Install app"'}
+                </span>
                 <p className="text-text-muted mt-0.5 mb-0">
-                  Scroll down the share sheet and tap <PlusSquare className="w-3.5 h-3.5 inline mx-0.5 text-primary-500" /> <strong>Add to Home Screen</strong>, then tap <strong>Add</strong> in the top right.
+                  {isIOS ? (
+                    <>
+                      Scroll down the share sheet and tap <PlusSquare className="w-3.5 h-3.5 inline mx-0.5 text-primary-500" /> <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.
+                    </>
+                  ) : (
+                    <>
+                      Tap <Download className="w-3.5 h-3.5 inline mx-0.5 text-primary-500" /> <strong>Install Centfolio</strong> (or <strong>Add to Home screen</strong>) to add the app to your device.
+                    </>
+                  )}
                 </p>
               </div>
             </div>

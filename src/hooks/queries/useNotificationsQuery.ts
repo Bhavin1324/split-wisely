@@ -76,13 +76,17 @@ export function useNotificationsQuery(userId: string | undefined) {
             'Notification' in window &&
             Notification.permission === 'granted'
           ) {
+            const origin = window.location.origin;
+            const absoluteBadge = new URL(APP_ASSETS.notifications.badge, origin).href;
+            const absoluteIcon = new URL(APP_ASSETS.notifications.icon, origin).href;
+
             getOrRegisterServiceWorker()
               .then((registration) => {
                 if (registration && 'showNotification' in registration) {
                   registration.showNotification(newNotif.title || 'Centfolio', {
                     body: newNotif.message || 'You have a new update in Centfolio.',
-                    icon: APP_ASSETS.notifications.icon,
-                    badge: APP_ASSETS.notifications.badge,
+                    icon: absoluteIcon,
+                    badge: absoluteBadge,
                     vibrate: [150, 50, 150],
                     tag: `centfolio-${newNotif.id}`,
                     data: {
@@ -92,7 +96,7 @@ export function useNotificationsQuery(userId: string | undefined) {
                 } else {
                   new Notification(newNotif.title || 'Centfolio', {
                     body: newNotif.message || 'You have a new update in Centfolio.',
-                    icon: APP_ASSETS.notifications.icon,
+                    icon: absoluteIcon,
                   });
                 }
               })

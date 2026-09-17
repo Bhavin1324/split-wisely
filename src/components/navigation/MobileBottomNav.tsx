@@ -42,7 +42,7 @@ export function MobileBottomNav({
   return (
     <>
       {/* ── Modern Floating Glassmorphic Dock Container ── */}
-      <div className="block md:hidden fixed bottom-3 left-3 right-3 z-50 rounded-2xl bg-bg-surface/95 backdrop-blur-md border border-border-base shadow-2xl h-16">
+      <div className="block md:hidden fixed bottom-3 mobile-dock-safe left-3 right-3 z-50 rounded-2xl bg-bg-surface/95 backdrop-blur-md border border-border-base shadow-2xl h-16">
         <nav className="grid grid-cols-5 h-full items-center px-1">
           {/* Slot 1: Dashboard */}
           <NavLink

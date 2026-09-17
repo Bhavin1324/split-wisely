@@ -373,10 +373,14 @@ export async function sendLocalTestNotification(): Promise<TestNotificationResul
   }
 
   const uniqueTag = `centfolio-test-${Date.now()}`;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const absoluteBadge = origin ? new URL(APP_ASSETS.notifications.badge, origin).href : APP_ASSETS.notifications.badge;
+  const absoluteIcon = origin ? new URL(APP_ASSETS.notifications.icon, origin).href : APP_ASSETS.notifications.icon;
+
   const notificationOptions = {
     body: 'Push notifications are active! You will receive instant alerts when expenses are added or settled.',
-    icon: APP_ASSETS.notifications.icon,
-    badge: APP_ASSETS.notifications.badge,
+    icon: absoluteIcon,
+    badge: absoluteBadge,
     vibrate: [150, 50, 150],
     tag: uniqueTag,
     renotify: true,
