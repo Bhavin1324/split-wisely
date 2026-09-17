@@ -33,7 +33,7 @@ export function useBottomSheetDismiss({
     } else if (!isClosing) {
       setIsRendered(false);
     }
-  }, [open, isClosing]);
+  }, [open]);
 
   const triggerDismiss = useCallback(
     (onComplete?: () => void) => {

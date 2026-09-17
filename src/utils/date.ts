@@ -2,7 +2,9 @@
  * Formats an ISO date string to a readable date.
  */
 export function formatDate(isoString: string): string {
+  if (!isoString) return '—';
   const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
@@ -14,7 +16,9 @@ export function formatDate(isoString: string): string {
  * Formats an ISO date string to relative time (e.g., "2 hours ago").
  */
 export function formatRelativeTime(isoString: string): string {
+  if (!isoString) return '—';
   const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '—';
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSecs = Math.floor(diffMs / 1000);
@@ -33,7 +37,9 @@ export function formatRelativeTime(isoString: string): string {
  * Groups items by month/year for timeline display.
  */
 export function getMonthYearKey(isoString: string): string {
+  if (!isoString) return '—';
   const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat('en-US', {
     month: 'long',
     year: 'numeric',

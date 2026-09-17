@@ -449,15 +449,17 @@ export function FriendDetailPage() {
       </div>
 
       {/* Modals */}
-      <SettleUpModal
-        open={isSettleUpOpen}
-        onClose={() => setIsSettleUpOpen(false)}
-        onSuccess={handleRefetchAll}
-        defaultPayeeId={netBalanceCents < 0 ? friendId : userId}
-        defaultPayeeName={netBalanceCents < 0 ? friend.full_name : "You"}
-        defaultAmountCents={Math.abs(netBalanceCents)}
-        maxAmountCents={Math.abs(netBalanceCents)}
-      />
+      {isSettleUpOpen && (
+        <SettleUpModal
+          open={isSettleUpOpen}
+          onClose={() => setIsSettleUpOpen(false)}
+          onSuccess={handleRefetchAll}
+          defaultPayeeId={netBalanceCents < 0 ? friendId : userId}
+          defaultPayeeName={netBalanceCents < 0 ? friend.full_name : "You"}
+          defaultAmountCents={Math.abs(netBalanceCents)}
+          maxAmountCents={Math.abs(netBalanceCents)}
+        />
+      )}
 
       <AddExpenseModal
         open={isAddExpenseOpen}

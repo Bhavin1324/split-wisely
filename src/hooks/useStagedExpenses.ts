@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { DEMO_MODE } from '../context/AppDataContext';
+import { MOCK_CURRENT_USER } from '../lib/mockData';
+import { queryKeys } from '../lib/queryKeys';
+import { usePendingStagedExpensesQuery } from './queries/useStagedExpensesQuery';
 import type { StagedExpense } from '../types/stagedExpense';
 
 export interface CustomStagedExpenseData {
@@ -11,98 +14,28 @@ export interface CustomStagedExpenseData {
   type?: 'EXPENSE' | 'INCOME';
 }
 
-const MOCK_PENDING_STAGED: StagedExpense[] = [
-  {
-    id: 'mock-staged-1',
-    user_id: 'mock-user',
-    amount_cents: 45000,
-    transaction_type: 'DEBIT',
-    merchant_name: 'SWIGGY',
-    bank_short_code: 'HDFC',
-    account_last4: '4821',
-    upi_ref: '429182749102',
-    raw_sms_hash: 'mock-hash-1',
-    status: 'PENDING',
-    created_at: new Date().toISOString(),
-    transaction_date: new Date().toISOString(),
-  },
-];
-
-export function useStagedExpenses() {
+export function useStagedExpenses(explicitUserId?: string) {
   const { user } = useAuth();
-  const userId = user?.id;
+  const userId = explicitUserId || user?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : undefined);
+  const queryClient = useQueryClient();
 
-  const [pendingExpenses, setPendingExpenses] = useState<StagedExpense[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchPendingExpenses = useCallback(async () => {
-    if (DEMO_MODE) {
-      setPendingExpenses(MOCK_PENDING_STAGED);
-      setLoading(false);
-      return;
-    }
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('staged_expenses')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'PENDING')
-        .order('transaction_date', { ascending: false });
-
-      if (error) {
-        console.warn('Failed to fetch staged expenses:', error.message);
-      } else if (data) {
-        setPendingExpenses(data as StagedExpense[]);
-      }
-    } catch (e) {
-      console.error('Error fetching staged expenses:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    fetchPendingExpenses();
-
-    if (DEMO_MODE || !userId) return;
-
-    // Realtime subscription for incoming SMS from Android companion app
-    const channel = supabase
-      .channel('staged_expenses_realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'staged_expenses',
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          fetchPendingExpenses();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, fetchPendingExpenses]);
+  const { data: pendingExpenses, loading, refetch } = usePendingStagedExpensesQuery(userId);
 
   // Action: Approve as Personal Expense
   const approveAsPersonal = async (
     staged: StagedExpense,
     customData?: CustomStagedExpenseData | string
   ) => {
+    // Optimistic removal from staged cache
+    queryClient.setQueryData<StagedExpense[]>(
+      queryKeys.stagedExpenses.pending(userId),
+      (prev = []) => prev.filter((item) => item.id !== staged.id)
+    );
+
     if (DEMO_MODE) {
-      setPendingExpenses((prev) => prev.filter((item) => item.id !== staged.id));
       return true;
     }
-    if (!userId) return;
+    if (!userId) return false;
 
     try {
       const isCustomObj = typeof customData === 'object' && customData !== null;
@@ -130,6 +63,7 @@ export function useStagedExpenses() {
 
       if (txError) {
         console.error('Failed to create personal transaction from staged:', txError.message);
+        queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.pending(userId) });
         return false;
       }
 
@@ -139,54 +73,65 @@ export function useStagedExpenses() {
         .update({ status: 'APPROVED_PERSONAL' })
         .eq('id', staged.id);
 
-      setPendingExpenses((prev) => prev.filter((item) => item.id !== staged.id));
+      // Invalidate personal transactions & staged expenses
+      queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.pending(userId) });
       return true;
     } catch (e) {
       console.error('Approve as personal failed:', e);
+      queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.pending(userId) });
       return false;
     }
   };
 
   // Action: Dismiss (Ignore transfer / self-deposit)
   const dismissStaged = async (stagedId: string) => {
-    if (DEMO_MODE) {
-      setPendingExpenses((prev) => prev.filter((item) => item.id !== stagedId));
-      return;
-    }
+    queryClient.setQueryData<StagedExpense[]>(
+      queryKeys.stagedExpenses.pending(userId),
+      (prev = []) => prev.filter((item) => item.id !== stagedId)
+    );
+
+    if (DEMO_MODE) return;
+
     try {
       await supabase
         .from('staged_expenses')
         .update({ status: 'DISMISSED' })
         .eq('id', stagedId);
 
-      setPendingExpenses((prev) => prev.filter((item) => item.id !== stagedId));
+      queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.pending(userId) });
     } catch (e) {
       console.error('Dismiss staged failed:', e);
+      queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.pending(userId) });
     }
   };
 
   // Action: Mark as Split in Group
   const markAsGroupSplit = async (stagedId: string) => {
-    if (DEMO_MODE) {
-      setPendingExpenses((prev) => prev.filter((item) => item.id !== stagedId));
-      return;
-    }
+    queryClient.setQueryData<StagedExpense[]>(
+      queryKeys.stagedExpenses.pending(userId),
+      (prev = []) => prev.filter((item) => item.id !== stagedId)
+    );
+
+    if (DEMO_MODE) return;
+
     try {
       await supabase
         .from('staged_expenses')
         .update({ status: 'APPROVED_GROUP' })
         .eq('id', stagedId);
 
-      setPendingExpenses((prev) => prev.filter((item) => item.id !== stagedId));
+      queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.pending(userId) });
     } catch (e) {
       console.error('Mark group split failed:', e);
+      queryClient.invalidateQueries({ queryKey: queryKeys.stagedExpenses.pending(userId) });
     }
   };
 
   return {
     pendingExpenses,
     loading,
-    refresh: fetchPendingExpenses,
+    refresh: refetch,
     approveAsPersonal,
     dismissStaged,
     markAsGroupSplit,

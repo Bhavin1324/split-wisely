@@ -1,9 +1,12 @@
+import { v4 as uuidv4 } from 'uuid';
 import { DEMO_MODE } from '../../context/AppDataContext';
 import { supabase } from '../../lib/supabase';
 import { MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
 import type { Expense, GroupActivityItem } from '../../types';
 import { dispatchPushNotification } from '../../utils/pushDispatcher';
 import { formatCents } from '../../utils/currency';
+import { queryClient } from '../../lib/queryClient';
+import { queryKeys } from '../../lib/queryKeys';
 
 export async function createExpenseWithSplits(params: { 
   group_id: string | null; 
@@ -66,6 +69,10 @@ export async function createExpenseWithSplits(params: {
       };
       MOCK_GROUP_ACTIVITIES.unshift(activity);
     }
+    queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
+    if (params.group_id) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(params.group_id) });
+    }
     return newId;
   }
 
@@ -108,6 +115,11 @@ export async function createExpenseWithSplits(params: {
       message: messageText,
       url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
     });
+  }
+
+  queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
+  if (params.group_id) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(params.group_id) });
   }
 
   return data as string;
@@ -171,6 +183,10 @@ export async function updateExpenseWithSplits(params: {
         MOCK_GROUP_ACTIVITIES.unshift(activity);
       }
     }
+    queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
+    if (params.group_id) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(params.group_id) });
+    }
     return;
   }
 
@@ -214,6 +230,11 @@ export async function updateExpenseWithSplits(params: {
       url: params.group_id ? `/groups/${params.group_id}` : '/dashboard',
     });
   }
+
+  queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
+  if (params.group_id) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(params.group_id) });
+  }
 }
 
 export async function deleteExpense(expenseId: string): Promise<void> {
@@ -240,80 +261,122 @@ export async function deleteExpense(expenseId: string): Promise<void> {
         MOCK_GROUP_ACTIVITIES.unshift(activity);
       }
     }
+    queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
     return;
   }
 
   const { error } = await supabase.rpc('delete_expense', { p_expense_id: expenseId });
   if (error) throw error;
+  queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
 }
 
-export async function createSettlement(params: { 
-  group_id: string | null; 
-  payer_id: string; 
-  payee_id: string; 
-  amount: number; 
+export interface SettlementBatchItem {
+  group_id: string | null;
+  payer_id: string;
+  payee_id: string;
+  amount: number;
   currency_code: string;
   payer_name?: string;
-}): Promise<void> {
+}
+
+export async function createSettlementsBatch(items: SettlementBatchItem[]): Promise<void> {
+  if (!items || items.length === 0) return;
+
   if (DEMO_MODE) {
-    if (params.group_id) {
-      const payer = getProfileById(params.payer_id);
-      const payee = getProfileById(params.payee_id);
-      const activity: GroupActivityItem = {
-        id: `act-${Date.now()}`,
+    items.forEach((params) => {
+      MOCK_SETTLEMENTS.push({
+        id: uuidv4(),
         group_id: params.group_id,
-        actor_id: params.payer_id,
-        action_type: 'SETTLEMENT_RECORDED',
-        description: `${payer?.full_name || 'Someone'} paid ${payee?.full_name || 'someone'}`,
-        metadata: {
-          amount: params.amount,
-          payer_id: params.payer_id,
-          payee_id: params.payee_id,
-          payer_name: payer?.full_name,
-          payee_name: payee?.full_name,
-        },
+        payer_id: params.payer_id,
+        payee_id: params.payee_id,
+        amount: params.amount,
+        currency_code: params.currency_code,
         created_at: new Date().toISOString(),
-        actor: payer,
-      };
-      MOCK_GROUP_ACTIVITIES.unshift(activity);
-    }
+      });
+
+      if (params.group_id) {
+        const payer = getProfileById(params.payer_id);
+        const payee = getProfileById(params.payee_id);
+        const activity: GroupActivityItem = {
+          id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          group_id: params.group_id,
+          actor_id: params.payer_id,
+          action_type: 'SETTLEMENT_RECORDED',
+          description: `${payer?.full_name || 'Someone'} paid ${payee?.full_name || 'someone'}`,
+          metadata: {
+            amount: params.amount,
+            payer_id: params.payer_id,
+            payee_id: params.payee_id,
+            payer_name: payer?.full_name,
+            payee_name: payee?.full_name,
+          },
+          created_at: new Date().toISOString(),
+          actor: payer,
+        };
+        MOCK_GROUP_ACTIVITIES.unshift(activity);
+      }
+    });
+
+    queryClient.invalidateQueries({ queryKey: queryKeys.settlements.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
     return;
   }
-  const { error } = await supabase
-    .from('settlements')
-    .insert([{
-      group_id: params.group_id,
-      payer_id: params.payer_id,
-      payee_id: params.payee_id,
-      amount: params.amount,
-      currency_code: params.currency_code
-    }]);
+
+  // Live Supabase Mode
+  const settlementPayloads = items.map((params) => ({
+    group_id: params.group_id,
+    payer_id: params.payer_id,
+    payee_id: params.payee_id,
+    amount: params.amount,
+    currency_code: params.currency_code,
+  }));
+
+  const { error } = await supabase.from('settlements').insert(settlementPayloads);
   if (error) throw error;
 
-  // Notify the payee with rich details
-  if (params.payer_id !== params.payee_id) {
-    const formattedAmount = formatCents(params.amount, params.currency_code);
-    const payerDisplay = params.payer_name || 'A friend';
-    const messageText = `${payerDisplay} recorded a payment of ${formattedAmount} to you.`;
-    const targetUrl = params.group_id ? `/groups/${params.group_id}` : `/friends/${params.payer_id}`;
+  // Rich notifications batch
+  const notificationPayloads = items
+    .filter((params) => params.payer_id !== params.payee_id)
+    .map((params) => {
+      const formattedAmount = formatCents(params.amount, params.currency_code);
+      const payerDisplay = params.payer_name || 'A friend';
+      const messageText = `${payerDisplay} recorded a payment of ${formattedAmount} to you.`;
+      const targetUrl = params.group_id ? `/groups/${params.group_id}` : `/friends/${params.payer_id}`;
 
-    await supabase.from('notifications').insert([{
-      user_id: params.payee_id,
-      actor_id: params.payer_id,
-      type: 'SETTLEMENT_RECORDED',
-      title: 'Payment Received',
-      message: messageText,
-      link: targetUrl
-    }]);
+      return {
+        user_id: params.payee_id,
+        actor_id: params.payer_id,
+        type: 'SETTLEMENT_RECORDED' as const,
+        title: 'Payment Received',
+        message: messageText,
+        link: targetUrl,
+      };
+    });
+
+  if (notificationPayloads.length > 0) {
+    try {
+      await supabase.from('notifications').insert(notificationPayloads);
+    } catch (notifErr) {
+      console.warn('Failed to insert settlement notifications:', notifErr);
+    }
 
     // Trigger Web Push Notification
-    dispatchPushNotification({
-      userIds: [params.payee_id],
-      title: 'Payment Received 💰',
-      message: messageText,
-      url: targetUrl,
-    });
+    for (const notif of notificationPayloads) {
+      dispatchPushNotification({
+        userIds: [notif.user_id],
+        title: 'Payment Received 💰',
+        message: notif.message,
+        url: notif.link,
+      });
+    }
   }
+
+  queryClient.invalidateQueries({ queryKey: queryKeys.settlements.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
+}
+
+export async function createSettlement(params: SettlementBatchItem): Promise<void> {
+  return createSettlementsBatch([params]);
 }
 
 export async function createGroup(params: { name: string; created_by: string; cover_image_url?: string | null }): Promise<string> {
@@ -335,6 +398,7 @@ export async function createGroup(params: { name: string; created_by: string; co
 
   if (memberErr) throw memberErr;
 
+  queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
   return group.id;
 }
 
@@ -385,6 +449,7 @@ export async function createGroupWithMembers(params: {
     }
   }
 
+  queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
   return groupId;
 }
 
@@ -400,6 +465,8 @@ export async function addMemberToGroup(
   if (error && !error.message.includes('duplicate')) {
     throw error;
   }
+
+  queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
 
   if (!DEMO_MODE && options?.adderId && options.adderId !== userId) {
     const adderName = options.adderName || 'A friend';
@@ -484,6 +551,10 @@ export async function removeMemberFromGroup(groupId: string, userId: string): Pr
   if (error) {
     throw error;
   }
+
+  queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.settlements.all });
 }
 
 export async function updateGroupSettings(groupId: string, settings: { simplify_debts?: boolean; name?: string; cover_image_url?: string }): Promise<void> {
@@ -495,6 +566,8 @@ export async function updateGroupSettings(groupId: string, settings: { simplify_
   if (error) {
     throw error;
   }
+
+  queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
 }
 
 export async function createGroupInvitation(params: {
@@ -558,6 +631,7 @@ export async function updateProfile(userId: string, updates: { full_name?: strin
     .eq('id', userId);
 
   if (error) throw error;
+  queryClient.invalidateQueries({ queryKey: queryKeys.profile.all });
 }
 
 export async function leaveGroup(groupId: string, userId: string): Promise<void> {
@@ -567,6 +641,7 @@ export async function leaveGroup(groupId: string, userId: string): Promise<void>
     .match({ group_id: groupId, user_id: userId });
 
   if (error) throw error;
+  queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
 }
 
 export async function deleteGroup(groupId: string): Promise<void> {
@@ -576,6 +651,7 @@ export async function deleteGroup(groupId: string): Promise<void> {
     .eq('id', groupId);
 
   if (error) throw error;
+  queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
 }
 
 export async function deleteSettlement(
@@ -626,6 +702,8 @@ export async function deleteSettlement(
       };
       MOCK_GROUP_ACTIVITIES.unshift(activity);
     }
+    queryClient.invalidateQueries({ queryKey: queryKeys.settlements.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
     return;
   }
 
@@ -642,6 +720,9 @@ export async function deleteSettlement(
 
   const { error } = await supabase.from('settlements').delete().eq('id', settlementId);
   if (error) throw error;
+
+  queryClient.invalidateQueries({ queryKey: queryKeys.settlements.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
 
   if (activityMetadata?.group_id) {
     const payerName = activityMetadata.payer_name || 'Someone';

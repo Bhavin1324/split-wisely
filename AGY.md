@@ -1,12 +1,15 @@
 # Project Rules & Guidelines (AGY.md)
 
 ## 1. Tech Stack & Architecture
-- **Frameworks & Libraries**: React 19 (Vite), TypeScript, Tailwind CSS, Ant Design (AntD), Supabase (Backend & Auth), Lucide React (Icons), Capacitor (Mobile App).
+- **Frameworks & Libraries**: React 19 (Vite), TypeScript, TanStack Query 5 (`@tanstack/react-query`), Tailwind CSS, Ant Design (AntD), Supabase (Backend & Auth), Lucide React (Icons), Capacitor (Mobile App).
 - **Architecture**: Single Page Application (SPA) configured as a Progressive Web App (PWA) and Capacitor Native Mobile App sharing the unified Supabase project (`kvddxuxnyhqxmmmfetvn`).
+- **Data Layer Guide**: See `docs/Data_Fetching_Architecture.md` for TanStack Query, query keys factory, safe real-time subscriptions, and batch mutations.
 - **Mobile Handover Guide**: See `docs/Mobile_App_Capacitor_Architecture.md` for Capacitor setup, Android SMS auto-ledger parser, and deep linking.
 - **Folder Structure Conventions**:
   - `src/components/`: Reusable, stateless UI components. Grouped by feature domain (e.g., `src/components/group/`).
-  - `src/hooks/`: Custom business logic, specifically `supabase/` for DB interactions and real-time subscriptions.
+  - `src/hooks/queries/`: Domain-specific TanStack `useQuery` hooks for all database reads.
+  - `src/hooks/supabase/`: Write mutations (`useMutations.ts`) and legacy adapter hooks.
+  - `src/lib/`: Shared infrastructure singletons (`queryClient.ts`, `queryKeys.ts`, `supabase.ts`).
   - `src/layouts/`: Global layout shells (e.g., `AppLayout.tsx`) managing navigation and root-level overlays.
   - `src/pages/`: Top-level route components acting as orchestrators.
 
@@ -15,6 +18,15 @@
 - **Component Modularity**: 
   - Keep components strictly under 300 lines. 
   - Employ the Orchestrator Pattern: Complex pages (like `GroupDetailPage.tsx`) must delegate all UI rendering to imported sub-components.
+- **Data Fetching Standards (TanStack Query)**:
+  - All server read operations MUST be defined as custom hooks under `src/hooks/queries/`. Never query Supabase directly inside UI components.
+  - All query keys MUST be derived from the centralized `queryKeys` factory in `src/lib/queryKeys.ts`.
+  - Always guard queries with `enabled: Boolean(...)` when IDs are pending or undefined.
+  - Bridge real-time updates via `createSafeRealtimeSubscription` (`src/utils/realtime.ts`) rather than calling raw `supabase.channel` directly.
+- **Mutation & Batching Standards**:
+  - All database write mutations MUST reside in `src/hooks/supabase/useMutations.ts`.
+  - Multi-row insertions (e.g. settlements across groups, notifications) MUST use atomic batching (`createSettlementsBatch`) in a single HTTP POST. Never loop and await Supabase inserts serially.
+  - Scope cache invalidations surgically using typed keys (e.g. `queryKeys.settlements.all`, `queryKeys.personalLedger.transactions(userId)`).
 - **Error Handling**: Use React Error Boundaries globally. Avoid silent failures; surface errors gracefully using Ant Design's `App.useApp().message` API.
 - **TypeScript**: Enforce strict typings. Minimize the use of `any`.
 - **Hybrid Data Pipelines**: For full-stack intelligence and cross-ledger metrics, mathematically combine and normalize Personal Tracked transactions with explicit Group Split liabilities (`ExpenseSplit.amount_owed`) into unified interfaces. Prevent data silos by treating net group shares and standalone personal transactions identically downstream.
@@ -86,4 +98,6 @@
 - **PostgREST Foreign Key Relations**: Columns intended for `profiles` joins must have foreign keys referencing `public.profiles(id)` with explicit constraint naming, followed by `NOTIFY pgrst, 'reload schema';` in migrations to avoid `PGRST200` errors.
 - **CONTEXT.md Updates**: Do NOT automatically propose or execute updates to `CONTEXT.md` after completing features. Only update it if the user explicitly requests it.
 - **Historical Ledger Queries**: Do NOT derive opening balances or historical metrics by fetching unbounded transaction histories to the client. Always rely on snapshotted ledger boundaries (e.g., an explicit `opening_balance` database column) to prevent O(n) performance degradation and memory bloat.
+- **No Serial HTTP Request Loops**: Never execute serial `await supabase.from(...).insert(...)` calls inside a loop (`for`, `for...of`, `forEach`). Always collect payloads and execute a single array batch insert (e.g., `createSettlementsBatch`).
+- **Safe Realtime Subscription Lifecycle**: Never call `supabase.channel().on().subscribe()` directly in component or hook lifecycles. Always use `createSafeRealtimeSubscription` (`src/utils/realtime.ts`) to prevent fatal Supabase `cannot add postgres_changes callbacks after subscribe()` runtime crashes.
 

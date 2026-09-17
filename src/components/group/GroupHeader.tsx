@@ -187,11 +187,11 @@ export function GroupHeader({
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-primary-500/20 text-primary-400 text-2xl sm:text-3xl font-bold border-2 border-bg-surface shadow-md backdrop-blur-md">
-                {group.name.charAt(0)}
+                {(group.name || 'G').charAt(0)}
               </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-text-base mb-0.5 line-clamp-1">
-                {group.name}
+                {group.name || 'Untitled Group'}
               </h1>
               <div className="mb-1.5 flex items-center gap-1.5">
                 {userNetBalance === 0 ? (

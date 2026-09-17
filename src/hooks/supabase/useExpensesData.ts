@@ -1,179 +1,37 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useGroupExpensesQuery, useAllExpensesQuery } from '../queries/useExpensesQuery';
+import { useCategoriesQuery } from '../queries/useProfileQuery';
 import type { Expense, Category } from '../../types';
 
+/**
+ * Hook to retrieve expenses for a specific group with caching and real-time synchronization.
+ * Backed by TanStack Query.
+ */
 export function useExpenses(groupId: string | undefined) {
-  const [data, setData] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const dataRef = useRef<Expense[]>([]);
-  dataRef.current = data;
-
-  const fetchExpenses = useCallback(async (isSilent = false) => {
-    if (!groupId) {
-      setData([]);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      if (!isSilent && dataRef.current.length === 0) {
-        setLoading(true);
-      }
-      setError(null);
-      const { data: expenses, error: err } = await supabase
-        .from('expenses')
-        .select('*, payer:profiles!payer_id(*), category:categories(*), splits:expense_splits(*, user:profiles(*))')
-        .eq('group_id', groupId)
-        .order('expense_date', { ascending: false })
-        .order('created_at', { ascending: false });
-
-      if (err) throw err;
-      setData(expenses as unknown as Expense[]);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [groupId]);
-
-  const addOptimisticExpense = useCallback((expense: Expense) => {
-    setData((prev) => {
-      if (prev.some((e) => e.id === expense.id)) return prev;
-      return [expense, ...prev];
-    });
-  }, []);
-
-  useEffect(() => {
-    fetchExpenses();
-
-    if (!groupId) return;
-    const channelName = `realtime-expenses-${groupId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const channel = supabase.channel(channelName);
-
-    channel
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'expenses', filter: `group_id=eq.${groupId}` },
-        () => fetchExpenses(true),
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'expense_splits' },
-        () => fetchExpenses(true),
-      )
-      .subscribe((_status, err) => {
-        if (err) console.error(`Realtime error [${channelName}]:`, err);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [groupId, fetchExpenses]);
-
-  return { data, loading, error, refetch: fetchExpenses, addOptimisticExpense };
+  const { data, loading, error, refetch, addOptimisticExpense } = useGroupExpensesQuery(groupId);
+  return { data, loading, error, refetch, addOptimisticExpense };
 }
 
+/**
+ * Hook to retrieve all expenses across all groups the user belongs to.
+ * Backed by TanStack Query.
+ */
 export function useAllExpenses(userId: string | undefined) {
-  const [data, setData] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchAllExpenses = useCallback(async () => {
-    if (!userId) {
-      setData([]);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { data: members, error: memberErr } = await supabase
-        .from('group_members')
-        .select('group_id')
-        .eq('user_id', userId);
-
-      if (memberErr) throw memberErr;
-
-      const groupIds = (members || []).map(m => m.group_id);
-      
-      if (groupIds.length === 0) {
-        setData([]);
-        return;
-      }
-
-      const { data: expenses, error: err } = await supabase
-        .from('expenses')
-        .select('*, payer:profiles!payer_id(*), category:categories(*), splits:expense_splits(*, user:profiles(*))')
-        .in('group_id', groupIds)
-        .order('expense_date', { ascending: false });
-
-      if (err) throw err;
-      setData(expenses as unknown as Expense[]);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    fetchAllExpenses();
-
-    if (!userId) return;
-    const channelName = `all-expenses-sync-${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const channel = supabase.channel(channelName);
-
-    channel
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'expenses' },
-        () => fetchAllExpenses()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'expense_splits' },
-        () => fetchAllExpenses()
-      )
-      .subscribe((_status, err) => {
-        if (err) console.error(`Realtime error [${channelName}]:`, err);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, fetchAllExpenses]);
-
-  return { data, loading, error, refetch: fetchAllExpenses };
+  const { data, loading, error, refetch } = useAllExpensesQuery(userId);
+  return { data, loading, error, refetch };
 }
 
+/**
+ * Hook to retrieve all expense categories with caching.
+ * Backed by TanStack Query.
+ */
 export function useCategories() {
-  const [data, setData] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const { data: categories, error: err } = await supabase
-        .from('categories')
-        .select('*');
-
-      if (err) throw err;
-      setData(categories as Category[]);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  return { data, loading, error, refetch: fetchCategories };
+  const query = useCategoriesQuery();
+  return {
+    data: (query.data || []) as Category[],
+    loading: query.isLoading,
+    error: query.error as Error | null,
+    refetch: query.refetch,
+  };
 }
+
+export type { Expense, Category };

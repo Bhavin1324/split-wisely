@@ -20,7 +20,7 @@ Centfolio is a high-performance, real-time shared expense management and persona
 
 ## 🛠️ Technology Stack
 
-* **Frontend**: React 19, TypeScript, Vite 8, React Compiler (`@rolldown/plugin-babel`), Tailwind CSS 4, Ant Design 6, Lucide Icons.
+* **Frontend**: React 19, TypeScript, TanStack Query 5 (`@tanstack/react-query`), Vite 8, React Compiler (`@rolldown/plugin-babel`), Tailwind CSS 4, Ant Design 6, Lucide Icons.
 * **Backend & Database**: Supabase PostgreSQL 17 (24 tables, `SECURITY INVOKER` views, `pgcrypto` encryption, Row Level Security).
 * **Serverless Functions**: Deno Supabase Edge Functions (`email-notifier`, `send-push`).
 * **Testing**: Vitest unit test suite.
@@ -64,6 +64,7 @@ npm run build
 ## 📖 Architecture & Documentation
 
 * **[CONTEXT.md](CONTEXT.md)**: Master project history, design system, debt engine, and domain invariants.
+* **[Data Fetching Architecture](docs/Data_Fetching_Architecture.md)**: TanStack Query, query keys factory, safe real-time sync, and atomic batch mutations.
 * **[Push Notification Architecture](docs/Push_Notification_Architecture.md)**: Web Push API, Edge Functions, and VAPID setup.
 * **[Theme Architecture](docs/Theme_Architecture.md)**: Semantic CSS tokens and Ant Design dark-mode integration.
 * **[Debt Calculation Logic](docs/debt-calculation-logic.md)**: Mathematical proofs and greedy graph minimization algorithm.

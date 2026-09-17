@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Input, Select, Card, Empty, Tag } from 'antd';
+import { useState, useMemo, useDeferredValue, useEffect } from 'react';
+import { Input, Select, Card, Empty, Tag, Button } from 'antd';
 import { Search as SearchIcon, Receipt } from 'lucide-react';
 import {
   MOCK_EXPENSES,
@@ -15,42 +15,67 @@ import { AddExpenseModal } from '../components/AddExpenseModal';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import type { Expense } from '../types';
 
+const INITIAL_PAGE_SIZE = 30;
+
 export function SearchPage() {
   const { user } = useAuth();
   const { groups, categories, loading: appLoading } = useAppData();
   const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [selectedGroup, setSelectedGroup] = useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = useState<'date' | 'amount_desc' | 'amount_asc'>('date');
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | undefined>(undefined);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE);
+
+  // O(1) Lookup Maps to eliminate O(N * M) scans inside list rendering
+  const groupMap = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
+  const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
+  // Reset pagination slice when any filter criteria changes
+  useEffect(() => {
+    setVisibleCount(INITIAL_PAGE_SIZE);
+  }, [deferredSearchTerm, selectedCategory, selectedGroup, sortBy]);
 
   const filteredExpenses = useMemo(() => {
     const allExpenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses || []);
-    return allExpenses.filter((expense) => {
-      // Find payer profile in live mode or fallback to getProfileById
-      const payerName = DEMO_MODE 
-        ? getProfileById(expense.payer_id)?.full_name 
-        : ((expense as any).payer?.full_name ?? expense.payer_id); // we assume join field is populated
+    const normalizedSearch = deferredSearchTerm.toLowerCase().trim();
 
-      const textMatch =
-        !searchTerm.trim() ||
-        expense.description.toLowerCase().includes(searchTerm.toLowerCase().trim()) ||
-        (payerName && payerName.toLowerCase().includes(searchTerm.toLowerCase().trim()));
+    return allExpenses
+      .filter((expense) => {
+        // Find payer profile in live mode or fallback to getProfileById
+        const payerName = DEMO_MODE 
+          ? getProfileById(expense.payer_id)?.full_name 
+          : ((expense as any).payer?.full_name ?? expense.payer_id);
 
-      const categoryMatch = !selectedCategory || expense.category_id === selectedCategory;
-      const groupMatch = !selectedGroup || expense.group_id === selectedGroup;
+        const textMatch =
+          !normalizedSearch ||
+          expense.description.toLowerCase().includes(normalizedSearch) ||
+          (payerName && payerName.toLowerCase().includes(normalizedSearch));
 
-      return textMatch && categoryMatch && groupMatch;
-    }).sort((a, b) => {
-      if (sortBy === 'amount_desc') return b.total_amount - a.total_amount;
-      if (sortBy === 'amount_asc') return a.total_amount - b.total_amount;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  }, [searchTerm, selectedCategory, selectedGroup, sortBy, liveExpenses]);
+        const categoryMatch = !selectedCategory || expense.category_id === selectedCategory;
+        const groupMatch = !selectedGroup || expense.group_id === selectedGroup;
+
+        return textMatch && categoryMatch && groupMatch;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'amount_desc') return b.total_amount - a.total_amount;
+        if (sortBy === 'amount_asc') return a.total_amount - b.total_amount;
+        // Zero-allocation ISO string comparison: avoids thousands of new Date() allocations
+        const dateA = a.expense_date ?? a.created_at;
+        const dateB = b.expense_date ?? b.created_at;
+        return dateB.localeCompare(dateA);
+      });
+  }, [deferredSearchTerm, selectedCategory, selectedGroup, sortBy, liveExpenses]);
+
+  const visibleExpenses = useMemo(() => {
+    return filteredExpenses.slice(0, visibleCount);
+  }, [filteredExpenses, visibleCount]);
 
   if (appLoading || expensesLoading) {
     return <PageSkeleton layout="list" />;
@@ -146,64 +171,81 @@ export function SearchPage() {
             <Empty description="No expenses match your search query" />
           </Card>
         ) : (
-          filteredExpenses.map((expense) => {
-            const payerName = DEMO_MODE 
-              ? (getProfileById(expense.payer_id)?.full_name ?? expense.payer_id)
-              : ((expense as any).payer?.full_name ?? expense.payer_id);
-              
-            const group = groups.find((g) => g.id === expense.group_id);
-            const category = categories.find((c) => c.id === expense.category_id);
+          <>
+            {visibleExpenses.map((expense) => {
+              const payerName = DEMO_MODE 
+                ? (getProfileById(expense.payer_id)?.full_name ?? expense.payer_id)
+                : ((expense as any).payer?.full_name ?? expense.payer_id);
+                
+              const group = expense.group_id ? groupMap.get(expense.group_id) : undefined;
+              const category = expense.category_id ? categoryMap.get(expense.category_id) : undefined;
 
-            return (
-              <div
-                key={expense.id}
-                onClick={() => setSelectedExpense(expense as unknown as Expense)}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-bg-surface rounded-xl border border-border-base shadow-sm hover:shadow-md transition-all gap-3 cursor-pointer"
-              >
-                <div className="flex items-start sm:items-center gap-4 min-w-0">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600 font-bold">
-                    <Receipt className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-text-base truncate">{expense.description}</div>
-                    <div className="text-xs text-text-muted mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="truncate">Paid by <strong className="text-text-main">{payerName}</strong></span>
-                      {group && <span className="text-text-muted">•</span>}
-                      {group && <span className="truncate">{group.name}</span>}
-                      {category && <Tag>{category.name}</Tag>}
-                      <span className="text-text-muted">•</span>
-                      <span className="whitespace-nowrap">{formatDate(expense.expense_date ?? expense.created_at)}</span>
+              return (
+                <div
+                  key={expense.id}
+                  onClick={() => setSelectedExpense(expense as unknown as Expense)}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-bg-surface rounded-xl border border-border-base shadow-sm hover:shadow-md transition-all gap-3 cursor-pointer"
+                >
+                  <div className="flex items-start sm:items-center gap-4 min-w-0">
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600 font-bold">
+                      <Receipt className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-text-base truncate">{expense.description}</div>
+                      <div className="text-xs text-text-muted mt-1 flex flex-wrap items-center gap-1.5">
+                        <span className="truncate">Paid by <strong className="text-text-main">{payerName}</strong></span>
+                        {group && <span className="text-text-muted">•</span>}
+                        {group && <span className="truncate">{group.name}</span>}
+                        {category && <Tag>{category.name}</Tag>}
+                        <span className="text-text-muted">•</span>
+                        <span className="whitespace-nowrap">{formatDate(expense.expense_date ?? expense.created_at)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="text-left sm:text-right font-bold font-financial text-text-base text-base self-start sm:self-auto ml-15 sm:ml-0">
-                  {formatCents(expense.total_amount)}
+                  <div className="text-left sm:text-right font-bold font-financial text-text-base text-base self-start sm:self-auto ml-15 sm:ml-0">
+                    {formatCents(expense.total_amount)}
+                  </div>
                 </div>
+              );
+            })}
+
+            {visibleExpenses.length < filteredExpenses.length && (
+              <div className="flex justify-center pt-2 pb-4">
+                <Button
+                  onClick={() => setVisibleCount((prev) => prev + INITIAL_PAGE_SIZE)}
+                  className="rounded-xl font-medium border-border-base hover:border-primary-500 text-text-muted hover:text-text-base px-6 h-9"
+                >
+                  Show More ({filteredExpenses.length - visibleExpenses.length} remaining)
+                </Button>
               </div>
-            );
-          })
+            )}
+          </>
         )}
       </div>
       
-      <AddExpenseModal
-        open={isAddExpenseOpen}
-        onClose={() => {
-          setIsAddExpenseOpen(false);
-          setExpenseToEdit(undefined);
-        }}
-        existingExpense={expenseToEdit}
-      />
+      {isAddExpenseOpen && (
+        <AddExpenseModal
+          open={isAddExpenseOpen}
+          onClose={() => {
+            setIsAddExpenseOpen(false);
+            setExpenseToEdit(undefined);
+          }}
+          existingExpense={expenseToEdit}
+        />
+      )}
 
-      <ExpenseStatementModal
-        open={!!selectedExpense}
-        expense={selectedExpense}
-        onClose={() => setSelectedExpense(null)}
-        onEdit={(expense) => {
-          setExpenseToEdit(expense);
-          setIsAddExpenseOpen(true);
-        }}
-      />
+      {selectedExpense && (
+        <ExpenseStatementModal
+          open={Boolean(selectedExpense)}
+          expense={selectedExpense}
+          onClose={() => setSelectedExpense(null)}
+          onEdit={(expense) => {
+            setExpenseToEdit(expense);
+            setIsAddExpenseOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }

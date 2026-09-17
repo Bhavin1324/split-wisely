@@ -15,8 +15,8 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
   const refetchAll = useCallback(async () => {
     await Promise.all([
       refetchMembers(),
-      refetchExpenses(true),
-      refetchSettlements(true),
+      refetchExpenses(),
+      refetchSettlements(),
     ]);
   }, [refetchMembers, refetchExpenses, refetchSettlements]);
 
@@ -61,18 +61,18 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
     return [
       groupExpenses.map((e) => ({
         payer_id: e.payer_id,
-        base_currency_amount: e.base_currency_amount,
+        base_currency_amount: e.base_currency_amount ?? e.total_amount ?? 0,
         splits: (e.splits ?? []).map((s) => ({
           user_id: s.user_id,
-          amount_owed: s.amount_owed,
+          amount_owed: s.amount_owed ?? 0,
         })),
       })),
       groupSettlements.map((s) => ({
         payer_id: s.payer_id,
         payee_id: s.payee_id,
-        amount: s.amount,
+        amount: s.amount ?? 0,
       })),
-      groupMembers.map((m) => ({ user_id: m.user_id })),
+      groupMembers.map((m: any) => ({ user_id: m.user_id || m.id || m.profile?.id || 'unknown' })),
     ] as const;
   }, [groupId, groupExpenses, groupSettlements, groupMembers]);
 
@@ -120,13 +120,15 @@ export function useGroupCalculations(groupId: string | undefined, userId: string
   }, [liveMembers, liveExpenses]);
 
   const memberLedgers = useMemo(() => {
-    const ledgers = groupMembers.map(m => {
-      const profile = getProfile(m.user_id);
-      const name = profile?.full_name ?? m.user_id;
+    const ledgers = groupMembers.map((m: any) => {
+      const uid = m.user_id || m.id || m.profile?.id || 'unknown';
+      const profile = getProfile(uid);
+      const name = profile?.full_name || uid || 'Unknown';
+      const avatarChar = (typeof name === 'string' && name.length > 0 ? name.charAt(0) : '?').toUpperCase();
       return {
-        userId: m.user_id,
+        userId: uid,
         name,
-        avatarChar: name.charAt(0),
+        avatarChar,
         expensesPaid: 0,
         expenseShare: 0,
         paymentsSent: 0,

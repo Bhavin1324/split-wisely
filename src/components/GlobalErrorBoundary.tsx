@@ -5,6 +5,8 @@ import { OfflineFallback } from './ui/OfflineFallback';
 export function GlobalErrorBoundary() {
   const error = useRouteError() as any;
 
+  console.error('[GlobalErrorBoundary caught error]:', error);
+
   // 1. Detect Offline Network State
   const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
   const isNetworkFetchError = 
@@ -74,9 +76,28 @@ export function GlobalErrorBoundary() {
         title="Something went wrong"
         subTitle={isChunkLoadError ? "A new version of the app is available. Please refresh the page." : "An unexpected application error occurred."}
         extra={
-          <Button type="primary" size="large" onClick={() => window.location.reload()} className="bg-primary-500 hover:bg-primary-600">
-            Refresh Page
-          </Button>
+          <div className="flex flex-col items-center gap-4 max-w-xl w-full">
+            <div className="flex gap-3">
+              <Button type="primary" size="large" onClick={() => window.location.reload()} className="bg-primary-500 hover:bg-primary-600">
+                Refresh Page
+              </Button>
+              <Button size="large" href="/">
+                Go to Home
+              </Button>
+            </div>
+            {error && (
+              <div className="w-full mt-4 p-4 text-left bg-red-500/10 border border-red-500/20 rounded-xl overflow-hidden">
+                <div className="font-mono text-xs font-bold text-red-500 mb-1 break-words">
+                  {error.name ? `${error.name}: ` : ''}{error.message || String(error)}
+                </div>
+                {error.stack && (
+                  <pre className="font-mono text-[11px] text-text-muted whitespace-pre-wrap max-h-48 overflow-y-auto mt-2 p-2 bg-black/20 rounded-lg custom-scrollbar">
+                    {error.stack}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
         }
       />
     </div>

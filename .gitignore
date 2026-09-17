@@ -27,3 +27,9 @@ mcp_config.json
 migrations
 supabase/.temp
 .env
+demo-html
+
+#ignore: deletable in future
+clone_schema.sql
+Mobile_App_Capacitor_Architecture.md
+SMS_COMPANION_INTEGRATION.md

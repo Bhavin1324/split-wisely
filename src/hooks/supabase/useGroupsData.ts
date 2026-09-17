@@ -1,120 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useUserGroupsQuery, useGroupMembersQuery } from '../queries/useGroupsQuery';
 import type { Group, GroupMember } from '../../types';
 
+/**
+ * Hook to retrieve groups for a specific user with caching and real-time synchronization.
+ * Backed by TanStack Query.
+ */
 export function useGroups(userId: string | undefined) {
-  const [data, setData] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchGroups = useCallback(async () => {
-    if (!userId) {
-      setData([]);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const { data: members, error: err } = await supabase
-        .from('group_members')
-        .select('group_id, groups(*)')
-        .eq('user_id', userId);
-
-      if (err) throw err;
-      
-      const groups = (members || [])
-        .map(m => m.groups)
-        .filter(Boolean) as unknown as Group[];
-        
-      setData(groups);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    fetchGroups();
-
-    if (!userId) return;
-    const channelName = `realtime-groups-${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const channel = supabase.channel(channelName);
-
-    channel
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'group_members', filter: `user_id=eq.${userId}` },
-        () => fetchGroups(),
-      )
-      .subscribe((_status, err) => {
-        if (err) console.error(`Realtime error [${channelName}]:`, err);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, fetchGroups]);
-
-  return { data, loading, error, refetch: fetchGroups };
+  const { data, loading, error, refetch } = useUserGroupsQuery(userId);
+  return { data, loading, error, refetch };
 }
 
+/**
+ * Hook to retrieve members of a group with caching and selective profile joins.
+ * Backed by TanStack Query.
+ */
 export function useGroupMembers(groupId: string | undefined) {
-  const [data, setData] = useState<GroupMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const dataRef = useRef<GroupMember[]>([]);
-  dataRef.current = data;
-
-  const fetchMembers = useCallback(async (isSilent = false) => {
-    if (!groupId) {
-      setData([]);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      if (!isSilent && dataRef.current.length === 0) {
-        setLoading(true);
-      }
-      setError(null);
-      const { data: members, error: err } = await supabase
-        .from('group_members')
-        .select('*, profile:profiles(*)')
-        .eq('group_id', groupId);
-
-      if (err) throw err;
-      setData(members as unknown as GroupMember[]);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [groupId]);
-
-  useEffect(() => {
-    fetchMembers();
-
-    if (!groupId) return;
-    const channelName = `realtime-members-${groupId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const channel = supabase.channel(channelName);
-
-    channel
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'group_members', filter: `group_id=eq.${groupId}` },
-        () => fetchMembers(true),
-      )
-      .subscribe((_status, err) => {
-        if (err) console.error(`Realtime error [${channelName}]:`, err);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [groupId, fetchMembers]);
-
-  return { data, loading, error, refetch: fetchMembers };
+  const { data, loading, error, refetch } = useGroupMembersQuery(groupId);
+  return { data, loading, error, refetch };
 }
+
+export type { Group, GroupMember };

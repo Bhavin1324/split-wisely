@@ -246,6 +246,37 @@ export function calculateAnalyticsSummary({
   }
 
   // 4. Daily Buckets (Current vs Previous)
+  // Pre-aggregate amounts by YYYY-MM-DD in O(N) to avoid 60,000+ repeated date evaluations
+  const currPersMap = new Map<string, number>();
+  for (const tx of currPersonal) {
+    const key = dayjs(tx.transaction_date).format('YYYY-MM-DD');
+    currPersMap.set(key, (currPersMap.get(key) || 0) + tx.amount);
+  }
+
+  const currGroupMap = new Map<string, number>();
+  for (const ex of currGroup) {
+    const split = ex.splits?.find((s) => s.user_id === userId);
+    if (split) {
+      const key = dayjs(ex.expense_date || ex.created_at).format('YYYY-MM-DD');
+      currGroupMap.set(key, (currGroupMap.get(key) || 0) + split.amount_owed);
+    }
+  }
+
+  const prevPersMap = new Map<string, number>();
+  for (const tx of prevPersonal) {
+    const key = dayjs(tx.transaction_date).format('YYYY-MM-DD');
+    prevPersMap.set(key, (prevPersMap.get(key) || 0) + tx.amount);
+  }
+
+  const prevGroupMap = new Map<string, number>();
+  for (const ex of prevGroup) {
+    const split = ex.splits?.find((s) => s.user_id === userId);
+    if (split) {
+      const key = dayjs(ex.expense_date || ex.created_at).format('YYYY-MM-DD');
+      prevGroupMap.set(key, (prevGroupMap.get(key) || 0) + split.amount_owed);
+    }
+  }
+
   const buckets: DailyBucket[] = [];
   const totalDays = period.mode === 'Monthly' ? currStart.daysInMonth() : 7;
   
@@ -255,27 +286,13 @@ export function calculateAnalyticsSummary({
   for (let i = 1; i <= totalDays; i++) {
     const dCurr = currStart.add(i - 1, 'day');
     const dPrev = prevStart.add(i - 1, 'day');
-    
-    let dayPers = 0;
-    let dayGrp = 0;
-    let dayPrevPers = 0;
-    let dayPrevGrp = 0;
+    const dCurrKey = dCurr.format('YYYY-MM-DD');
+    const dPrevKey = dPrev.format('YYYY-MM-DD');
 
-    currPersonal.forEach(tx => { if (dayjs(tx.transaction_date).isSame(dCurr, 'day')) dayPers += tx.amount; });
-    currGroup.forEach(ex => {
-      if (dayjs(ex.expense_date || ex.created_at).isSame(dCurr, 'day')) {
-        const split = ex.splits?.find(s => s.user_id === userId);
-        if (split) dayGrp += split.amount_owed;
-      }
-    });
-
-    prevPersonal.forEach(tx => { if (dayjs(tx.transaction_date).isSame(dPrev, 'day')) dayPrevPers += tx.amount; });
-    prevGroup.forEach(ex => {
-      if (dayjs(ex.expense_date || ex.created_at).isSame(dPrev, 'day')) {
-        const split = ex.splits?.find(s => s.user_id === userId);
-        if (split) dayPrevGrp += split.amount_owed;
-      }
-    });
+    const dayPers = currPersMap.get(dCurrKey) || 0;
+    const dayGrp = currGroupMap.get(dCurrKey) || 0;
+    const dayPrevPers = prevPersMap.get(dPrevKey) || 0;
+    const dayPrevGrp = prevGroupMap.get(dPrevKey) || 0;
 
     cumCurr += (dayPers + dayGrp);
     cumPrev += (dayPrevPers + dayPrevGrp);
@@ -308,24 +325,12 @@ export function calculateAnalyticsSummary({
       let prevTotal = 0;
 
       for (let day = w.startDay; day <= w.endDay; day++) {
-        const dCurr = currStart.add(day - 1, 'day');
-        const dPrev = prevStart.add(day - 1, 'day');
+        const dCurrKey = currStart.add(day - 1, 'day').format('YYYY-MM-DD');
+        const dPrevKey = prevStart.add(day - 1, 'day').format('YYYY-MM-DD');
 
-        currPersonal.forEach(tx => { if (dayjs(tx.transaction_date).isSame(dCurr, 'day')) pers += tx.amount; });
-        currGroup.forEach(ex => {
-          if (dayjs(ex.expense_date || ex.created_at).isSame(dCurr, 'day')) {
-            const split = ex.splits?.find(s => s.user_id === userId);
-            if (split) grp += split.amount_owed;
-          }
-        });
-
-        prevPersonal.forEach(tx => { if (dayjs(tx.transaction_date).isSame(dPrev, 'day')) prevTotal += tx.amount; });
-        prevGroup.forEach(ex => {
-          if (dayjs(ex.expense_date || ex.created_at).isSame(dPrev, 'day')) {
-            const split = ex.splits?.find(s => s.user_id === userId);
-            if (split) prevTotal += split.amount_owed;
-          }
-        });
+        pers += currPersMap.get(dCurrKey) || 0;
+        grp += currGroupMap.get(dCurrKey) || 0;
+        prevTotal += (prevPersMap.get(dPrevKey) || 0) + (prevGroupMap.get(dPrevKey) || 0);
       }
 
       weeklyBuckets.push({

@@ -119,6 +119,7 @@ export function AddPersonalTransactionDrawer({
 
   const {
     isRendered,
+    isClosing,
     sheetRef,
     backdropRef,
     handlePointerDown,
@@ -425,13 +426,17 @@ export function AddPersonalTransactionDrawer({
         <div
           ref={backdropRef}
           onClick={() => triggerDismiss()}
-          className="fixed inset-0 bg-black/65 backdrop-blur-md animate-backdrop-fade-in will-change-[opacity]"
+          className={`fixed inset-0 bg-black/65 backdrop-blur-md will-change-[opacity] ${
+            isClosing ? 'animate-backdrop-fade-out' : 'animate-backdrop-fade-in'
+          }`}
         />
 
         {/* Sliding Bottom Sheet Container */}
         <div
           ref={sheetRef}
-          className="relative z-10 w-full max-h-[90dvh] bg-bg-surface rounded-t-3xl border-t border-border-subtle shadow-2xl flex flex-col overflow-hidden will-change-transform animate-sheet-slide-up"
+          className={`relative z-10 w-full max-h-[90dvh] bg-bg-surface rounded-t-3xl border-t border-border-subtle shadow-2xl flex flex-col overflow-hidden will-change-transform ${
+            isClosing ? 'animate-sheet-slide-down' : 'animate-sheet-slide-up'
+          }`}
         >
           {/* Top Drag Handle & Title Bar */}
           <div

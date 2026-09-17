@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import dayjs from 'dayjs';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { DEMO_MODE } from '../context/AppDataContext';
+import { queryKeys } from '../lib/queryKeys';
+import { usePersonalTransactionsQuery, usePersonalBudgetQuery } from './queries/usePersonalLedgerQuery';
 import { MOCK_PERSONAL_TRANSACTIONS, MOCK_PERSONAL_BUDGETS, MOCK_EXPENSES, MOCK_GROUPS } from '../lib/mockData';
 import type { PersonalTransaction, PersonalBudget, TransactionType, Expense, Group } from '../types';
 import type {
@@ -31,102 +34,20 @@ export function usePersonalLedger(
   const { user } = useAuth();
   const userId = user?.id ?? 'user-1';
   const prevMonthYear = dayjs(`${monthYear}-01`).subtract(1, 'month').format('YYYY-MM');
+  const queryClient = useQueryClient();
 
-  const [transactions, setTransactions] = useState<PersonalTransaction[]>([]);
-  const [budget, setBudget] = useState<PersonalBudget | null>(null);
-  const [previousBudget, setPreviousBudget] = useState<PersonalBudget | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { data: transactionsData, loading: txLoading, refetch: refetchTx } = usePersonalTransactionsQuery(userId);
+  const { data: budgetData, loading: bLoading, refetch: refetchB } = usePersonalBudgetQuery(userId, monthYear);
+  const { data: prevBudgetData } = usePersonalBudgetQuery(userId, prevMonthYear);
+
+  const transactions = transactionsData ?? [];
+  const budget = budgetData ?? null;
+  const previousBudget = prevBudgetData ?? null;
+  const loading = txLoading || bLoading;
 
   const fetchLedgerData = useCallback(async () => {
-    if (DEMO_MODE) {
-      const userTx = MOCK_PERSONAL_TRANSACTIONS.filter((t) => t.user_id === userId || userId === 'user-1');
-      const userB = MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === monthYear) ?? null;
-      const prevB = MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === prevMonthYear) ?? null;
-      setTransactions([...userTx]);
-      setBudget(userB ? { ...userB } : null);
-      setPreviousBudget(prevB ? { ...prevB } : null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const [txRes, budgetRes, prevBudgetRes] = await Promise.all([
-        supabase
-          .from('personal_transactions')
-          .select('*')
-          .eq('user_id', userId)
-          .order('transaction_date', { ascending: false }),
-        supabase
-          .from('personal_budgets')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('month_year', monthYear)
-          .maybeSingle(),
-        supabase
-          .from('personal_budgets')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('month_year', prevMonthYear)
-          .maybeSingle(),
-      ]);
-
-      if (txRes.error) {
-        console.warn('Personal transactions fetch fallback:', txRes.error.message);
-        setTransactions([...MOCK_PERSONAL_TRANSACTIONS]);
-      } else {
-        setTransactions((txRes.data as PersonalTransaction[]) || []);
-      }
-
-      if (budgetRes.error && budgetRes.error.code !== 'PGRST116') {
-        console.warn('Personal budget fetch fallback:', budgetRes.error.message);
-        setBudget(MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === monthYear) || null);
-      } else {
-        setBudget((budgetRes.data as PersonalBudget) || null);
-      }
-
-      if (prevBudgetRes.error && prevBudgetRes.error.code !== 'PGRST116') {
-        setPreviousBudget(MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === prevMonthYear) || null);
-      } else {
-        setPreviousBudget((prevBudgetRes.data as PersonalBudget) || null);
-      }
-    } catch (e) {
-      console.error('Error fetching personal ledger:', e);
-      setTransactions([...MOCK_PERSONAL_TRANSACTIONS]);
-      setBudget(MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === monthYear) || null);
-      setPreviousBudget(MOCK_PERSONAL_BUDGETS.find((b) => b.month_year === prevMonthYear) || null);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, monthYear, prevMonthYear]);
-
-  // Initial Fetch and Realtime Subscription
-  useEffect(() => {
-    fetchLedgerData();
-
-    if (DEMO_MODE || !userId || userId === 'user-1') return;
-
-    const channelName = `realtime-personal-ledger-${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const channel = supabase.channel(channelName);
-
-    channel
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'personal_transactions', filter: `user_id=eq.${userId}` },
-        () => fetchLedgerData()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'personal_budgets', filter: `user_id=eq.${userId}` },
-        () => fetchLedgerData()
-      )
-      .subscribe((_status, err) => {
-        if (err) console.error(`Realtime personal ledger error [${channelName}]:`, err);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, fetchLedgerData]);
+    await Promise.all([refetchTx(), refetchB()]);
+  }, [refetchTx, refetchB]);
 
   const effectiveGroups = useMemo(() => {
     if (groups && groups.length > 0) return groups;
@@ -355,204 +276,225 @@ export function usePersonalLedger(
   }, [currPersonal, hybrid.personalExpenseCents]);
 
   // Action: Add Transaction
-  const addTransaction = async (data: {
-    type: TransactionType;
-    amount: number; // in cents
-    category: string;
-    description: string;
-    transaction_date: string;
-  }) => {
-    const txDate = data.transaction_date || new Date().toISOString();
-    const newTx: PersonalTransaction = {
-      id: uuidv4(),
-      user_id: userId,
-      type: data.type,
-      amount: data.amount,
-      category: data.category,
-      description: data.description || '',
-      transaction_date: txDate,
-      created_at: new Date().toISOString(),
-    };
-
-    // Immediate local optimistic update
-    setTransactions((prev) => [newTx, ...prev]);
-
-    if (DEMO_MODE) {
-      MOCK_PERSONAL_TRANSACTIONS.unshift(newTx);
-      return;
-    }
-
-    try {
-      const { data: inserted, error } = await supabase
-        .from('personal_transactions')
-        .insert({
-          user_id: userId,
-          type: data.type,
-          amount: data.amount,
-          category: data.category,
-          description: data.description || '',
-          transaction_date: txDate,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.warn('Supabase insert error, keeping fallback:', error.message);
-      } else if (inserted) {
-        const insertedTx = inserted as PersonalTransaction;
-        setTransactions((prev) => [insertedTx, ...prev.filter((t) => t.id !== newTx.id && t.id !== insertedTx.id)]);
-      }
-      await fetchLedgerData();
-    } catch (e) {
-      console.error('Add transaction failed:', e);
-    }
-  };
-
-  // Action: Delete Transaction
-  const deleteTransaction = async (id: string) => {
-    // Immediate local optimistic update
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
-
-    if (DEMO_MODE) {
-      const idx = MOCK_PERSONAL_TRANSACTIONS.findIndex((t) => t.id === id);
-      if (idx !== -1) MOCK_PERSONAL_TRANSACTIONS.splice(idx, 1);
-      return;
-    }
-
-    try {
-      const { error } = await supabase.from('personal_transactions').delete().eq('id', id);
-      if (error) {
-        console.warn('Supabase delete error:', error.message);
-      }
-      await fetchLedgerData();
-    } catch (e) {
-      console.error('Delete transaction failed:', e);
-    }
-  };
-
-  // Action: Update Transaction
-  const updateTransaction = async (
-    id: string,
-    data: {
+  const addTransaction = useCallback(
+    async (data: {
       type: TransactionType;
       amount: number; // in cents
       category: string;
       description: string;
       transaction_date: string;
-    }
-  ) => {
-    // Immediate local optimistic update
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...data } : t))
-    );
+    }) => {
+      const txDate = data.transaction_date || new Date().toISOString();
+      const newTxId = uuidv4();
+      const newTx: PersonalTransaction = {
+        id: newTxId,
+        user_id: userId,
+        type: data.type,
+        amount: data.amount,
+        category: data.category,
+        description: data.description || '',
+        transaction_date: txDate,
+        created_at: new Date().toISOString(),
+      };
 
-    if (DEMO_MODE) {
-      const idx = MOCK_PERSONAL_TRANSACTIONS.findIndex((t) => t.id === id);
-      if (idx !== -1) {
-        MOCK_PERSONAL_TRANSACTIONS[idx] = { ...MOCK_PERSONAL_TRANSACTIONS[idx], ...data };
+      // Immediate TanStack Query cache mutation (0ms latency, zero flicker)
+      queryClient.setQueryData<PersonalTransaction[]>(
+        queryKeys.personalLedger.transactions(userId),
+        (prev) => [newTx, ...(prev ?? [])]
+      );
+
+      if (DEMO_MODE) {
+        MOCK_PERSONAL_TRANSACTIONS.unshift(newTx);
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.transactions(userId) });
+        return;
       }
-      return;
-    }
 
-    try {
-      const { data: updated, error } = await supabase
-        .from('personal_transactions')
-        .update({
-          type: data.type,
-          amount: data.amount,
-          category: data.category,
-          description: data.description || '',
-          transaction_date: data.transaction_date,
-        })
-        .eq('id', id)
-        .select()
-        .single();
+      try {
+        const { error } = await supabase
+          .from('personal_transactions')
+          .insert({
+            id: newTxId,
+            user_id: userId,
+            type: data.type,
+            amount: data.amount,
+            category: data.category,
+            description: data.description || '',
+            transaction_date: txDate,
+          });
 
-      if (error) {
-        console.warn('Supabase update fallback:', error.message);
-      } else if (updated) {
-        setTransactions((prev) =>
-          prev.map((t) => (t.id === id ? (updated as PersonalTransaction) : t))
-        );
+        if (error) {
+          console.warn('Supabase insert error, keeping fallback:', error.message);
+        }
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.transactions(userId) });
+      } catch (e) {
+        console.error('Add transaction failed:', e);
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.transactions(userId) });
       }
-      await fetchLedgerData();
-    } catch (e) {
-      console.error('Update transaction failed:', e);
-    }
-  };
+    },
+    [userId, queryClient]
+  );
+
+  // Action: Delete Transaction
+  const deleteTransaction = useCallback(
+    async (id: string) => {
+      // Immediate TanStack Query cache mutation (0ms latency, zero flicker)
+      queryClient.setQueryData<PersonalTransaction[]>(
+        queryKeys.personalLedger.transactions(userId),
+        (prev) => (prev ?? []).filter((t) => t.id !== id)
+      );
+
+      if (DEMO_MODE) {
+        const idx = MOCK_PERSONAL_TRANSACTIONS.findIndex((t) => t.id === id);
+        if (idx !== -1) MOCK_PERSONAL_TRANSACTIONS.splice(idx, 1);
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.transactions(userId) });
+        return;
+      }
+
+      try {
+        const { error } = await supabase.from('personal_transactions').delete().eq('id', id);
+        if (error) {
+          console.warn('Supabase delete error:', error.message);
+        }
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.transactions(userId) });
+      } catch (e) {
+        console.error('Delete transaction failed:', e);
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.transactions(userId) });
+      }
+    },
+    [userId, queryClient]
+  );
+
+  // Action: Update Transaction
+  const updateTransaction = useCallback(
+    async (
+      id: string,
+      data: {
+        type: TransactionType;
+        amount: number; // in cents
+        category: string;
+        description: string;
+        transaction_date: string;
+      }
+    ) => {
+      // Immediate TanStack Query cache mutation (0ms latency, zero flicker)
+      queryClient.setQueryData<PersonalTransaction[]>(
+        queryKeys.personalLedger.transactions(userId),
+        (prev) => (prev ?? []).map((t) => (t.id === id ? { ...t, ...data } : t))
+      );
+
+      if (DEMO_MODE) {
+        const idx = MOCK_PERSONAL_TRANSACTIONS.findIndex((t) => t.id === id);
+        if (idx !== -1) {
+          MOCK_PERSONAL_TRANSACTIONS[idx] = { ...MOCK_PERSONAL_TRANSACTIONS[idx], ...data };
+        }
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.transactions(userId) });
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from('personal_transactions')
+          .update({
+            type: data.type,
+            amount: data.amount,
+            category: data.category,
+            description: data.description || '',
+            transaction_date: data.transaction_date,
+          })
+          .eq('id', id);
+
+        if (error) {
+          console.warn('Supabase update fallback:', error.message);
+        }
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.transactions(userId) });
+      } catch (e) {
+        console.error('Update transaction failed:', e);
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.transactions(userId) });
+      }
+    },
+    [userId, queryClient]
+  );
 
   // Action: Set Monthly Budget
-  const setMonthlyBudget = async (
-    amountCents: number | null,
-    openingBalanceCents: number | null = null,
-    isManual: boolean = false,
-    dynamicBudgetEnabled: boolean = false
-  ) => {
-    const hasData = amountCents !== null || isManual || dynamicBudgetEnabled;
-    const updatedBudget: PersonalBudget | null = hasData
-      ? {
-          id: budget?.id || uuidv4(),
-          user_id: userId,
-          month_year: monthYear,
-          budget_amount: amountCents,
-          opening_balance: isManual ? openingBalanceCents : null,
-          is_opening_manual: isManual,
-          dynamic_budget_enabled: dynamicBudgetEnabled,
-          created_at: budget?.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-      : null;
-
-    setBudget(updatedBudget);
-
-    if (DEMO_MODE) {
-      const existingIdx = MOCK_PERSONAL_BUDGETS.findIndex((b) => b.month_year === monthYear);
-      if (existingIdx !== -1) {
-        if (!hasData) {
-          MOCK_PERSONAL_BUDGETS.splice(existingIdx, 1);
-        } else {
-          MOCK_PERSONAL_BUDGETS[existingIdx].budget_amount = amountCents;
-          MOCK_PERSONAL_BUDGETS[existingIdx].opening_balance = isManual ? openingBalanceCents : null;
-          MOCK_PERSONAL_BUDGETS[existingIdx].is_opening_manual = isManual;
-          MOCK_PERSONAL_BUDGETS[existingIdx].dynamic_budget_enabled = dynamicBudgetEnabled;
-        }
-      } else if (updatedBudget) {
-        MOCK_PERSONAL_BUDGETS.push(updatedBudget);
-      }
-      return;
-    }
-
-    try {
-      if (updatedBudget) {
-        const { error } = await supabase.from('personal_budgets').upsert(
-          {
+  const setMonthlyBudget = useCallback(
+    async (
+      amountCents: number | null,
+      openingBalanceCents: number | null = null,
+      isManual: boolean = false,
+      dynamicBudgetEnabled: boolean = false
+    ) => {
+      const hasData = amountCents !== null || isManual || dynamicBudgetEnabled;
+      const updatedBudget: PersonalBudget | null = hasData
+        ? {
+            id: budget?.id || uuidv4(),
             user_id: userId,
             month_year: monthYear,
             budget_amount: amountCents,
             opening_balance: isManual ? openingBalanceCents : null,
             is_opening_manual: isManual,
             dynamic_budget_enabled: dynamicBudgetEnabled,
+            created_at: budget?.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,month_year' }
-        );
-        if (error) {
-          console.error('Supabase budget upsert error:', error.message);
-          throw error;
+          }
+        : null;
+
+      queryClient.setQueryData<PersonalBudget | null>(
+        queryKeys.personalLedger.budget(userId, monthYear),
+        updatedBudget
+      );
+
+      if (DEMO_MODE) {
+        const existingIdx = MOCK_PERSONAL_BUDGETS.findIndex((b) => b.month_year === monthYear);
+        if (existingIdx !== -1) {
+          if (!hasData) {
+            MOCK_PERSONAL_BUDGETS.splice(existingIdx, 1);
+          } else {
+            MOCK_PERSONAL_BUDGETS[existingIdx].budget_amount = amountCents;
+            MOCK_PERSONAL_BUDGETS[existingIdx].opening_balance = isManual ? openingBalanceCents : null;
+            MOCK_PERSONAL_BUDGETS[existingIdx].is_opening_manual = isManual;
+            MOCK_PERSONAL_BUDGETS[existingIdx].dynamic_budget_enabled = dynamicBudgetEnabled;
+          }
+        } else if (updatedBudget) {
+          MOCK_PERSONAL_BUDGETS.push(updatedBudget);
         }
-      } else if (budget?.id) {
-        const { error } = await supabase.from('personal_budgets').delete().eq('id', budget.id);
-        if (error) {
-          console.error('Supabase budget delete error:', error.message);
-          throw error;
-        }
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.all });
+        return;
       }
-      await fetchLedgerData();
-    } catch (e) {
-      console.error('Set budget failed:', e);
-      throw e;
-    }
-  };
+
+      try {
+        if (updatedBudget) {
+          const { error } = await supabase.from('personal_budgets').upsert(
+            {
+              user_id: userId,
+              month_year: monthYear,
+              budget_amount: amountCents,
+              opening_balance: isManual ? openingBalanceCents : null,
+              is_opening_manual: isManual,
+              dynamic_budget_enabled: dynamicBudgetEnabled,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,month_year' }
+          );
+          if (error) {
+            console.error('Supabase budget upsert error:', error.message);
+            throw error;
+          }
+        } else if (budget?.id) {
+          const { error } = await supabase.from('personal_budgets').delete().eq('id', budget.id);
+          if (error) {
+            console.error('Supabase budget delete error:', error.message);
+            throw error;
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.all });
+      } catch (e) {
+        console.error('Set budget failed:', e);
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalLedger.all });
+        throw e;
+      }
+    },
+    [budget?.id, budget?.created_at, monthYear, queryClient, userId]
+  );
 
   return {
     transactions: currentMonthTransactions,

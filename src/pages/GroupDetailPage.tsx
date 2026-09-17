@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Segmented, Empty, Button, App } from "antd";
 import { Receipt, DollarSign, Activity } from "lucide-react";
@@ -50,7 +50,7 @@ export function GroupDetailPage() {
   const [visualizerUserId, setVisualizerUserId] = useState<string | undefined>(undefined);
 
   const { user } = useAuth();
-  const { currentUser, groups, loading: appLoading, expenseRefreshSignal } = useAppData();
+  const { currentUser, groups, loading: appLoading } = useAppData();
   
   const userId = currentUser?.id ?? user?.id ?? (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
 
@@ -70,13 +70,6 @@ export function GroupDetailPage() {
     groupSettlements,
     loading: groupLoading,
   } = useGroupCalculations(groupId, userId, group);
-
-  // Automatically refresh group calculations whenever an expense is created anywhere in the app
-  useEffect(() => {
-    if (expenseRefreshSignal > 0) {
-      refetchAll();
-    }
-  }, [expenseRefreshSignal, refetchAll]);
 
   const memberUserIds = useMemo(() => {
     return groupMembers.map((m: any) => m.user_id || m.id || m.profile?.id).filter(Boolean);
@@ -235,20 +228,22 @@ export function GroupDetailPage() {
         defaultGroupId={groupId}
       />
 
-      <SettleUpModal
-        open={!!settleUpTarget}
-        onClose={() => {
-          setSettleUpTarget(null);
-          setSettleUpTargetName(undefined);
-          setSettleUpMaxAmount(undefined);
-        }}
-        onSuccess={refetchAll}
-        defaultPayeeId={settleUpTarget ?? undefined}
-        defaultPayeeName={settleUpTargetName}
-        defaultAmountCents={settleUpMaxAmount}
-        maxAmountCents={settleUpMaxAmount}
-        defaultGroupId={groupId}
-      />
+      {!!settleUpTarget && (
+        <SettleUpModal
+          open={!!settleUpTarget}
+          onClose={() => {
+            setSettleUpTarget(null);
+            setSettleUpTargetName(undefined);
+            setSettleUpMaxAmount(undefined);
+          }}
+          onSuccess={refetchAll}
+          defaultPayeeId={settleUpTarget ?? undefined}
+          defaultPayeeName={settleUpTargetName}
+          defaultAmountCents={settleUpMaxAmount}
+          maxAmountCents={settleUpMaxAmount}
+          defaultGroupId={groupId}
+        />
+      )}
 
       <GroupMembersDrawer
         isOpen={isMembersDrawerOpen}
@@ -267,31 +262,35 @@ export function GroupDetailPage() {
         userId={userId}
       />
 
-      <DebtVisualizerModal
-        open={isVisualizerOpen}
-        onClose={() => setIsVisualizerOpen(false)}
-        groupId={groupId || ''}
-        groupName={group.name}
-        groupMembers={memberUserIds}
-        expenses={groupExpenses}
-        settlements={groupSettlements}
-        profilesMap={profilesMap}
-        initialUserId={visualizerUserId}
-        currentUserId={userId}
-        onOpenReplay={() => setIsReplayOpen(true)}
-      />
+      {isVisualizerOpen && (
+        <DebtVisualizerModal
+          open={isVisualizerOpen}
+          onClose={() => setIsVisualizerOpen(false)}
+          groupId={groupId || ''}
+          groupName={group.name}
+          groupMembers={memberUserIds}
+          expenses={groupExpenses}
+          settlements={groupSettlements}
+          profilesMap={profilesMap}
+          initialUserId={visualizerUserId}
+          currentUserId={userId}
+          onOpenReplay={() => setIsReplayOpen(true)}
+        />
+      )}
 
-      <DebtReplayModal
-        open={isReplayOpen}
-        onClose={() => setIsReplayOpen(false)}
-        groupId={groupId || ''}
-        groupName={group.name}
-        groupMembers={memberUserIds}
-        expenses={groupExpenses}
-        settlements={groupSettlements}
-        profilesMap={profilesMap}
-        userId={userId}
-      />
+      {isReplayOpen && (
+        <DebtReplayModal
+          open={isReplayOpen}
+          onClose={() => setIsReplayOpen(false)}
+          groupId={groupId || ''}
+          groupName={group.name}
+          groupMembers={memberUserIds}
+          expenses={groupExpenses}
+          settlements={groupSettlements}
+          profilesMap={profilesMap}
+          userId={userId}
+        />
+      )}
     </div>
   );
 }

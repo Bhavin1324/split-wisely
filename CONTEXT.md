@@ -54,6 +54,14 @@ This document serves as the master architectural reference, domain knowledge bas
 * **Group Split Prefill**: Tapping **Split** pre-fills `<AddExpenseModal />` with merchant and amount, and auto-updates the staged record status to `APPROVED_GROUP`.
 * **Master Reference Doc**: See [`docs/SMS_COMPANION_INTEGRATION.md`](file:///C:/PersonalWork/Projects/expense-tracker/split-wisely/docs/SMS_COMPANION_INTEGRATION.md).
 
+### G. TanStack Query Data Layer & Network Architecture
+* **Centralized Query Client (`src/lib/queryClient.ts`)**: Configured with `staleTime: 2m`, `gcTime: 5m`, automatic revalidation on internet reconnect, and window focus refetch suppression.
+* **Hierarchical Type-Safe Key Factory (`src/lib/queryKeys.ts`)**: Centralizes all cache keys (`queryKeys.expenses.byGroup(id)`, `queryKeys.settlements.all`, etc.) preventing typo-induced cache fragmentation and enabling surgical cache invalidations.
+* **Domain Query Hooks (`src/hooks/queries/`)**: Replaced raw component fetching with specialized hooks (`useExpensesQuery`, `useSettlementsQuery`, `useGroupsQuery`, `useProfileQuery`, `useFriendsQuery`, `usePersonalLedgerQuery`, `useNotificationsQuery`, `useStagedExpensesQuery`).
+* **Safe Realtime Subscription Bridge (`src/utils/realtime.ts`)**: `createSafeRealtimeSubscription` guarantees channel lifecycle isolation, preventing fatal Supabase `cannot add postgres_changes callbacks after subscribe()` errors and routing Postgres CDC events directly to TanStack cache invalidations.
+* **Atomic Batch Mutations (`createSettlementsBatch`)**: Collapsed multi-step serial settlement waterfalls into a single multi-row HTTP POST (`supabase.from('settlements').insert(payloads)`), slashing network roundtrips from $3N+3$ to 2 and eliminating 2-4s UI freezes.
+* **Master Reference Doc**: See [`docs/Data_Fetching_Architecture.md`](docs/Data_Fetching_Architecture.md).
+
 ---
 
 ## 3. Database Schema (25 Tables & Views)

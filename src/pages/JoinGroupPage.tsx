@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button, Spin, Card, message } from 'antd';
 import { CheckCircle2, XCircle, Users, ArrowRight } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../lib/queryKeys';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { dispatchPushNotification } from '../utils/pushDispatcher';
@@ -16,6 +18,7 @@ import { dispatchPushNotification } from '../utils/pushDispatcher';
 export function JoinGroupPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -84,6 +87,7 @@ export function JoinGroupPage() {
         setGroupId(invitation.group_id);
         setStatus('success');
         messageApi.success(`You've joined "${groupDisplayName}"!`);
+        queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
 
         // 5. Notify the inviter who created the link
         if (invitation.invited_by && invitation.invited_by !== user.id) {

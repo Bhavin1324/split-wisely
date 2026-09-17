@@ -124,7 +124,7 @@ export function StagedTransactionsBanner({
   };
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-300 transition-all">
       {/* Deck Header Bar (Global Queue Level) */}
       <div className="flex items-center justify-between text-xs px-1">
         <div className="flex items-center gap-1.5 font-bold text-text-main">

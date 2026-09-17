@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Button, Segmented, Switch } from 'antd';
 import { UserPlus, ChevronRight } from 'lucide-react';
@@ -62,24 +62,28 @@ export function FriendsPage() {
 
   const friends = DEMO_MODE ? getFriendsForUser(MOCK_CURRENT_USER.id) : (liveFriends || []);
 
-  const friendsWithBalances: { profile: Profile; balance: number }[] = friends.map((friend) => {
-    const { totalNetBalance } = computeFriendNetBalance({
-      userId,
-      friendId: friend.id,
-      groups: DEMO_MODE ? MOCK_GROUPS : (contextGroups || []),
-      allExpenses: DEMO_MODE ? (MOCK_EXPENSES as any) : (liveExpenses || []),
-      allSettlements: DEMO_MODE ? (MOCK_SETTLEMENTS as any) : (liveSettlements || []),
-      allGroupMembers: DEMO_MODE ? (MOCK_GROUP_MEMBERS as any) : [],
+  const { friendsWithBalances, totalBalance } = useMemo(() => {
+    const list: { profile: Profile; balance: number }[] = friends.map((friend) => {
+      const { totalNetBalance } = computeFriendNetBalance({
+        userId,
+        friendId: friend.id,
+        groups: DEMO_MODE ? MOCK_GROUPS : (contextGroups || []),
+        allExpenses: DEMO_MODE ? (MOCK_EXPENSES as any) : (liveExpenses || []),
+        allSettlements: DEMO_MODE ? (MOCK_SETTLEMENTS as any) : (liveSettlements || []),
+        allGroupMembers: DEMO_MODE ? (MOCK_GROUP_MEMBERS as any) : [],
+      });
+
+      return {
+        profile: friend,
+        balance: totalNetBalance,
+      };
     });
 
-    return {
-      profile: friend,
-      balance: totalNetBalance,
-    };
-  });
+    list.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+    const total = list.reduce((sum, f) => sum + f.balance, 0);
 
-  friendsWithBalances.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
-  const totalBalance = friendsWithBalances.reduce((sum, f) => sum + f.balance, 0);
+    return { friendsWithBalances: list, totalBalance: total };
+  }, [friends, userId, contextGroups, liveExpenses, liveSettlements]);
 
   const filteredFriends = friendsWithBalances.filter(({ balance }) => {
     if (activeFilter === 'outstanding') return balance !== 0;

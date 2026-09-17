@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
+import { Card, Spin } from 'antd';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 
@@ -12,7 +13,10 @@ import { PageSkeleton } from '../components/ui/PageSkeleton';
 
 import { AnalyticsHeaderToolbar } from '../components/analytics/AnalyticsHeaderToolbar';
 import { AnalyticsHeroKPIs } from '../components/analytics/AnalyticsHeroKPIs';
-import { SpendingVelocityChart } from '../components/analytics/SpendingVelocityChart';
+
+const SpendingVelocityChart = lazy(() =>
+  import('../components/analytics/SpendingVelocityChart').then((m) => ({ default: m.SpendingVelocityChart }))
+);
 import { CategoryInsightsList } from '../components/analytics/CategoryInsightsList';
 import { HybridSplitRatioCard } from '../components/analytics/HybridSplitRatioCard';
 import { HybridBreakdownModal } from '../components/analytics/HybridBreakdownModal';
@@ -98,10 +102,20 @@ export function SpendingPage() {
           topOutliers={analytics.topOutliers} 
         />
         <div className="space-y-6 flex flex-col gap-4">
-          <SpendingVelocityChart 
-            buckets={analytics.buckets} 
-            weeklyBuckets={analytics.weeklyBuckets} 
-          />
+          <Suspense
+            fallback={
+              <Card className="rounded-2xl border-border-base shadow-sm">
+                <div className="h-[300px] flex items-center justify-center">
+                  <Spin size="default" />
+                </div>
+              </Card>
+            }
+          >
+            <SpendingVelocityChart 
+              buckets={analytics.buckets} 
+              weeklyBuckets={analytics.weeklyBuckets} 
+            />
+          </Suspense>
           <HybridSplitRatioCard 
             hybrid={analytics.hybrid} 
             onOpenBreakdown={(tab) => {

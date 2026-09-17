@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Button, Tooltip, Popover, Drawer } from "antd";
 import {
@@ -14,9 +14,17 @@ import {
   Bell,
   Menu,
 } from "lucide-react";
-import { AddExpenseModal } from "../components/AddExpenseModal";
-import { CreateGroupModal } from "../components/CreateGroupModal";
-import { AddFriendModal } from "../components/AddFriendModal";
+
+// Code-split heavy modals out of the initial root entry chunk
+const AddExpenseModal = lazy(() =>
+  import("../components/AddExpenseModal").then((m) => ({ default: m.AddExpenseModal }))
+);
+const CreateGroupModal = lazy(() =>
+  import("../components/CreateGroupModal").then((m) => ({ default: m.CreateGroupModal }))
+);
+const AddFriendModal = lazy(() =>
+  import("../components/AddFriendModal").then((m) => ({ default: m.AddFriendModal }))
+);
 import { NotificationList } from "../components/ui/NotificationList";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { OfflineBanner } from "../components/ui/OfflineBanner";
@@ -27,6 +35,7 @@ import { useNotifications } from "../hooks/supabase/useNotifications";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import { syncPushSubscriptionWithBackend } from "../utils/pushNotifications";
+import type { Group } from "../types";
 
 const NAV_ITEMS = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -53,7 +62,7 @@ export function AppLayout() {
     useState(false);
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const { currentUser: contextUser, groups: contextGroups, refetchData, triggerExpenseRefresh } = useAppData();
+  const { currentUser: contextUser, groups: contextGroups, refetchData } = useAppData();
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, clearSeen } =
     useNotifications();
 
@@ -69,7 +78,10 @@ export function AppLayout() {
   const currentUser =
     contextUser ??
     ({ full_name: "Loading...", created_at: new Date().toISOString() } as any);
-  const groups = contextGroups || [];
+  const rawGroups = contextGroups || [];
+  const groups = Array.isArray(rawGroups)
+    ? rawGroups.filter((g): g is Group => Boolean(g && typeof g === "object" && g.id))
+    : [];
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-base">
@@ -162,30 +174,34 @@ export function AppLayout() {
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
-          {groups.map((group) => (
-            <NavLink
-              key={group.id}
-              to={`/groups/${group.id}`}
-              className={({ isActive }) =>
-                `sidebar-item ${isActive ? "sidebar-item-active" : "sidebar-item-inactive"}`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <div
-                    className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
-                      isActive
-                        ? "bg-primary-500/20 text-primary-400"
-                        : "bg-bg-subtle text-text-muted group-hover:text-text-base group-hover:bg-border-base"
-                    }`}
-                  >
-                    {group.name.charAt(0)}
-                  </div>
-                  <span className="truncate">{group.name}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
+          {groups.map((group) => {
+            const groupName = group.name || "Untitled Group";
+            const initialChar = groupName.charAt(0) || "G";
+            return (
+              <NavLink
+                key={group.id}
+                to={`/groups/${group.id}`}
+                className={({ isActive }) =>
+                  `sidebar-item ${isActive ? "sidebar-item-active" : "sidebar-item-inactive"}`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div
+                      className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
+                        isActive
+                          ? "bg-primary-500/20 text-primary-400"
+                          : "bg-bg-subtle text-text-muted group-hover:text-text-base group-hover:bg-border-base"
+                      }`}
+                    >
+                      {initialChar}
+                    </div>
+                    <span className="truncate">{groupName}</span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* User profile footer */}
@@ -330,27 +346,34 @@ export function AppLayout() {
 
 
       {/* ── Modals & Drawers ── */}
-      <AddExpenseModal
-        open={isExpenseModalOpen}
-        groupId={selectedExpenseGroupId || undefined}
-        onClose={() => {
-          setIsExpenseModalOpen(false);
-          setSelectedExpenseGroupId(null);
-        }}
-        onSuccess={async () => {
-          await refetchData();
-          triggerExpenseRefresh();
-        }}
-      />
-      <CreateGroupModal
-        open={isCreateGroupOpen}
-        onClose={() => setIsCreateGroupOpen(false)}
-        onSuccess={(groupId) => navigate(`/groups/${groupId}`)}
-      />
-      <AddFriendModal
-        open={isAddFriendOpen}
-        onClose={() => setIsAddFriendOpen(false)}
-      />
+      <Suspense fallback={null}>
+        {isExpenseModalOpen && (
+          <AddExpenseModal
+            open={isExpenseModalOpen}
+            groupId={selectedExpenseGroupId || undefined}
+            onClose={() => {
+              setIsExpenseModalOpen(false);
+              setSelectedExpenseGroupId(null);
+            }}
+            onSuccess={async () => {
+              await refetchData();
+            }}
+          />
+        )}
+        {isCreateGroupOpen && (
+          <CreateGroupModal
+            open={isCreateGroupOpen}
+            onClose={() => setIsCreateGroupOpen(false)}
+            onSuccess={(groupId) => navigate(`/groups/${groupId}`)}
+          />
+        )}
+        {isAddFriendOpen && (
+          <AddFriendModal
+            open={isAddFriendOpen}
+            onClose={() => setIsAddFriendOpen(false)}
+          />
+        )}
+      </Suspense>
 
       {/* ── PWA First-Time Install Banner ── */}
       <PwaInstallPrompt />

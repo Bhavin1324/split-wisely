@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
 import {
   Modal,
   Form,
@@ -21,7 +20,7 @@ import { useAuth } from "../context/AuthContext";
 import { useFriends } from "../hooks/supabase/useProfileData";
 import { useAllExpenses } from "../hooks/supabase/useExpensesData";
 import { useAllSettlements } from "../hooks/supabase/useSettlementsData";
-import { createSettlement } from "../hooks/supabase/useMutations";
+import { createSettlementsBatch, type SettlementBatchItem } from "../hooks/supabase/useMutations";
 import { DebtSimplifier } from "../core/domain/DebtSimplifier";
 import { supabase } from "../lib/supabase";
 import { HeroAmountInput } from "./ui/HeroAmountInput";
@@ -58,7 +57,7 @@ export function SettleUpModal({
   maxAmountCents,
 }: SettleUpModalProps) {
   const { user } = useAuth();
-  const { currentUser, groups, refetchData } = useAppData();
+  const { currentUser, groups } = useAppData();
   const userId = user?.id || currentUser?.id || (DEMO_MODE ? MOCK_CURRENT_USER.id : "");
 
   const [form] = Form.useForm();
@@ -80,17 +79,53 @@ export function SettleUpModal({
   const { data: liveSettlements } = useAllSettlements(user?.id);
 
   // Compute all open group debts (both directions) in shared groups between payerId and payeeId
+  // Only computes when modal is open to avoid stealing CPU on initial page load
   const allGroupDebts = useMemo(() => {
-    if (!payerId || !payeeId || payerId === payeeId) return [];
+    if (!open || !payerId || !payeeId || payerId === payeeId) return [];
 
     const expenses = DEMO_MODE ? (MOCK_EXPENSES as any) : liveExpenses || [];
     const settlements = DEMO_MODE ? (MOCK_SETTLEMENTS as any) : liveSettlements || [];
 
+    // Pre-bucket expenses and settlements by group_id in a single O(E + S) pass
+    const expensesByGroup = new Map<string, any[]>();
+    for (const e of expenses) {
+      if (!e.group_id) continue;
+      let list = expensesByGroup.get(e.group_id);
+      if (!list) {
+        list = [];
+        expensesByGroup.set(e.group_id, list);
+      }
+      list.push(e);
+    }
+
+    const settlementsByGroup = new Map<string, any[]>();
+    for (const s of settlements) {
+      if (!s.group_id) continue;
+      let list = settlementsByGroup.get(s.group_id);
+      if (!list) {
+        list = [];
+        settlementsByGroup.set(s.group_id, list);
+      }
+      list.push(s);
+    }
+
     const results: GroupDebtDetail[] = [];
 
     groups.forEach((g) => {
-      const gExp = expenses.filter((e: any) => e.group_id === g.id);
-      const gSett = settlements.filter((s: any) => s.group_id === g.id);
+      const gExp = expensesByGroup.get(g.id) || [];
+      const gSett = settlementsByGroup.get(g.id) || [];
+      if (gExp.length === 0 && gSett.length === 0) return;
+
+      // Skip groups if neither payerId nor payeeId participated
+      const isPayerInvolved =
+        gExp.some((e: any) => e.payer_id === payerId || e.splits?.some((sp: any) => sp.user_id === payerId)) ||
+        gSett.some((s: any) => s.payer_id === payerId || s.payee_id === payerId);
+      const isPayeeInvolved =
+        gExp.some((e: any) => e.payer_id === payeeId || e.splits?.some((sp: any) => sp.user_id === payeeId)) ||
+        gSett.some((s: any) => s.payer_id === payeeId || s.payee_id === payeeId);
+
+      if (!isPayerInvolved || !isPayeeInvolved) return;
+
       const pairwiseDebts = DebtSimplifier.calculateIndividualDebts(gExp, gSett, []);
 
       const debtPayerToPayee = pairwiseDebts.find(
@@ -119,7 +154,12 @@ export function SettleUpModal({
     });
 
     return results;
-  }, [payerId, payeeId, groups, liveExpenses, liveSettlements]);
+  }, [open, payerId, payeeId, groups, liveExpenses, liveSettlements]);
+
+  // Stable key preventing infinite or cascading render loops from array pointer recreation
+  const debtGroupSummaryKey = useMemo(() => {
+    return allGroupDebts.map((d) => `${d.group.id}:${d.debtorId}:${d.amountCents}`).join('|');
+  }, [allGroupDebts]);
 
   useEffect(() => {
     if (open) {
@@ -137,7 +177,7 @@ export function SettleUpModal({
         setSelectedGroupId(undefined);
       }
     }
-  }, [open, userId, defaultPayeeId, defaultGroupId, defaultAmountCents, allGroupDebts]);
+  }, [open, userId, defaultPayeeId, defaultGroupId, defaultAmountCents, debtGroupSummaryKey]);
 
   const availablePayees = useMemo(() => {
     const friendsList = DEMO_MODE ? MOCK_PROFILES : liveFriends || [];
@@ -203,47 +243,26 @@ export function SettleUpModal({
       ? (MOCK_PROFILES.find((p) => p.id === payeeId)?.full_name ?? payeeId)
       : (availablePayees.find((p) => p.id === payeeId)?.full_name ?? payeeId);
 
-    const recordSingleSettlement = async (params: {
-      payer_id: string;
-      payee_id: string;
-      group_id: string | null;
-      amount: number;
-      currency_code: string;
-    }) => {
-      if (DEMO_MODE) {
-        MOCK_SETTLEMENTS.push({
-          id: uuidv4(),
-          group_id: params.group_id,
-          payer_id: params.payer_id,
-          payee_id: params.payee_id,
-          amount: params.amount,
-          currency_code: params.currency_code,
-          created_at: new Date().toISOString(),
-        });
-      } else {
-        await createSettlement({
-          ...params,
-          payer_name: params.payer_id === userId ? currentUser?.full_name : payer,
-        });
-      }
-    };
+    const payerName = payerId === userId ? (currentUser?.full_name ?? payer) : payer;
+    const itemsToInsert: SettlementBatchItem[] = [];
 
     try {
       if (selectedGroupId === "AUTO_ALL" && allGroupDebts.length > 0) {
         let remainingCents = totalCents;
-        
+
         // Step 1: Clear Reciprocal Debts
         // For any group where the Payee owes the Payer, we automatically insert a reciprocal
         // settlement. This effectively increases the Payer's "purchasing power" to clear
         // the debts where they owe the Payee, ensuring True Cross-Group Clearing.
         for (const item of allGroupDebts) {
           if (item.debtorId === payeeId && item.creditorId === payerId) {
-            await recordSingleSettlement({
+            itemsToInsert.push({
               payer_id: payeeId,
               payee_id: payerId,
               group_id: item.group.id,
               amount: item.amountCents,
               currency_code: getStoredCurrency(),
+              payer_name: payee,
             });
             remainingCents += item.amountCents;
           }
@@ -254,48 +273,53 @@ export function SettleUpModal({
         // the groups where the Payer owes the Payee.
         for (const item of allGroupDebts) {
           if (remainingCents <= 0) break;
-          
+
           if (item.debtorId === payerId && item.creditorId === payeeId) {
             const amountToSettle = Math.min(item.amountCents, remainingCents);
-            await recordSingleSettlement({
+            itemsToInsert.push({
               payer_id: item.debtorId,
               payee_id: item.creditorId,
               group_id: item.group.id,
               amount: amountToSettle,
               currency_code: getStoredCurrency(),
+              payer_name: payerName,
             });
             remainingCents -= amountToSettle;
           }
         }
-        
+
         // Step 3: Handle Overpayment or Non-Group Debts
         if (remainingCents > 0) {
-          await recordSingleSettlement({
+          itemsToInsert.push({
             payer_id: payerId,
             payee_id: payeeId,
             group_id: null,
             amount: remainingCents,
             currency_code: getStoredCurrency(),
+            payer_name: payerName,
           });
         }
       } else {
-        const targetGId = selectedGroupId && selectedGroupId !== "DIRECT" && selectedGroupId !== "AUTO_ALL"
-          ? selectedGroupId
-          : null;
+        const targetGId =
+          selectedGroupId && selectedGroupId !== "DIRECT" && selectedGroupId !== "AUTO_ALL"
+            ? selectedGroupId
+            : null;
 
-        await recordSingleSettlement({
+        itemsToInsert.push({
           payer_id: payerId,
           payee_id: payeeId,
           group_id: targetGId,
           amount: totalCents,
           currency_code: getStoredCurrency(),
+          payer_name: payerName,
         });
       }
+
+      await createSettlementsBatch(itemsToInsert);
 
       messageApi.success(
         `Recorded payment of ${formatCents(totalCents)} from ${payer} to ${payee}`,
       );
-      await refetchData();
       if (onSuccess) {
         await onSuccess();
       }
@@ -309,26 +333,31 @@ export function SettleUpModal({
     }
   };
 
-  const handleUpiClick = async () => {
+  const handleUpiClick = () => {
     if (!upiIntent) return;
-    
+
     if (user) {
-      try {
-        await supabase.from("activity_logs").insert({
-          user_id: user.id,
-          group_id: selectedGroupId === "AUTO_ALL" || selectedGroupId === "DIRECT" ? null : selectedGroupId || null,
-          action_type: "UPI_REDIRECT_INITIATED",
-          metadata: {
-            upi_url: upiIntent,
-            payee_id: selectedPayeeObj?.id,
-            amount_cents: totalCents
-          },
-        });
-      } catch (error) {
-        console.error("Failed to log UPI redirect activity:", error);
-      }
+      void (async () => {
+        try {
+          await supabase.from("activity_logs").insert({
+            user_id: user.id,
+            group_id:
+              selectedGroupId === "AUTO_ALL" || selectedGroupId === "DIRECT"
+                ? null
+                : selectedGroupId || null,
+            action_type: "UPI_REDIRECT_INITIATED",
+            metadata: {
+              upi_url: upiIntent,
+              payee_id: selectedPayeeObj?.id,
+              amount_cents: totalCents,
+            },
+          });
+        } catch (error: unknown) {
+          console.error("Failed to log UPI redirect activity:", error);
+        }
+      })();
     }
-    
+
     setQrModalOpen(true);
   };
 

@@ -109,27 +109,33 @@ export function SidebarDrawer({
             </div>
 
             <div className="space-y-1">
-              {groups.map((group) => (
-                <NavLink
-                  key={group.id}
-                  to={`/groups/${group.id}`}
-                  onClick={onClose}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
-                      isActive
-                        ? "bg-primary-500/10 text-primary-500 font-semibold"
-                        : "text-text-base hover:bg-bg-subtle"
-                    }`
-                  }
-                >
-                  <div className="w-8 h-8 rounded-lg bg-primary-500/10 text-primary-500 font-bold flex items-center justify-center shrink-0 text-sm border border-primary-500/20">
-                    {group.name.charAt(0)}
-                  </div>
-                  <span className="font-medium truncate text-sm">
-                    {group.name}
-                  </span>
-                </NavLink>
-              ))}
+              {(groups || [])
+                .filter((g) => Boolean(g && g.id))
+                .map((group) => {
+                  const groupName = group.name || "Untitled Group";
+                  const initialChar = groupName.charAt(0) || "G";
+                  return (
+                    <NavLink
+                      key={group.id}
+                      to={`/groups/${group.id}`}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                          isActive
+                            ? "bg-primary-500/10 text-primary-500 font-semibold"
+                            : "text-text-base hover:bg-bg-subtle"
+                        }`
+                      }
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-primary-500/10 text-primary-500 font-bold flex items-center justify-center shrink-0 text-sm border border-primary-500/20">
+                        {initialChar}
+                      </div>
+                      <span className="font-medium truncate text-sm">
+                        {groupName}
+                      </span>
+                    </NavLink>
+                  );
+                })}
 
               {groups.length === 0 && (
                 <div className="p-4 text-center text-xs text-text-muted bg-bg-subtle/50 rounded-xl border border-border-base">

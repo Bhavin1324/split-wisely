@@ -40,13 +40,6 @@ export function DashboardPage() {
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [hideSettledGroups, setHideSettledGroups] = useState(true);
 
-  const {
-    pendingExpenses,
-    approveAsPersonal,
-    dismissStaged,
-    markAsGroupSplit,
-  } = useStagedExpenses();
-
   const { user } = useAuth();
   const { currentUser, groups: contextGroups, loading: appLoading } = useAppData();
   const { data: liveExpenses, loading: expensesLoading } = useAllExpenses(user?.id);
@@ -56,6 +49,13 @@ export function DashboardPage() {
   const displayName = currentUser?.full_name || user?.user_metadata?.full_name || (DEMO_MODE ? MOCK_CURRENT_USER.full_name : 'User');
   const groups = DEMO_MODE ? MOCK_GROUPS : contextGroups;
   const allExpenses = DEMO_MODE ? MOCK_EXPENSES : (liveExpenses || []);
+
+  const {
+    pendingExpenses,
+    approveAsPersonal,
+    dismissStaged,
+    markAsGroupSplit,
+  } = useStagedExpenses(userId);
 
   const { balances, expensesByMonth } = useDashboardData(userId, groups, allExpenses, liveSettlements || []);
   const displayedGroups = groups.filter((g) => {
