@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const DISMISS_STORAGE_KEY = 'centfolio_pwa_install_dismissed';
-const DISMISS_DURATION_DAYS = 7;
+const DISMISS_DURATION_DAYS = 1;
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -19,8 +19,18 @@ export interface UsePwaInstallResult {
 }
 
 export function usePwaInstall(): UsePwaInstallResult {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstallable, setIsInstallable] = useState<boolean>(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(() => {
+    if (typeof window !== 'undefined' && (window as any).__deferredPrompt) {
+      return (window as any).__deferredPrompt as BeforeInstallPromptEvent;
+    }
+    return null;
+  });
+  const [isInstallable, setIsInstallable] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && (window as any).__deferredPrompt) {
+      return true;
+    }
+    return false;
+  });
   const [isInstalled, setIsInstalled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return (
@@ -91,12 +101,18 @@ export function usePwaInstall(): UsePwaInstallResult {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Online web visitor visibility: if not installed & not dismissed, display banner smoothly after short delay
+    // Online web visitor visibility:
+    // Automatically display floating banner after short delay if:
+    // a) User is on iOS (where beforeinstallprompt never fires and instructions are required)
+    // b) early __deferredPrompt was already captured before React mount
+    // For Chromium where beforeinstallprompt fires later, handleBeforeInstallPrompt will trigger it immediately.
     let timer: ReturnType<typeof setTimeout> | null = null;
     if (!isInstalled && !isDismissed()) {
-      timer = setTimeout(() => {
-        setShowPrompt(true);
-      }, 1500);
+      if (isIOS || (typeof window !== 'undefined' && (window as any).__deferredPrompt)) {
+        timer = setTimeout(() => {
+          setShowPrompt(true);
+        }, 1500);
+      }
     }
 
     return () => {
@@ -108,13 +124,19 @@ export function usePwaInstall(): UsePwaInstallResult {
   }, [isDismissed, isIOS, isInstalled]);
 
   const promptInstall = async (): Promise<boolean> => {
-    if (!deferredPrompt) {
+    const promptEvent =
+      deferredPrompt ||
+      (typeof window !== 'undefined'
+        ? ((window as any).__deferredPrompt as BeforeInstallPromptEvent | null)
+        : null);
+
+    if (!promptEvent) {
       return false;
     }
 
     try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
+      await promptEvent.prompt();
+      const { outcome } = await promptEvent.userChoice;
       if (outcome === 'accepted') {
         setIsInstalled(true);
         setShowPrompt(false);

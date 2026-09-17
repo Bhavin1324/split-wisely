@@ -6,13 +6,14 @@ export const MOCK_CURRENT_USER: Profile = {
   full_name: 'Alex Johnson',
   avatar_url: null,
   default_currency: 'INR',
+  upi_id: 'alex.johnson@okaxis',
   created_at: '2024-01-01T00:00:00Z',
 };
 
 export const MOCK_PROFILES: Profile[] = [
   MOCK_CURRENT_USER,
-  { id: 'user-2', full_name: 'Sarah Chen', avatar_url: null, default_currency: 'INR', created_at: '2024-01-01T00:00:00Z' },
-  { id: 'user-3', full_name: 'Mike Roberts', avatar_url: null, default_currency: 'INR', created_at: '2024-01-01T00:00:00Z' },
+  { id: 'user-2', full_name: 'Sarah Chen', avatar_url: null, default_currency: 'INR', upi_id: 'sarah.chen@okhdfcbank', created_at: '2024-01-01T00:00:00Z' },
+  { id: 'user-3', full_name: 'Mike Roberts', avatar_url: null, default_currency: 'INR', upi_id: 'mike.roberts@oksbi', created_at: '2024-01-01T00:00:00Z' },
   { id: 'user-4', full_name: 'Emma Wilson', avatar_url: null, default_currency: 'INR', created_at: '2024-01-01T00:00:00Z' },
   { id: 'user-5', full_name: 'David Park', avatar_url: null, default_currency: 'INR', created_at: '2024-01-01T00:00:00Z' },
 ];

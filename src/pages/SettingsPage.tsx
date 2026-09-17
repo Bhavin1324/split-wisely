@@ -1,42 +1,59 @@
-import { useState, useMemo } from 'react';
-import { Card, Button, message } from 'antd';
-import { Smartphone } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { message, Modal } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
-import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_SETTLEMENTS } from '../lib/mockData';
+import { MOCK_CURRENT_USER } from '../lib/mockData';
 import { CurrencyAdapter } from '../adapters/CurrencyAdapter';
-import { ExportAdapter } from '../adapters/ExportAdapter';
 import { getStoredCurrency, setStoredCurrency } from '../utils/currency';
-import { generateReceiveQrUri, downloadQrCode } from '../utils/upi';
+import { generateReceiveQrUri, downloadQrCode, sanitizeVpa } from '../utils/upi';
 import { copyFromInput, shareText } from '../utils/clipboard';
 import { useAppData, DEMO_MODE } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile } from '../hooks/supabase/useMutations';
 import { useTheme } from '../context/ThemeContext';
+import { useSettingsExport } from '../hooks/useSettingsExport';
 import { AvatarPickerModal } from '../components/settings/AvatarPickerModal';
 import { PushNotificationsCard } from '../components/settings/PushNotificationsCard';
 import { PairCompanionModal } from '../components/settings/PairCompanionModal';
 import { SettingsProfileCard } from '../components/settings/SettingsProfileCard';
+import { SettingsInstallCard } from '../components/settings/SettingsInstallCard';
 import { SettingsPreferencesCard } from '../components/settings/SettingsPreferencesCard';
+import { SettingsCompanionCard } from '../components/settings/SettingsCompanionCard';
 import { SettingsExportCard } from '../components/settings/SettingsExportCard';
 import { queryKeys } from '../lib/queryKeys';
-import { supabase } from '../lib/supabase';
-import type { Expense } from '../types';
 
 export function SettingsPage() {
   const { currentUser: contextUser, refetchData } = useAppData();
   const currentUser = contextUser ?? MOCK_CURRENT_USER;
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const queryClient = useQueryClient();
 
   const [currency, setCurrency] = useState(getStoredCurrency());
   const [upiId, setUpiId] = useState(currentUser.upi_id || '');
+  const isDirtyUpiRef = useRef(false);
   const [isSavingUpi, setIsSavingUpi] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [isPairCompanionOpen, setIsPairCompanionOpen] = useState(false);
-  const [isExportingCSV, setIsExportingCSV] = useState(false);
-  const [isExportingJSON, setIsExportingJSON] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+
+  const {
+    isExportingCSV,
+    isExportingJSON,
+    handleExportCSV,
+    handleExportJSON,
+  } = useSettingsExport({ user, queryClient, messageApi });
+
+  // Preload and synchronize upiId from profile when loaded or updated
+  useEffect(() => {
+    if (!isDirtyUpiRef.current && currentUser?.upi_id !== undefined) {
+      setUpiId(currentUser.upi_id || '');
+    }
+  }, [currentUser?.id, currentUser?.upi_id]);
+
+  const handleUpiChange = (value: string) => {
+    isDirtyUpiRef.current = true;
+    setUpiId(value);
+  };
 
   const handleSaveAvatar = async (newAvatarUrl: string | null) => {
     if (DEMO_MODE) {
@@ -51,14 +68,15 @@ export function SettingsPage() {
     }
   };
 
+  const effectiveUpiId = upiId || currentUser.upi_id || '';
   const receiveQrUri = useMemo(() => {
-    if (!currentUser.upi_id) return null;
-    return generateReceiveQrUri(currentUser.upi_id, currentUser.full_name);
-  }, [currentUser.upi_id, currentUser.full_name]);
+    if (!effectiveUpiId) return null;
+    return generateReceiveQrUri(effectiveUpiId, currentUser.full_name);
+  }, [effectiveUpiId, currentUser.full_name]);
 
   const handleCopyUpi = () => {
-    if (!currentUser.upi_id) return;
-    const success = copyFromInput(null, currentUser.upi_id);
+    if (!effectiveUpiId) return;
+    const success = copyFromInput(null, effectiveUpiId);
     if (success) {
       setCopiedUpi(true);
       messageApi.success('UPI ID copied to clipboard!');
@@ -69,8 +87,8 @@ export function SettingsPage() {
   };
 
   const handleShareUpi = async () => {
-    if (!currentUser.upi_id) return;
-    const shared = await shareText(currentUser.upi_id, `Pay ${currentUser.full_name} via UPI`);
+    if (!effectiveUpiId) return;
+    const shared = await shareText(effectiveUpiId, `Pay ${currentUser.full_name} via UPI`);
     if (shared) {
       messageApi.success('UPI ID shared!');
     }
@@ -89,15 +107,22 @@ export function SettingsPage() {
   const supportedCurrencies = CurrencyAdapter.getSupportedCurrencies();
 
   const handleSaveUpi = async () => {
+    const cleanUpi = sanitizeVpa(upiId);
     if (DEMO_MODE) {
-      currentUser.upi_id = upiId;
+      currentUser.upi_id = cleanUpi;
+      setUpiId(cleanUpi);
+      isDirtyUpiRef.current = false;
       messageApi.success('UPI ID updated in Demo Mode');
       return;
     }
     if (user?.id) {
       setIsSavingUpi(true);
       try {
-        await updateProfile(user.id, { upi_id: upiId });
+        await updateProfile(user.id, { upi_id: cleanUpi });
+        setUpiId(cleanUpi);
+        isDirtyUpiRef.current = false;
+        queryClient.invalidateQueries({ queryKey: queryKeys.profile.detail(user.id) });
+        if (refetchData) await refetchData();
         messageApi.success('UPI ID updated successfully');
       } catch {
         messageApi.error('Failed to update UPI ID');
@@ -124,105 +149,28 @@ export function SettingsPage() {
     }
   };
 
-  // Lazy on-demand expense fetcher for export actions only
-  const getExpensesForExport = async (): Promise<Expense[]> => {
-    if (DEMO_MODE) return MOCK_EXPENSES;
-    if (!user?.id) return [];
-
-    // 1. Return from TanStack Query cache if available
-    const cached = queryClient.getQueryData<Expense[]>(queryKeys.expenses.byUser(user.id));
-    if (cached && cached.length > 0) {
-      return cached;
-    }
-
-    // 2. Fetch on-demand only when export is explicitly triggered
-    const { data: members, error: memberErr } = await supabase
-      .from('group_members')
-      .select('group_id')
-      .eq('user_id', user.id);
-
-    if (memberErr) throw memberErr;
-    const groupIds = (members || []).map((m) => m.group_id).filter(Boolean);
-    if (groupIds.length === 0) return [];
-
-    const { data, error } = await supabase
-      .from('expenses')
-      .select('*, payer:profiles!payer_id(id, full_name, avatar_url), category:categories(*), splits:expense_splits(*, user:profiles(id, full_name, avatar_url))')
-      .in('group_id', groupIds)
-      .order('expense_date', { ascending: false });
-
-    if (error) throw error;
-    return (data || []) as unknown as Expense[];
-  };
-
-  const handleExportCSV = async () => {
-    setIsExportingCSV(true);
-    try {
-      const expenses = await getExpensesForExport();
-      const csvData = expenses.map((exp) => ({
-        id: exp.id,
-        description: exp.description,
-        amount: exp.total_amount / 100,
-        currency: exp.currency_code,
-        payer: exp.payer?.full_name ?? exp.payer_id,
-        category: exp.category?.name ?? 'Uncategorized',
-        date: exp.created_at,
-      }));
-      ExportAdapter.exportToCSV(csvData, 'centfolio-expenses.csv');
-      messageApi.success('Expenses exported as CSV');
-    } catch {
-      messageApi.error('Failed to export expenses as CSV');
-    } finally {
-      setIsExportingCSV(false);
-    }
-  };
-
-  const handleExportJSON = async () => {
-    setIsExportingJSON(true);
-    try {
-      const expenses = await getExpensesForExport();
-      const mappedExpenses = expenses.map((exp) => ({
-        ...exp,
-        total_amount: exp.total_amount / 100,
-        base_currency_amount: exp.base_currency_amount ? exp.base_currency_amount / 100 : exp.base_currency_amount,
-        splits: exp.splits?.map((split) => ({
-          ...split,
-          amount_owed: split.amount_owed / 100,
-        })),
-      }));
-
-      const mappedSettlements = (DEMO_MODE ? MOCK_SETTLEMENTS : []).map((settlement) => ({
-        ...settlement,
-        amount: settlement.amount / 100,
-      }));
-
-      const backupData = {
-        exportedAt: new Date().toISOString(),
-        user: currentUser,
-        expenses: mappedExpenses,
-        settlements: mappedSettlements,
-      };
-      ExportAdapter.exportToJSON(backupData, 'centfolio-backup.json');
-      messageApi.success('Full backup exported as JSON');
-    } catch {
-      messageApi.error('Failed to export JSON backup');
-    } finally {
-      setIsExportingJSON(false);
-    }
-  };
-
   return (
     <>
       {contextHolder}
-      <div className="flex flex-col gap-4 max-w-2xl">
-        <h1 className="text-2xl font-bold text-text-base">Settings</h1>
+      <div className="flex flex-col gap-4 max-w-2xl mx-auto w-full pb-10">
+        {/* Header with Active Indicator */}
+        <div className="flex items-center justify-between pt-1 px-1">
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-text-base mb-0">Settings</h1>
+            <p className="text-xs text-text-muted mt-0.5 mb-0">Preferences, account & payment terminal</p>
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Active
+          </span>
+        </div>
 
-        {/* Profile & UPI Section */}
+        {/* 1. Profile & UPI Inset Card */}
         <SettingsProfileCard
           currentUser={currentUser}
           onEditPhoto={() => setIsAvatarPickerOpen(true)}
           upiId={upiId}
-          onChangeUpiId={setUpiId}
+          onChangeUpiId={handleUpiChange}
           onSaveUpi={handleSaveUpi}
           isSavingUpi={isSavingUpi}
           receiveQrUri={receiveQrUri}
@@ -232,7 +180,10 @@ export function SettingsPage() {
           onDownloadQr={handleDownloadQr}
         />
 
-        {/* Preferences Section (Currency & Theme) */}
+        {/* 2. Web-Only Install Centfolio App Card */}
+        <SettingsInstallCard />
+
+        {/* 3. Appearance & Preferences Card */}
         <SettingsPreferencesCard
           currency={currency}
           onCurrencyChange={handleCurrencyChange}
@@ -243,38 +194,47 @@ export function SettingsPage() {
           onSchemeChange={setScheme}
         />
 
-        {/* Push Notifications Section */}
+        {/* 4. Push Notifications Card */}
         <PushNotificationsCard />
 
-        {/* Centfolio SMS Sync Companion Section */}
-        <Card className="rounded-2xl border-border-base shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Smartphone className="w-5 h-5 text-primary-500 flex-shrink-0" />
-              <div>
-                <h2 className="text-base font-semibold text-text-base mb-0">Centfolio SMS Sync (Android)</h2>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Automatically sync banking debit/credit SMS to your ledger with on-device privacy.
-                </p>
-              </div>
-            </div>
-            <Button
-              type="primary"
-              onClick={() => setIsPairCompanionOpen(true)}
-              className="rounded-xl font-bold bg-primary-500 hover:bg-primary-600 border-none shadow-xs"
-            >
-              Pair Companion App
-            </Button>
-          </div>
-        </Card>
+        {/* 5. Centfolio SMS Sync Companion Inset Section */}
+        <SettingsCompanionCard onPairClick={() => setIsPairCompanionOpen(true)} />
 
-        {/* Export Section */}
+        {/* 6. Export Section */}
         <SettingsExportCard
           onExportCSV={handleExportCSV}
           onExportJSON={handleExportJSON}
           isExportingCSV={isExportingCSV}
           isExportingJSON={isExportingJSON}
         />
+
+        {/* 7. Footer & System Status */}
+        <div className="pt-3 pb-6 text-center space-y-1.5">
+          <p className="text-xs font-semibold text-text-muted mb-0">Centfolio • Smart Expense Splitting</p>
+          <p className="text-[11px] text-text-muted opacity-80 mb-0">v1.2.0 • Offline First PWA • End-to-End SSL</p>
+          {user && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  Modal.confirm({
+                    title: 'Sign Out',
+                    content: 'Are you sure you want to sign out of Centfolio on this device?',
+                    okText: 'Sign Out',
+                    okType: 'danger',
+                    cancelText: 'Cancel',
+                    onOk: async () => {
+                      if (signOut) await signOut();
+                    },
+                  });
+                }}
+                className="text-xs font-bold text-rose-500 hover:text-rose-600 px-3 py-1 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+              >
+                Sign Out of Account
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {isAvatarPickerOpen && (

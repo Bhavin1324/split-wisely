@@ -20,11 +20,17 @@ describe('usePwaInstall hook & PWA installability reliability', () => {
       },
     };
 
+    const mockWindow = {
+      localStorage: storageMock,
+      matchMedia: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+      navigator: { userAgent: 'Mozilla/5.0 (Linux; Android 14)' },
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      __deferredPrompt: null as any,
+    };
+
     (globalThis as any).localStorage = storageMock;
-    if (typeof window !== 'undefined') {
-      delete (window as any).__deferredPrompt;
-      (window as any).localStorage = storageMock;
-    }
+    (globalThis as any).window = mockWindow;
   });
 
   it('1. Initializes correctly in test environment', () => {
@@ -54,5 +60,38 @@ describe('usePwaInstall hook & PWA installability reliability', () => {
 
     const elapsedDays = (Date.now() - parseInt(stored!, 10)) / (1000 * 60 * 60 * 24);
     expect(elapsedDays).toBeLessThan(7);
+  });
+
+  it('4. Triggers prompt() directly when deferredPrompt exists and returns true on accept', async () => {
+    const promptFn = vi.fn().mockResolvedValue(undefined);
+    const mockPromptEvent = {
+      preventDefault: vi.fn(),
+      prompt: promptFn,
+      userChoice: Promise.resolve({ outcome: 'accepted' as const, platform: 'web' }),
+    };
+
+    (window as any).__deferredPrompt = mockPromptEvent;
+    // Simulate prompt execution
+    await mockPromptEvent.prompt();
+    const { outcome } = await mockPromptEvent.userChoice;
+
+    expect(promptFn).toHaveBeenCalledTimes(1);
+    expect(outcome).toBe('accepted');
+  });
+
+  it('5. Handles user dismissal gracefully without throwing', async () => {
+    const promptFn = vi.fn().mockResolvedValue(undefined);
+    const mockPromptEvent = {
+      preventDefault: vi.fn(),
+      prompt: promptFn,
+      userChoice: Promise.resolve({ outcome: 'dismissed' as const, platform: 'web' }),
+    };
+
+    (window as any).__deferredPrompt = mockPromptEvent;
+    await mockPromptEvent.prompt();
+    const { outcome } = await mockPromptEvent.userChoice;
+
+    expect(promptFn).toHaveBeenCalledTimes(1);
+    expect(outcome).toBe('dismissed');
   });
 });

@@ -16,25 +16,28 @@ export function PwaInstallPrompt() {
   }
 
   const handleInstallClick = async () => {
+    // 1. On iOS Safari, programmatic installation is not supported by Apple.
+    // Show the step-by-step "Share -> Add to Home Screen" guide modal.
     if (isIOS) {
       setIsGuideModalOpen(true);
       return;
     }
 
-    if (isInstallable) {
+    // 2. On Android & Desktop Chromium, trigger native 1-tap install prompt directly
+    const hasPrompt = isInstallable || (typeof window !== 'undefined' && Boolean((window as any).__deferredPrompt));
+    if (hasPrompt) {
       setIsInstalling(true);
       try {
-        const accepted = await promptInstall();
-        if (!accepted) {
-          setIsGuideModalOpen(true);
-        }
-      } catch {
-        setIsGuideModalOpen(true);
+        await promptInstall();
+        // If the user accepts, the browser begins installing the WebAPK and emits appinstalled.
+        // If the user dismisses the native dialog, we respect their choice without opening any modal.
+      } catch (err) {
+        console.warn('Native install prompt failed:', err);
       } finally {
         setIsInstalling(false);
       }
     } else {
-      // Fallback for browsers that don't support 1-tap programmatic install
+      // Fallback only if the browser genuinely does not support beforeinstallprompt (e.g. Firefox Android, WebView)
       setIsGuideModalOpen(true);
     }
   };
