@@ -37,10 +37,12 @@ export function SettingsPage() {
   const [messageApi, contextHolder] = message.useMessage();
 
   const {
-    isExportingCSV,
-    isExportingJSON,
-    handleExportCSV,
-    handleExportJSON,
+    isExportingPersonal,
+    isExportingGroupSplits,
+    isExportingArchive,
+    handleExportPersonalCSV,
+    handleExportGroupSplitsCSV,
+    handleExportArchiveJSON,
   } = useSettingsExport({ user, queryClient, messageApi });
 
   // Preload and synchronize upiId from profile when loaded or updated
@@ -202,16 +204,17 @@ export function SettingsPage() {
 
         {/* 6. Export Section */}
         <SettingsExportCard
-          onExportCSV={handleExportCSV}
-          onExportJSON={handleExportJSON}
-          isExportingCSV={isExportingCSV}
-          isExportingJSON={isExportingJSON}
+          onExportPersonalCSV={handleExportPersonalCSV}
+          onExportGroupSplitsCSV={handleExportGroupSplitsCSV}
+          onExportArchiveJSON={handleExportArchiveJSON}
+          isExportingPersonal={isExportingPersonal}
+          isExportingGroupSplits={isExportingGroupSplits}
+          isExportingArchive={isExportingArchive}
         />
 
         {/* 7. Footer & System Status */}
         <div className="pt-3 pb-6 text-center space-y-1.5">
-          <p className="text-xs font-semibold text-text-muted mb-0">Centfolio • Smart Expense Splitting</p>
-          <p className="text-[11px] text-text-muted opacity-80 mb-0">v1.2.0 • Offline First PWA • End-to-End SSL</p>
+          <p className="text-xs font-semibold text-text-muted mb-0">Centfolio • Smart Expense Splitting And Personal Ledger</p>
           {user && (
             <div className="pt-2">
               <button
@@ -228,7 +231,7 @@ export function SettingsPage() {
                     },
                   });
                 }}
-                className="text-xs font-bold text-rose-500 hover:text-rose-600 px-3 py-1 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                className="text-sm font-bold text-rose-500 hover:text-rose-600 px-3 py-1 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
               >
                 Sign Out of Account
               </button>
