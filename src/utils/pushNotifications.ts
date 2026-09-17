@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { DEMO_MODE } from '../context/AppDataContext';
+import { APP_ASSETS } from '../constants/assets';
 
 // Default VAPID Public Key for Web Push (NIST P-256 paired key)
 export const DEFAULT_VAPID_PUBLIC_KEY =
@@ -374,8 +375,8 @@ export async function sendLocalTestNotification(): Promise<TestNotificationResul
   const uniqueTag = `centfolio-test-${Date.now()}`;
   const notificationOptions = {
     body: 'Push notifications are active! You will receive instant alerts when expenses are added or settled.',
-    icon: '/pwa-icon.jpg',
-    badge: '/pwa-icon.jpg',
+    icon: APP_ASSETS.notifications.icon,
+    badge: APP_ASSETS.notifications.badge,
     vibrate: [150, 50, 150],
     tag: uniqueTag,
     renotify: true,
@@ -404,7 +405,7 @@ export async function sendLocalTestNotification(): Promise<TestNotificationResul
     try {
       new Notification('Centfolio · Test Alert 🔔', {
         body: 'Notifications are active on this device!',
-        icon: '/pwa-icon.jpg',
+        icon: APP_ASSETS.notifications.icon,
         tag: uniqueTag,
       });
       return { success: true, permission: 'granted' };

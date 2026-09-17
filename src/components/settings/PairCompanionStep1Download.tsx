@@ -29,7 +29,7 @@ export function PairCompanionStep1Download({ onNextStep }: PairCompanionStep1Dow
               Centfolio SMS Sync
             </h3>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20 shrink-0">
-              Android • ~2 MB
+              Android • ~3 MB
             </span>
           </div>
           <p className="text-xs text-text-muted mt-0.5 line-clamp-1">
@@ -70,7 +70,7 @@ export function PairCompanionStep1Download({ onNextStep }: PairCompanionStep1Dow
             className="w-full py-2.5 px-4 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            <span>Download Companion APK (~2 MB)</span>
+            <span>Download Companion APK</span>
           </a>
         ) : (
           <div className="w-full py-2.5 px-4 rounded-xl bg-bg-surface border border-border-subtle text-text-muted text-xs flex items-center justify-center gap-2">

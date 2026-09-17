@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Modal } from 'antd';
 import { Download, X, Share, PlusSquare, Sparkles, Zap, Bell, WifiOff } from 'lucide-react';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import { APP_ASSETS } from '../../constants/assets';
 
 export function PwaInstallPrompt() {
   const { isInstallable, isInstalled, isIOS, showPrompt, promptInstall, dismissPrompt } =
@@ -52,7 +53,7 @@ export function PwaInstallPrompt() {
 
           <div className="flex items-start gap-3.5 pr-6">
             <img
-              src="/pwa-icon.jpg"
+              src={APP_ASSETS.pwa.icon192}
               alt="Centfolio"
               className="w-12 h-12 rounded-xl object-cover shadow-sm shrink-0 border border-border-subtle"
             />

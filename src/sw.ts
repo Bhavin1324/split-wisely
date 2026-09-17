@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { APP_ASSETS } from './constants/assets';
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -16,8 +17,8 @@ self.addEventListener('push', (event: PushEvent) => {
     const uniqueTag = `${payload.tag || 'centfolio'}-${Date.now()}`;
     const options = {
       body: payload.body || payload.message || 'You have a new update in Centfolio.',
-      icon: payload.icon || '/pwa-icon.jpg',
-      badge: payload.badge || '/pwa-icon.jpg',
+      icon: payload.icon || APP_ASSETS.notifications.icon,
+      badge: payload.badge || APP_ASSETS.notifications.badge,
       vibrate: [300, 100, 300, 100, 300],
       tag: uniqueTag,
       renotify: true,
@@ -35,8 +36,8 @@ self.addEventListener('push', (event: PushEvent) => {
     event.waitUntil(
       self.registration.showNotification('Centfolio', {
         body: text || 'You have a new update in Centfolio.',
-        icon: '/pwa-icon.jpg',
-        badge: '/pwa-icon.jpg',
+        icon: APP_ASSETS.notifications.icon,
+        badge: APP_ASSETS.notifications.badge,
         vibrate: [300, 100, 300, 100, 300],
         silent: false,
         timestamp: Date.now(),

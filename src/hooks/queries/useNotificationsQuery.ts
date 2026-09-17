@@ -5,6 +5,7 @@ import { queryKeys } from '../../lib/queryKeys';
 import { DEMO_MODE } from '../../context/AppDataContext';
 import { getOrRegisterServiceWorker } from '../../utils/pushNotifications';
 import { createSafeRealtimeSubscription } from '../../utils/realtime';
+import { APP_ASSETS } from '../../constants/assets';
 
 export interface AppNotification {
   id: string;
@@ -80,8 +81,8 @@ export function useNotificationsQuery(userId: string | undefined) {
                 if (registration && 'showNotification' in registration) {
                   registration.showNotification(newNotif.title || 'Centfolio', {
                     body: newNotif.message || 'You have a new update in Centfolio.',
-                    icon: '/pwa-icon.jpg',
-                    badge: '/pwa-icon.jpg',
+                    icon: APP_ASSETS.notifications.icon,
+                    badge: APP_ASSETS.notifications.badge,
                     vibrate: [150, 50, 150],
                     tag: `centfolio-${newNotif.id}`,
                     data: {
@@ -91,7 +92,7 @@ export function useNotificationsQuery(userId: string | undefined) {
                 } else {
                   new Notification(newNotif.title || 'Centfolio', {
                     body: newNotif.message || 'You have a new update in Centfolio.',
-                    icon: '/pwa-icon.jpg',
+                    icon: APP_ASSETS.notifications.icon,
                   });
                 }
               })

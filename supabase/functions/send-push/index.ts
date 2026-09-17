@@ -90,11 +90,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // 2. Prepare payload
+    // Refer the assets.ts. Any name changes in this file for the icon and badge affects here also or vice-versa
     const payload = JSON.stringify({
       title: title || "Centfolio",
       body: message || "You have a new update in Centfolio.",
-      icon: "/pwa-icon.jpg",
-      badge: "/pwa-icon.jpg",
+      icon: "/pwa-512x512.png",
+      badge: "/badge-96x96.png",
       url: url || "/dashboard",
       tag: tag || "centfolio-update",
     });

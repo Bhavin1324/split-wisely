@@ -20,7 +20,15 @@ export default defineConfig({
         enabled: true,
         type: 'module',
       },
-      includeAssets: ['favicon.jpg', 'pwa-icon.jpg', 'brand-logo.png'],
+      includeAssets: [
+        'favicon.jpg',
+        'pwa-icon.jpg',
+        'pwa-192x192.png',
+        'pwa-512x512.png',
+        'badge-96x96.png',
+        'badge-192x192.png',
+        'brand-logo.png'
+      ],
       manifest: {
         id: '/',
         start_url: '/',
@@ -33,6 +41,30 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait-primary',
         icons: [
+          {
+            src: '/badge-96x96.png',
+            sizes: '96x96',
+            type: 'image/png',
+            purpose: 'monochrome'
+          },
+          {
+            src: '/badge-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'monochrome'
+          },
+          {
+            src: '/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
           {
             src: '/pwa-icon.jpg',
             sizes: '192x192 512x512',
