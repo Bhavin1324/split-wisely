@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DEMO_MODE } from '../../context/AppDataContext';
 import { supabase } from '../../lib/supabase';
-import { MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
+import { MOCK_GROUPS, MOCK_EXPENSES, MOCK_SETTLEMENTS, MOCK_GROUP_ACTIVITIES, getProfileById } from '../../lib/mockData';
 import type { Expense, GroupActivityItem } from '../../types';
 import { dispatchPushNotification } from '../../utils/pushDispatcher';
 import { formatCents } from '../../utils/currency';
@@ -558,6 +558,15 @@ export async function removeMemberFromGroup(groupId: string, userId: string): Pr
 }
 
 export async function updateGroupSettings(groupId: string, settings: { simplify_debts?: boolean; name?: string; cover_image_url?: string }): Promise<void> {
+  if (DEMO_MODE) {
+    const grp = MOCK_GROUPS.find((g) => g.id === groupId);
+    if (grp) {
+      Object.assign(grp, settings);
+    }
+    queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
+    return;
+  }
+
   const { error } = await supabase
     .from('groups')
     .update(settings)
