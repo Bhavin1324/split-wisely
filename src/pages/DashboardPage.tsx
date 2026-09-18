@@ -184,18 +184,6 @@ export function DashboardPage() {
         </span>
       </div>
 
-      {/* ── Revolut Ultra Hero Card (Always first to prevent CLS) ── */}
-      <DashboardHeroCard
-        totalBalance={balances.totalBalance}
-        youOwe={balances.youOwe}
-        youAreOwed={balances.youAreOwed}
-        onNavigateSpending={handleNavigateSpending}
-        onNavigateYouOwe={handleNavigateYouOwe}
-        onNavigateYouAreOwed={handleNavigateYouAreOwed}
-        onOpenAddExpense={handleOpenAddExpense}
-        onOpenCreateGroup={handleOpenCreateGroup}
-      />
-
       {/* ── Auto-Synced SMS Transactions Banner (Below Hero to prevent CLS) ── */}
       {pendingExpenses.length > 0 && (
         <StagedTransactionsBanner
@@ -215,6 +203,18 @@ export function DashboardPage() {
           }}
         />
       )}
+
+      {/* ── Revolut Ultra Hero Card (Always first to prevent CLS) ── */}
+      <DashboardHeroCard
+        totalBalance={balances.totalBalance}
+        youOwe={balances.youOwe}
+        youAreOwed={balances.youAreOwed}
+        onNavigateSpending={handleNavigateSpending}
+        onNavigateYouOwe={handleNavigateYouOwe}
+        onNavigateYouAreOwed={handleNavigateYouAreOwed}
+        onOpenAddExpense={handleOpenAddExpense}
+        onOpenCreateGroup={handleOpenCreateGroup}
+      />
 
       {/* ── Groups Overview ──────────────────────────────────── */}
       <DashboardGroupsSection

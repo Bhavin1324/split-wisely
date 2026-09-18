@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { message, Modal } from 'antd';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { message, Modal, App } from 'antd';
+import { LogOut } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { MOCK_CURRENT_USER } from '../lib/mockData';
 import { CurrencyAdapter } from '../adapters/CurrencyAdapter';
@@ -26,6 +27,7 @@ export function SettingsPage() {
   const currentUser = contextUser ?? MOCK_CURRENT_USER;
   const { user, signOut } = useAuth();
   const queryClient = useQueryClient();
+  const { modal } = App.useApp();
 
   const [currency, setCurrency] = useState(getStoredCurrency());
   const [upiId, setUpiId] = useState(currentUser.upi_id || '');
@@ -35,6 +37,28 @@ export function SettingsPage() {
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [isPairCompanionOpen, setIsPairCompanionOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+
+  const handleSignOutPrompt = useCallback(() => {
+    const confirmFn = modal?.confirm || Modal.confirm;
+    confirmFn({
+      title: 'Sign Out',
+      content: 'Are you sure you want to sign out of Centfolio on this device?',
+      okText: 'Sign Out',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      centered: true,
+      okButtonProps: {
+        danger: true,
+        className: 'rounded-xl font-semibold',
+      },
+      cancelButtonProps: {
+        className: 'rounded-xl font-semibold',
+      },
+      onOk: async () => {
+        if (signOut) await signOut();
+      },
+    });
+  }, [modal, signOut]);
 
   const {
     isExportingPersonal,
@@ -161,8 +185,8 @@ export function SettingsPage() {
             <h1 className="text-2xl font-extrabold tracking-tight text-text-base mb-0">Settings</h1>
             <p className="text-xs text-text-muted mt-0.5 mb-0">Preferences, account & payment terminal</p>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-success-bg text-success-text border border-success-border flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-success-text animate-pulse" />
             Active
           </span>
         </div>
@@ -213,27 +237,17 @@ export function SettingsPage() {
         />
 
         {/* 7. Footer & System Status */}
-        <div className="pt-3 pb-6 text-center space-y-1.5">
+        <div className="pt-3 pb-6 text-center space-y-2">
           <p className="text-xs font-semibold text-text-muted mb-0">Centfolio • Smart Expense Splitting And Personal Ledger</p>
           {user && (
             <div className="pt-2">
               <button
                 type="button"
-                onClick={() => {
-                  Modal.confirm({
-                    title: 'Sign Out',
-                    content: 'Are you sure you want to sign out of Centfolio on this device?',
-                    okText: 'Sign Out',
-                    okType: 'danger',
-                    cancelText: 'Cancel',
-                    onOk: async () => {
-                      if (signOut) await signOut();
-                    },
-                  });
-                }}
-                className="text-sm font-bold text-rose-500 hover:text-rose-600 px-3 py-1 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                onClick={handleSignOutPrompt}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-error-text bg-error-bg/60 hover:bg-error-bg border border-error-border/60 hover:border-error-border transition-all duration-150 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-error-border/50 cursor-pointer shadow-2xs"
               >
-                Sign Out of Account
+                <LogOut className="w-4 h-4 shrink-0" />
+                <span>Sign Out of Account</span>
               </button>
             </div>
           )}
