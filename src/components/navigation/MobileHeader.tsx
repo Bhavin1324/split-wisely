@@ -33,7 +33,7 @@ export function MobileHeader({
   const [notificationOpen, setNotificationOpen] = useState(false);
 
   return (
-    <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-bg-surface/95 text-text-base border-b border-border-subtle backdrop-blur-xl flex items-center justify-between px-4 pb-3 mobile-header-safe transition-colors duration-200">
+    <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-bg-surface/10 text-text-base border-b border-border-subtle backdrop-blur-xl flex items-center justify-between px-4 pb-3 mobile-header-safe transition-colors duration-200">
       <div className="flex items-center gap-2.5">
         <div className="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center overflow-hidden shadow-sm transition-colors duration-200">
           <img src="/brand-logo.png" alt="Centfolio" className="w-full h-full object-contain" />
