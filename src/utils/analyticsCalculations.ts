@@ -45,6 +45,8 @@ export interface HybridTotals {
   totalTrueCostCents: number;
   totalOutlayCents: number;
   reimbursementPendingCents: number;
+  coveredByFriendsCents: number;
+  netDeltaCents: number;
 }
 
 export interface BurnRate {
@@ -226,7 +228,9 @@ export function calculateAnalyticsSummary({
     });
 
     const totalTrueCostCents = personalExpenseCents + groupNetShareCents;
-    const reimbursementPendingCents = Math.max(0, totalOutlayCents - totalTrueCostCents);
+    const netDeltaCents = totalOutlayCents - totalTrueCostCents;
+    const reimbursementPendingCents = Math.max(0, netDeltaCents);
+    const coveredByFriendsCents = Math.max(0, -netDeltaCents);
 
     return {
       personalExpenseCents,
@@ -234,6 +238,8 @@ export function calculateAnalyticsSummary({
       totalTrueCostCents,
       totalOutlayCents,
       reimbursementPendingCents,
+      coveredByFriendsCents,
+      netDeltaCents,
     };
   };
 

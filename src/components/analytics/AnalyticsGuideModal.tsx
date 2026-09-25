@@ -8,6 +8,7 @@ import {
   ShieldCheck, 
   Sparkles, 
   ArrowDownRight, 
+  ArrowUpRight,
   ArrowRight,
   Calendar,
   Layers,
@@ -24,9 +25,10 @@ interface Props {
   onClose: () => void;
   summary: AnalyticsSummary;
   periodLabel: string;
+  onOpenFriendDetails?: () => void;
 }
 
-export function AnalyticsGuideModal({ open, onClose, summary, periodLabel }: Props) {
+export function AnalyticsGuideModal({ open, onClose, summary, periodLabel, onOpenFriendDetails }: Props) {
   const isMobile = useIsMobile(640);
   const { hybrid, burnRate, budgetAmountCents, safeDailySpendCents } = summary;
 
@@ -62,7 +64,7 @@ export function AnalyticsGuideModal({ open, onClose, summary, periodLabel }: Pro
   const groupShare = isSample ? (SAMPLE.yourGroupShareCents + SAMPLE.otherGroupShareCents) : hybrid.groupNetShareCents;
   const trueSpend = isSample ? SAMPLE.totalTrueSpendCents : hybrid.totalTrueCostCents;
   const outlay = isSample ? SAMPLE.totalOutlayCents : hybrid.totalOutlayCents;
-  const pendingReimbursement = isSample ? SAMPLE.reimbursementsCents : hybrid.reimbursementPendingCents;
+  const netDifference = outlay - trueSpend;
 
   // Forecast Data
   const elapsedDays = isSample ? SAMPLE.sampleElapsedDays : burnRate.elapsedDays;
@@ -239,15 +241,41 @@ export function AnalyticsGuideModal({ open, onClose, summary, periodLabel }: Pro
               </div>
             </div>
 
-            {/* Money Coming Back Box */}
-            <div className="p-3.5 rounded-xl bg-[var(--color-success-bg)] border border-[var(--color-success-500)]/30 flex items-center justify-between gap-3">
+            {/* Net Difference Reconciliation Box */}
+            <div
+              className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                netDifference > 0
+                  ? 'bg-success-bg border-success-border/40 text-success-text'
+                  : netDifference < 0
+                    ? 'bg-warning-bg border-warning-border/40 text-warning-500'
+                    : 'bg-bg-surface border-border-base text-text-muted'
+              }`}
+            >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="p-2 rounded-lg bg-[var(--color-success-500)]/20 text-success-text shrink-0">
-                  <ArrowDownRight className="w-4 h-4" />
+                <div
+                  className={`p-2 rounded-lg shrink-0 ${
+                    netDifference > 0
+                      ? 'bg-success-text/10 text-success-text'
+                      : netDifference < 0
+                        ? 'bg-warning-500/10 text-warning-500'
+                        : 'bg-bg-subtle text-text-muted'
+                  }`}
+                >
+                  {netDifference > 0 ? (
+                    <ArrowDownRight className="w-4 h-4" />
+                  ) : netDifference < 0 ? (
+                    <ArrowUpRight className="w-4 h-4" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
                 </div>
                 <div className="min-w-0">
-                  <span className="font-bold text-xs text-success-text block truncate">
-                    {pendingReimbursement > 0 ? 'Money Coming Back to You' : 'Settled Balance'}
+                  <span className="font-bold text-xs block truncate">
+                    {netDifference > 0
+                      ? 'Money Coming Back to You'
+                      : netDifference < 0
+                        ? 'Covered by Friends (You Owe Share)'
+                        : 'Settled Balance'}
                   </span>
                   <span className="text-[11px] text-text-muted block truncate">
                     Cash Paid ({formatCents(outlay)}) − True Spend ({formatCents(trueSpend)})
@@ -256,14 +284,36 @@ export function AnalyticsGuideModal({ open, onClose, summary, periodLabel }: Pro
               </div>
 
               <div className="text-right shrink-0">
-                <span className="text-base sm:text-lg font-extrabold font-financial text-success-text block">
-                  {pendingReimbursement > 0 ? `+${formatCents(pendingReimbursement)}` : '₹0.00'}
+                <span className="text-base sm:text-lg font-extrabold font-financial block">
+                  {netDifference > 0
+                    ? `+${formatCents(netDifference)}`
+                    : netDifference < 0
+                      ? `-${formatCents(Math.abs(netDifference))}`
+                      : formatCents(0)}
                 </span>
-                <span className="text-[10px] text-success-text font-semibold uppercase tracking-wider">
-                  {pendingReimbursement > 0 ? 'Expecting Back' : 'All Square'}
+                <span className="text-[10px] font-semibold uppercase tracking-wider">
+                  {netDifference > 0
+                    ? 'Expecting Back'
+                    : netDifference < 0
+                      ? 'Covered by Friends'
+                      : 'All Square'}
                 </span>
               </div>
             </div>
+
+            {netDifference !== 0 && !isSample && onOpenFriendDetails && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenFriendDetails();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-bg-surface hover:bg-bg-subtle border border-border-base text-xs font-semibold text-text-base transition-colors shadow-xs"
+              >
+                <Users className="w-3.5 h-3.5 text-primary-600" />
+                <span>See which friends covered you / whom you covered →</span>
+              </button>
+            )}
           </div>
         </div>
       )}

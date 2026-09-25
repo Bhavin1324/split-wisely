@@ -56,12 +56,15 @@ describe('Analytics Engine: Mathematical Invariants', () => {
         userId: data.userId,
       });
 
-      const { totalOutlayCents, totalTrueCostCents, reimbursementPendingCents } = summary.hybrid;
+      const { totalOutlayCents, totalTrueCostCents, reimbursementPendingCents, coveredByFriendsCents, netDeltaCents } = summary.hybrid;
 
+      expect(netDeltaCents).toBe(totalOutlayCents - totalTrueCostCents);
       if (totalOutlayCents >= totalTrueCostCents) {
         expect(totalOutlayCents - totalTrueCostCents).toBe(reimbursementPendingCents);
+        expect(coveredByFriendsCents).toBe(0);
       } else {
         expect(reimbursementPendingCents).toBe(0);
+        expect(totalTrueCostCents - totalOutlayCents).toBe(coveredByFriendsCents);
       }
 
       expect(totalOutlayCents).toBeGreaterThanOrEqual(0);
@@ -373,6 +376,8 @@ describe('Analytics Engine: Hybrid Split Scenarios', () => {
     expect(result.hybrid.groupNetShareCents).toBe(4000);
     expect(result.hybrid.totalTrueCostCents).toBe(4000);
     expect(result.hybrid.reimbursementPendingCents).toBe(0);
+    expect(result.hybrid.coveredByFriendsCents).toBe(4000);
+    expect(result.hybrid.netDeltaCents).toBe(-4000);
   });
 
   it('Scenario C: User pays for group bill AND has 5 personal transactions on the same calendar day', () => {

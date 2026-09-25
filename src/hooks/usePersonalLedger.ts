@@ -151,7 +151,9 @@ export function usePersonalLedger(
     });
 
     const totalTrueCostCents = personalExpenseCents + groupNetShareCents;
-    const reimbursementPendingCents = Math.max(0, totalOutlayCents - totalTrueCostCents);
+    const netDeltaCents = totalOutlayCents - totalTrueCostCents;
+    const reimbursementPendingCents = Math.max(0, netDeltaCents);
+    const coveredByFriendsCents = Math.max(0, -netDeltaCents);
 
     return {
       personalExpenseCents,
@@ -159,6 +161,8 @@ export function usePersonalLedger(
       totalTrueCostCents,
       totalOutlayCents,
       reimbursementPendingCents,
+      coveredByFriendsCents,
+      netDeltaCents,
     };
   }, [currPersonal, currGroupExpenses, userId]);
 

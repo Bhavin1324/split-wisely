@@ -23,6 +23,7 @@ import { HybridBreakdownModal } from '../components/analytics/HybridBreakdownMod
 import { FriendDynamicsCard } from '../components/analytics/FriendDynamicsCard';
 import { ExportReportModal } from '../components/analytics/ExportReportModal';
 import { AnalyticsGuideModal } from '../components/analytics/AnalyticsGuideModal';
+import { FriendCoverageDetailModal } from '../components/analytics/FriendCoverageDetailModal';
 import { MOCK_CURRENT_USER, MOCK_EXPENSES, MOCK_CATEGORIES } from '../lib/mockData';
 
 dayjs.extend(isoWeek);
@@ -37,6 +38,8 @@ export function SpendingPage() {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
   const [breakdownTab, setBreakdownTab] = useState<'PERSONAL' | 'GROUP'>('GROUP');
+  const [isFriendDetailOpen, setIsFriendDetailOpen] = useState(false);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
 
   const { user } = useAuth();
   const { categories: contextCategories, loading: appLoading, groups } = useAppData();
@@ -123,7 +126,13 @@ export function SpendingPage() {
               setIsBreakdownOpen(true);
             }}
           />
-          <FriendDynamicsCard interactions={analytics.friendInteractions} />
+          <FriendDynamicsCard 
+            interactions={analytics.friendInteractions} 
+            onSelectFriend={(friend) => {
+              setSelectedFriendId(friend.friendId);
+              setIsFriendDetailOpen(true);
+            }}
+          />
         </div>
       </div>
 
@@ -148,6 +157,18 @@ export function SpendingPage() {
         open={isGuideOpen}
         onClose={() => setIsGuideOpen(false)}
         summary={analytics}
+        periodLabel={periodLabel}
+        onOpenFriendDetails={() => {
+          setSelectedFriendId(null);
+          setIsFriendDetailOpen(true);
+        }}
+      />
+
+      <FriendCoverageDetailModal
+        open={isFriendDetailOpen}
+        onClose={() => setIsFriendDetailOpen(false)}
+        interactions={analytics.friendInteractions}
+        initialFriendId={selectedFriendId}
         periodLabel={periodLabel}
       />
     </div>

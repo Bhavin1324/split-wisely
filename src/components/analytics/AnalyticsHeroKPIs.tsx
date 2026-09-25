@@ -145,13 +145,21 @@ export function AnalyticsHeroKPIs({ summary }: Props) {
           </div>
         </div>
         <div className="mt-3">
-          {hybrid.reimbursementPendingCents > 0 ? (
-            <div className="text-xs flex items-center gap-1 text-[var(--color-success-600)] bg-[var(--color-success-bg)] px-2.5 py-1 rounded-full inline-flex font-medium">
+          {hybrid.totalOutlayCents > hybrid.totalTrueCostCents ? (
+            <div className="text-xs flex items-center gap-1 text-success-text bg-success-bg px-2.5 py-1 rounded-full inline-flex font-medium border border-success-border/30">
               <ArrowDownRight className="w-3 h-3 shrink-0" />
-              <span>Expecting <span className="font-financial font-bold">{formatCents(hybrid.reimbursementPendingCents)}</span> back</span>
+              <span>Expecting <span className="font-financial font-bold">+{formatCents(hybrid.totalOutlayCents - hybrid.totalTrueCostCents)}</span> back</span>
+            </div>
+          ) : hybrid.totalOutlayCents < hybrid.totalTrueCostCents ? (
+            <div className="text-xs flex items-center gap-1 text-warning-500 bg-warning-bg px-2.5 py-1 rounded-full inline-flex font-medium border border-warning-border/30">
+              <ArrowUpRight className="w-3 h-3 shrink-0" />
+              <span><span className="font-financial font-bold">{formatCents(hybrid.totalTrueCostCents - hybrid.totalOutlayCents)}</span> covered by friends</span>
             </div>
           ) : (
-            <div className="text-xs text-text-muted">Matches your true spend</div>
+            <div className="text-xs text-text-muted flex items-center gap-1">
+              <CheckCircle className="w-3 h-3 text-text-muted shrink-0" />
+              <span>Matches your true spend</span>
+            </div>
           )}
         </div>
       </Card>
