@@ -72,6 +72,15 @@ export interface OutlierItem {
   subtitle: string;
 }
 
+export interface FriendCoverageItem {
+  expenseId: string;
+  description: string;
+  date: string;
+  amountCents: number;
+  direction: 'YOU_COVERED' | 'FRIEND_COVERED';
+  groupName?: string;
+}
+
 export interface FriendInteraction {
   friendId: string;
   friendName: string;
@@ -80,6 +89,7 @@ export interface FriendInteraction {
   totalPaidByFriend: number;
   netFlow: number;
   totalVolume: number;
+  items: FriendCoverageItem[];
 }
 
 export interface GroupSpendingBreakdown {
@@ -533,6 +543,10 @@ export function calculateAnalyticsSummary({
   const friendMap = new Map<string, FriendInteraction>();
   currGroup.forEach(ex => {
     const payerId = ex.payer_id;
+    const g = groups.find(grp => grp.id === ex.group_id);
+    const groupName = g ? g.name : undefined;
+    const expenseDate = ex.expense_date || ex.created_at;
+
     ex.splits?.forEach(s => {
       const oweId = s.user_id;
       const amt = s.amount_owed;
@@ -542,16 +556,52 @@ export function calculateAnalyticsSummary({
         // I paid for a friend
         const fId = oweId;
         if (!friendMap.has(fId)) {
-          friendMap.set(fId, { friendId: fId, friendName: s.user?.full_name || 'Unknown', friendAvatar: s.user?.avatar_url || null, totalPaidForFriend: 0, totalPaidByFriend: 0, netFlow: 0, totalVolume: 0 });
+          friendMap.set(fId, { 
+            friendId: fId, 
+            friendName: s.user?.full_name || 'Unknown', 
+            friendAvatar: s.user?.avatar_url || null, 
+            totalPaidForFriend: 0, 
+            totalPaidByFriend: 0, 
+            netFlow: 0, 
+            totalVolume: 0,
+            items: [],
+          });
         }
-        friendMap.get(fId)!.totalPaidForFriend += amt;
+        const record = friendMap.get(fId)!;
+        record.totalPaidForFriend += amt;
+        record.items.push({
+          expenseId: ex.id,
+          description: ex.description,
+          date: expenseDate,
+          amountCents: amt,
+          direction: 'YOU_COVERED',
+          groupName,
+        });
       } else if (payerId !== userId && oweId === userId) {
         // Friend paid for me
         const fId = payerId;
         if (!friendMap.has(fId)) {
-          friendMap.set(fId, { friendId: fId, friendName: ex.payer?.full_name || 'Unknown', friendAvatar: ex.payer?.avatar_url || null, totalPaidForFriend: 0, totalPaidByFriend: 0, netFlow: 0, totalVolume: 0 });
+          friendMap.set(fId, { 
+            friendId: fId, 
+            friendName: ex.payer?.full_name || 'Unknown', 
+            friendAvatar: ex.payer?.avatar_url || null, 
+            totalPaidForFriend: 0, 
+            totalPaidByFriend: 0, 
+            netFlow: 0, 
+            totalVolume: 0,
+            items: [],
+          });
         }
-        friendMap.get(fId)!.totalPaidByFriend += amt;
+        const record = friendMap.get(fId)!;
+        record.totalPaidByFriend += amt;
+        record.items.push({
+          expenseId: ex.id,
+          description: ex.description,
+          date: expenseDate,
+          amountCents: amt,
+          direction: 'FRIEND_COVERED',
+          groupName,
+        });
       }
     });
   });
@@ -559,8 +609,9 @@ export function calculateAnalyticsSummary({
   const friendInteractions = Array.from(friendMap.values()).map(f => ({
     ...f,
     netFlow: f.totalPaidForFriend - f.totalPaidByFriend,
-    totalVolume: f.totalPaidForFriend + f.totalPaidByFriend
-  })).sort((a, b) => b.totalVolume - a.totalVolume).slice(0, 4);
+    totalVolume: f.totalPaidForFriend + f.totalPaidByFriend,
+    items: [...f.items].sort((a, b) => dayjs(b.date).valueOf() - dayjs(a.date).valueOf()),
+  })).sort((a, b) => b.totalVolume - a.totalVolume);
 
   // 10. Group Spending Breakdown
   const groupMap = new Map<string, {
