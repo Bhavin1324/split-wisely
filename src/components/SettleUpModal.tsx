@@ -21,7 +21,7 @@ import { useFriends } from "../hooks/supabase/useProfileData";
 import { useAllExpenses } from "../hooks/supabase/useExpensesData";
 import { useAllSettlements } from "../hooks/supabase/useSettlementsData";
 import { createSettlementsBatch, type SettlementBatchItem } from "../hooks/supabase/useMutations";
-import { DebtSimplifier } from "../core/domain/DebtSimplifier";
+import { computeAllGroupSettlementDebts } from "../utils/settlementCalculations";
 import { supabase } from "../lib/supabase";
 import { HeroAmountInput } from "./ui/HeroAmountInput";
 import { PaymentQrModal } from "./PaymentQrModal";
@@ -37,13 +37,6 @@ interface SettleUpModalProps {
   defaultGroupId?: string;
   defaultAmountCents?: number;
   maxAmountCents?: number;
-}
-
-interface GroupDebtDetail {
-  group: any;
-  debtorId: string;
-  creditorId: string;
-  amountCents: number;
 }
 
 export function SettleUpModal({
@@ -78,82 +71,21 @@ export function SettleUpModal({
   const { data: liveExpenses } = useAllExpenses(user?.id);
   const { data: liveSettlements } = useAllSettlements(user?.id);
 
-  // Compute all open group debts (both directions) in shared groups between payerId and payeeId
-  // Only computes when modal is open to avoid stealing CPU on initial page load
+  // Compute all open group debts in shared groups between payerId and payeeId,
+  // honoring each group's simplify_debts setting
   const allGroupDebts = useMemo(() => {
     if (!open || !payerId || !payeeId || payerId === payeeId) return [];
 
     const expenses = DEMO_MODE ? (MOCK_EXPENSES as any) : liveExpenses || [];
     const settlements = DEMO_MODE ? (MOCK_SETTLEMENTS as any) : liveSettlements || [];
 
-    // Pre-bucket expenses and settlements by group_id in a single O(E + S) pass
-    const expensesByGroup = new Map<string, any[]>();
-    for (const e of expenses) {
-      if (!e.group_id) continue;
-      let list = expensesByGroup.get(e.group_id);
-      if (!list) {
-        list = [];
-        expensesByGroup.set(e.group_id, list);
-      }
-      list.push(e);
-    }
-
-    const settlementsByGroup = new Map<string, any[]>();
-    for (const s of settlements) {
-      if (!s.group_id) continue;
-      let list = settlementsByGroup.get(s.group_id);
-      if (!list) {
-        list = [];
-        settlementsByGroup.set(s.group_id, list);
-      }
-      list.push(s);
-    }
-
-    const results: GroupDebtDetail[] = [];
-
-    groups.forEach((g) => {
-      const gExp = expensesByGroup.get(g.id) || [];
-      const gSett = settlementsByGroup.get(g.id) || [];
-      if (gExp.length === 0 && gSett.length === 0) return;
-
-      // Skip groups if neither payerId nor payeeId participated
-      const isPayerInvolved =
-        gExp.some((e: any) => e.payer_id === payerId || e.splits?.some((sp: any) => sp.user_id === payerId)) ||
-        gSett.some((s: any) => s.payer_id === payerId || s.payee_id === payerId);
-      const isPayeeInvolved =
-        gExp.some((e: any) => e.payer_id === payeeId || e.splits?.some((sp: any) => sp.user_id === payeeId)) ||
-        gSett.some((s: any) => s.payer_id === payeeId || s.payee_id === payeeId);
-
-      if (!isPayerInvolved || !isPayeeInvolved) return;
-
-      const pairwiseDebts = DebtSimplifier.calculateIndividualDebts(gExp, gSett, []);
-
-      const debtPayerToPayee = pairwiseDebts.find(
-        (d: any) => d.from === payerId && d.to === payeeId,
-      );
-      const debtPayeeToPayer = pairwiseDebts.find(
-        (d: any) => d.from === payeeId && d.to === payerId,
-      );
-
-      if (debtPayerToPayee && debtPayerToPayee.amount > 0) {
-        results.push({
-          group: g,
-          debtorId: payerId,
-          creditorId: payeeId,
-          amountCents: debtPayerToPayee.amount,
-        });
-      }
-      if (debtPayeeToPayer && debtPayeeToPayer.amount > 0) {
-        results.push({
-          group: g,
-          debtorId: payeeId,
-          creditorId: payerId,
-          amountCents: debtPayeeToPayer.amount,
-        });
-      }
+    return computeAllGroupSettlementDebts({
+      groups,
+      expenses,
+      settlements,
+      payerId,
+      payeeId,
     });
-
-    return results;
   }, [open, payerId, payeeId, groups, liveExpenses, liveSettlements]);
 
   // Stable key preventing infinite or cascading render loops from array pointer recreation
@@ -161,6 +93,7 @@ export function SettleUpModal({
     return allGroupDebts.map((d) => `${d.group.id}:${d.debtorId}:${d.amountCents}`).join('|');
   }, [allGroupDebts]);
 
+  // Modal open initialization (only runs on initial open or when default props change, NOT on background key change)
   useEffect(() => {
     if (open) {
       if (userId) setPayerId(userId);
@@ -172,12 +105,33 @@ export function SettleUpModal({
       } else if (allGroupDebts.length > 1) {
         setSelectedGroupId("AUTO_ALL");
       } else if (allGroupDebts.length === 1) {
-        setSelectedGroupId(allGroupDebts[0].group.id);
+        const singleDebt = allGroupDebts[0];
+        if (!defaultAmountCents || defaultAmountCents === singleDebt.amountCents) {
+          setSelectedGroupId(singleDebt.group.id);
+        } else {
+          // If defaultAmountCents includes non-group debts, default to DIRECT to avoid contaminating group ledger
+          setSelectedGroupId("DIRECT");
+        }
       } else {
         setSelectedGroupId(undefined);
       }
     }
-  }, [open, userId, defaultPayeeId, defaultGroupId, defaultAmountCents, debtGroupSummaryKey]);
+  }, [open, userId, defaultPayeeId, defaultGroupId, defaultAmountCents]);
+
+  // Fallback auto-selection if allGroupDebts resolves after modal is already open
+  useEffect(() => {
+    if (!open || selectedGroupId) return;
+    if (allGroupDebts.length > 1) {
+      setSelectedGroupId("AUTO_ALL");
+    } else if (allGroupDebts.length === 1) {
+      const singleDebt = allGroupDebts[0];
+      if (!defaultAmountCents || defaultAmountCents === singleDebt.amountCents) {
+        setSelectedGroupId(singleDebt.group.id);
+      } else {
+        setSelectedGroupId("DIRECT");
+      }
+    }
+  }, [open, selectedGroupId, debtGroupSummaryKey, allGroupDebts, defaultAmountCents]);
 
   const availablePayees = useMemo(() => {
     const friendsList = DEMO_MODE ? MOCK_PROFILES : liveFriends || [];
