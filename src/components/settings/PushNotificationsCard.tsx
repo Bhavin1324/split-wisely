@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Switch, Button, message } from 'antd';
-import { BellRing, BellOff, Send, Info } from 'lucide-react';
+import { BellRing, BellOff, Send, Info, HelpCircle } from 'lucide-react';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { PushNotificationGuideModal } from './PushNotificationGuideModal';
 
@@ -193,6 +193,24 @@ export function PushNotificationsCard() {
               </Button>
             </div>
           )}
+
+          {/* Quick Troubleshooting Shortcut for Xiaomi, Samsung, Vivo, Oppo */}
+          <div className="p-4 bg-bg-subtle/20 flex items-center justify-between gap-3 border-t border-border-subtle">
+            <div className="flex items-center gap-2 text-text-muted min-w-0">
+              <HelpCircle className="w-4 h-4 text-primary-500 shrink-0" />
+              <span className="text-xs truncate">
+                Delayed alerts on Xiaomi, Samsung, Vivo, or Oppo?
+              </span>
+            </div>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => setGuideModalOpen(true)}
+              className="p-0 h-auto font-semibold text-primary-500 hover:text-primary-600 shrink-0 text-xs"
+            >
+              Phone Setup Guide
+            </Button>
+          </div>
         </div>
       </div>
 

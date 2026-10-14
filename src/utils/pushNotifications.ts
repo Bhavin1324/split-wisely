@@ -78,10 +78,10 @@ export async function getOrRegisterServiceWorker(): Promise<ServiceWorkerRegistr
       }
     }
 
-    // 3. Wait for the active Service Worker with a 1000ms timeout race (never hang indefinitely)
+    // 3. Wait for the active Service Worker with a 3500ms timeout race (never hang indefinitely)
     const readyPromise = navigator.serviceWorker.ready;
     const timeoutPromise = new Promise<ServiceWorkerRegistration | null>((resolve) =>
-      setTimeout(() => resolve(registration), 1000)
+      setTimeout(() => resolve(registration), 3500)
     );
 
     const activeRegistration = await Promise.race([readyPromise, timeoutPromise]);
@@ -90,6 +90,68 @@ export async function getOrRegisterServiceWorker(): Promise<ServiceWorkerRegistr
     console.warn('Service worker resolution note:', err);
     return null;
   }
+}
+
+/**
+ * Subscribes to PushManager with retry and realistic timeout.
+ * Accommodates throttled Google Play Services / network latency on OEM devices (Xiaomi, Samsung, Vivo, Oppo).
+ */
+export async function obtainPushSubscription(
+  pushManager: PushManager,
+  applicationServerKey: Uint8Array,
+  timeoutMs = 15000
+): Promise<PushSubscription | null> {
+  // 1. Return active subscription immediately if already registered
+  try {
+    const existing = await pushManager.getSubscription();
+    if (existing) {
+      return existing;
+    }
+  } catch (e) {
+    console.warn('[Push] Existing subscription check note:', e);
+  }
+
+  const attemptSubscribe = async (waitMs: number): Promise<PushSubscription | null> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), waitMs);
+    });
+
+    const subscribePromise = pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: applicationServerKey as BufferSource,
+    });
+
+    try {
+      const result = await Promise.race([subscribePromise, timeoutPromise]);
+      return result;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
+  // Attempt 1: Generous window (15 seconds) for FCM handshake
+  try {
+    const sub = await attemptSubscribe(timeoutMs);
+    if (sub) return sub;
+    console.warn(`[Push] First subscription attempt timed out (${timeoutMs}ms). Retrying with warm socket...`);
+  } catch (err) {
+    console.warn('[Push] First subscription attempt encountered error:', err);
+  }
+
+  // Grace pause before retry (gives GMS radio socket time to warm up)
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // Attempt 2: Retry with 10 seconds
+  try {
+    const subRetry = await attemptSubscribe(10000);
+    if (subRetry) return subRetry;
+    console.warn('[Push] Second subscription attempt timed out or failed.');
+  } catch (err) {
+    console.warn('[Push] Second subscription attempt error:', err);
+  }
+
+  return null;
 }
 
 /**
@@ -111,20 +173,8 @@ export async function subscribeUserToPush(userId?: string): Promise<PushSubscrip
   try {
     const registration = await getOrRegisterServiceWorker();
     if (registration && registration.pushManager) {
-      let subscription = await registration.pushManager.getSubscription();
-
-      if (!subscription) {
-        const convertedKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
-        
-        // Wrap FCM subscription in a 3.5-second timeout to prevent self-signed SSL hangs
-        const subscribePromise = registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: convertedKey as BufferSource,
-        });
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
-
-        subscription = (await Promise.race([subscribePromise, timeoutPromise])) as PushSubscription | null;
-      }
+      const convertedKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
+      const subscription = await obtainPushSubscription(registration.pushManager, convertedKey, 15000);
 
       // Save subscription in Supabase database if available
       if (!DEMO_MODE && userId && subscription) {
@@ -147,7 +197,9 @@ export async function subscribeUserToPush(userId?: string): Promise<PushSubscrip
           );
 
           if (error) {
-            console.warn('Push subscription database sync note:', error.message);
+            console.warn('[Push] Push subscription database sync note:', error.message);
+          } else {
+            console.info('[Push] Successfully registered push subscription token in database.');
           }
         }
       }
@@ -157,10 +209,10 @@ export async function subscribeUserToPush(userId?: string): Promise<PushSubscrip
       }
     }
   } catch (err) {
-    console.warn('Background PushManager subscription note (local/browser restriction):', err);
+    console.warn('[Push] PushManager subscription note:', err);
   }
 
-  // If PushManager is unavailable or FCM timed out, local notifications are still granted and fully functional!
+  // If PushManager is unavailable or local environment, local permission is granted
   return true;
 }
 
@@ -185,18 +237,8 @@ export async function syncPushSubscriptionWithBackend(userId: string): Promise<v
     const registration = await getOrRegisterServiceWorker();
     if (!registration || !registration.pushManager) return;
 
-    let subscription = await registration.pushManager.getSubscription();
-
-    // If no subscription exists yet on this device, subscribe with the matching VAPID key
-    if (!subscription) {
-      const convertedKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
-      const subscribePromise = registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedKey as BufferSource,
-      });
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
-      subscription = (await Promise.race([subscribePromise, timeoutPromise])) as PushSubscription | null;
-    }
+    const convertedKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
+    const subscription = await obtainPushSubscription(registration.pushManager, convertedKey, 15000);
 
     if (subscription) {
       const subJson = subscription.toJSON();
@@ -219,7 +261,7 @@ export async function syncPushSubscriptionWithBackend(userId: string): Promise<v
       }
     }
   } catch (err) {
-    console.warn('Background push subscription sync note:', err);
+    console.warn('[Push] Background push subscription sync note:', err);
   }
 }
 
